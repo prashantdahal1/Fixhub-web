@@ -57,7 +57,7 @@ export default function LoginPage() {
               </div>
               <div>
                 <h2 className="text-2xl md:text-3xl font-bold mb-2 text-white">Instant Home Solutions</h2>
-                <p className="text-slate-400 text-xs leading-relaxed max-w-xs">
+                <p className="text-slate-400 text-sm leading-relaxed max-w-sm">
                   Find trusted professionals instantly
                 </p>
               </div>
@@ -126,7 +126,7 @@ export default function LoginPage() {
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Password</label>
                   <Link href="/forgot-password" className="text-[10px] text-blue-600 hover:text-blue-700 font-semibold">
-                    Forgot?
+                    Forgot Passowrd?
                   </Link>
                 </div>
                 <input

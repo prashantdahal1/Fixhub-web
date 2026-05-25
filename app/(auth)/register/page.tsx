@@ -94,7 +94,7 @@ export default function RegisterPage() {
               </div>
               <div>
                 <h2 className="text-2xl md:text-3xl font-bold mb-2 text-white">Verified Professionals</h2>
-                <p className="text-slate-400 text-xs leading-relaxed max-w-xs">
+                <p className="text-slate-400 text-sm leading-relaxed max-w-sm">
                   Screened & verified professionals for your peace of mind
                 </p>
               </div>
