@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState } from 'react';
 
 export default function LoginPage() {
@@ -24,16 +25,20 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center py-8 px-4">
-      <div className="w-full max-w-5xl bg-white rounded-lg shadow-xl overflow-hidden">
+      <div className="w-full h-full bg-white rounded-lg shadow-xl overflow-hidden">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
           {/* Left Side - Branding & Image Space */}
           <div className="bg-gradient-to-br from-blue-600 to-blue-800 p-8 md:p-12 flex flex-col justify-between min-h-96 md:min-h-auto">
-            {/* Image Placeholder */}
+            {/* Image */}
             <div className="flex-1 flex items-center justify-center mb-8">
-              <div className="w-32 h-32 md:w-40 md:h-40 bg-blue-500/30 rounded-full flex items-center justify-center border-4 border-blue-400">
-                <span className="text-blue-200 text-center text-sm font-semibold px-4">
-                  [Image Placeholder]
-                </span>
+              <div className="relative w-56 h-64 md:w-80 md:h-96">
+                <Image
+                  src="/images/login mobile.png"
+                  alt="Login"
+                  fill
+                  sizes="(max-width: 768px) 224px, 320px"
+                  className="object-contain"
+                />
               </div>
             </div>
 
@@ -49,11 +54,14 @@ export default function LoginPage() {
           {/* Right Side - Form */}
           <div className="p-8 md:p-12">
             {/* Logo */}
-            <div className="flex items-center gap-2 mb-8">
-              <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center">
-                <span className="text-white font-bold text-sm">F</span>
-              </div>
-              <span className="font-bold text-gray-900 text-lg">FixHub</span>
+            <div className="flex items-center gap-3 mb-8">
+              <Image
+                src="/fixhub.png"
+                alt="FixHub Logo"
+                width={48}
+                height={48}
+              />
+              <span className="font-bold text-gray-900 text-xl">FixHub</span>
             </div>
 
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Welcome back!</h1>
