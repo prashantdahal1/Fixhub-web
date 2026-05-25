@@ -25,54 +25,68 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-5xl bg-white rounded-3xl shadow-xl overflow-hidden">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
+      <div className="w-full max-w-4xl h-[520px] bg-white rounded-3xl shadow-xl overflow-hidden">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-0 h-full">
           {/* Left Split Panel - Blue with Branding & Image */}
-          <div className="bg-gradient-to-br from-blue-600 to-blue-800 p-8 md:p-12 flex flex-col justify-between">
-            {/* Image */}
-            <div className="flex-1 flex items-center justify-center mb-8">
-              <div className="relative w-72 h-80 md:w-96 md:h-[28rem]">
+          <div className="bg-gradient-to-b from-[#1E293B] to-[#0F172A] p-6 md:p-8 flex flex-col justify-center items-center relative overflow-hidden">
+            {/* Faint Architectural Topography Pattern */}
+            <svg className="absolute inset-0 w-full h-full opacity-[0.05] pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <pattern id="topo" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
+                  <path d="M0 50 Q 25 40, 50 50 T 100 50" stroke="#94a3b8" strokeWidth="1" fill="none" />
+                  <path d="M0 30 Q 25 20, 50 30 T 100 30" stroke="#94a3b8" strokeWidth="1" fill="none" />
+                  <path d="M0 70 Q 25 60, 50 70 T 100 70" stroke="#94a3b8" strokeWidth="1" fill="none" />
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#topo)" />
+            </svg>
+
+            {/* Premium Radial Glow Node */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 rounded-full bg-[#38BDF8] opacity-[0.12] blur-[80px] pointer-events-none" />
+
+            {/* Image & Branding */}
+            <div className="flex flex-col items-center justify-center text-center relative z-10">
+              <div className="relative w-60 h-72 md:w-72 md:h-80 mb-6">
                 <Image
                   src="/images/login mobile.png"
                   alt="Login"
                   fill
-                  sizes="(max-width: 768px) 288px, 384px"
-                  className="object-contain"
+                  sizes="(max-width: 768px) 240px, 288px"
+                  className="object-contain filter drop-shadow-[0_25px_50px_rgba(0,0,0,0.4)]"
                 />
               </div>
-            </div>
-
-            {/* Branding Text */}
-            <div className="text-white">
-              <h2 className="text-3xl md:text-4xl font-bold mb-4">Instant Home Solutions</h2>
-              <p className="text-blue-100 text-sm md:text-base leading-relaxed">
-                Book verified home professionals in minutes. Fast, safe, and trusted across the homestead.
-              </p>
+              <div>
+                <h2 className="text-2xl md:text-3xl font-bold mb-2 text-white">Instant Home Solutions</h2>
+                <p className="text-slate-400 text-xs leading-relaxed max-w-xs">
+                  Find trusted professionals instantly
+                </p>
+              </div>
             </div>
           </div>
 
           {/* Right Split Panel - White with Form */}
-          <div className="bg-white p-8 md:p-12 flex flex-col justify-center">
+          <div className="bg-white px-10 md:px-14 pb-12 flex flex-col justify-center">
             {/* Logo */}
-            <div className="mb-8">
+            <div className="mb-3">
               <Image
                 src="/fixhub.png"
                 alt="FixHub Logo"
-                width={120}
-                height={120}
+                width={90}
+                height={90}
               />
             </div>
 
             {/* Headings */}
-            <h1 className="text-3xl font-bold text-[#0F172A] mb-6">Welcome back!</h1>
+            <h1 className="text-xl md:text-2xl font-bold text-[#0F172A] mb-1">Welcome back!</h1>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <p className="text-slate-500 text-xs mb-3">Login to your account</p>
+            <form onSubmit={handleSubmit} className="space-y-3">
               {/* User Type Toggle - Light Segmented Container */}
-              <div className="bg-slate-100 p-1 rounded-lg flex gap-1 mb-6">
+              <div className="bg-slate-100 p-0.5 rounded-lg flex gap-0.5 mb-4">
                 <button
                   type="button"
                   onClick={() => setUserType('customer')}
-                  className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all ${
+                  className={`flex-1 py-1.5 px-2 rounded-md text-xs font-medium transition-all ${
                     userType === 'customer'
                       ? 'bg-white text-[#0F172A] shadow-sm'
                       : 'text-slate-600 hover:text-slate-800'
@@ -83,7 +97,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setUserType('professional')}
-                  className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all ${
+                  className={`flex-1 py-1.5 px-2 rounded-md text-xs font-medium transition-all ${
                     userType === 'professional'
                       ? 'bg-white text-[#0F172A] shadow-sm'
                       : 'text-slate-600 hover:text-slate-800'
@@ -95,53 +109,51 @@ export default function LoginPage() {
 
               {/* Email */}
               <div>
-                <label className="text-xs font-semibold text-[#0F172A] mb-2 block">EMAIL ADDRESS</label>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 block">Email Address</label>
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
                   placeholder="youremail@gmail.com"
-                  className="w-full px-4 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38BDF8] focus:border-transparent placeholder:text-slate-400"
                   required
                 />
               </div>
 
-              {/* Password */}
+              {/* Password with Forgot Password Link */}
               <div>
-                <label className="text-xs font-semibold text-[#0F172A] mb-2 block">PASSWORD</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Password</label>
+                  <Link href="/forgot-password" className="text-[10px] text-blue-600 hover:text-blue-700 font-semibold">
+                    Forgot?
+                  </Link>
+                </div>
                 <input
                   type="password"
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
                   placeholder="••••••••"
-                  className="w-full px-4 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38BDF8] focus:border-transparent placeholder:text-slate-400"
                   required
                 />
-              </div>
-
-              {/* Forgot Password */}
-              <div className="text-right">
-                <Link href="#" className="text-xs text-blue-600 hover:text-blue-700 font-medium">
-                  Forgot Password?
-                </Link>
               </div>
 
               {/* Submit Button */}
               <button
                 type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors mt-6"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-xl transition-colors mt-4 text-sm"
               >
                 Login
               </button>
             </form>
 
             {/* Signup Link */}
-            <div className="text-center mt-6 text-sm">
-              <span className="text-slate-600">New to the platform? </span>
+            <div className="text-center mt-2.5 text-xs">
+              <span className="text-slate-600">New? </span>
               <Link href="/register" className="text-blue-600 hover:text-blue-700 font-semibold">
-                Create an account
+                Create account
               </Link>
             </div>
           </div>
