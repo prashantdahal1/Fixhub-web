@@ -2,7 +2,10 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { CreateUserDTO } from "../../../backend/src/dtos/user.dto"; // adjust import path if needed
+import { z } from "zod";
 
 export default function RegisterPage() {
   const [userType, setUserType] = useState('customer');
@@ -29,38 +32,52 @@ export default function RegisterPage() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const router = useRouter();
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validation: Check if passwords match
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match. Please try again.');
-      return;
-    }
-
-    // Validation: Check if terms are accepted
+    // Ensure terms are accepted
     if (!termsAccepted) {
-      setError('You must accept the Terms of Service and Privacy Policy.');
+      setError('You must accept the terms and conditions');
       return;
     }
-
-    // All validations passed
-    setError('');
-    console.log('Signup successful:', { userType, ...formData });
-    alert('Account created successfully!');
-    
-    // Reset form
-    setFormData({
-      fullName: '',
-      email: '',
-      password: '',
-      confirmPassword: ''
-    });
-    setTermsAccepted(false);
-    setUserType('customer');
+    // Check password confirmation
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+    // Map form fields to DTO shape
+    const [firstName = '', ...lastNameParts] = formData.fullName.trim().split(' ');
+    const payload = {
+      firstName,
+      lastName: lastNameParts.join(' '),
+      email: formData.email,
+      username: formData.email, // using email as username
+      password: formData.password,
+    };
+    // Validate using Zod schema
+    const result = CreateUserDTO.safeParse(payload);
+    if (!result.success) {
+      setError(z.prettifyError(result.error));
+      return;
+    }
+    try {
+      const response = await fetch('/api/v1/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(result.data),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.message || 'Registration failed');
+        return;
+      }
+      // On success, redirect to login page
+      router.push('/login');
+    } catch (err) {
+      setError('Network error');
+    }
   };
-
-  return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
       <div className="w-full max-w-4xl h-[600px] bg-white rounded-3xl shadow-xl overflow-hidden">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-0 h-full">

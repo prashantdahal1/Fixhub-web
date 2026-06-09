@@ -3,6 +3,9 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { LoginUserDTO } from "../../../backend/src/dtos/user.dto";
+import { z } from "zod";
 
 export default function LoginPage() {
   const [userType, setUserType] = useState('customer');
@@ -10,6 +13,7 @@ export default function LoginPage() {
     email: '',
     password: ''
   });
+  const [error, setError] = useState('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -18,9 +22,31 @@ export default function LoginPage() {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const router = useRouter();
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Login:', { userType, ...formData });
+    // Validate using Zod schema
+    const result = LoginUserDTO.safeParse(formData);
+    if (!result.success) {
+      setError(z.prettifyError(result.error));
+      return;
+    }
+    try {
+      const response = await fetch('/api/v1/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(result.data),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.message || 'Login failed');
+        return;
+      }
+      // On success, redirect to dashboard or home
+      router.push('/');
+    } catch (err) {
+      setError('Network error');
+    }
   };
 
   return (
@@ -149,6 +175,11 @@ export default function LoginPage() {
               </button>
             </form>
 
+                {error && (
+                  <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-xs text-red-700 font-medium">{error}</p>
+                  </div>
+                )}
             {/* Signup Link */}
             <div className="text-center mt-2.5 text-xs">
               <span className="text-slate-600">New? </span>
