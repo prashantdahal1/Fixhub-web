@@ -106,13 +106,14 @@ export default function RegisterPage() {
             {/* Image & Branding */}
             <div className="flex flex-col items-center justify-center text-center relative z-10">
               <div className="relative w-60 h-72 md:w-72 md:h-80 mb-6">
-                <Image
-                  src="/images/signup verified.png"
-                  alt="Signup"
-                  fill
-                  sizes="(max-width: 768px) 240px, 288px"
-                  className="object-contain filter drop-shadow-[0_25px_50px_rgba(0,0,0,0.4)]"
-                />
+                                  <Image
+                    src="/images/signup_verified.png"
+                    alt="Signup"
+                    width={240}
+                    height={240}
+                    sizes="(max-width: 768px) 240px, 288px"
+                    className="object-contain filter drop-shadow-[0_25px_50px_rgba(0,0,0,0.4)]"
+                  />
               </div>
               <div>
                 <h2 className="text-2xl md:text-3xl font-bold mb-2 text-white">Verified Professionals</h2>
