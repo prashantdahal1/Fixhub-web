@@ -59,7 +59,8 @@ export default function RegisterPage() {
     const result = CreateUserDTO.safeParse(payload);
     if (!result.success) {
       // Concatenate Zod validation messages
-      const messages = result.error.errors.map(e => e.message).join(', ');
+      const messages = result.error.errors.map(
+        e => e.message).join(', ');
       setError(messages);
       return;
     }
@@ -148,29 +149,12 @@ export default function RegisterPage() {
 
             <form onSubmit={handleSubmit} className="space-y-3">
               {/* User Type Toggle - Light Segmented Container */}
-              <div className="bg-slate-100 p-0.5 rounded-lg flex gap-0.5 mb-3">
-                <button
-                  type="button"
-                  onClick={() => setUserType('customer')}
-                  className={`flex-1 py-1.5 px-2 rounded-md text-xs font-medium transition-all ${
-                    userType === 'customer'
-                      ? 'bg-white text-[#0F172A] shadow-sm'
-                      : 'text-slate-600 hover:text-slate-800'
-                  }`}
-                >
-                  Customer
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setUserType('professional')}
-                  className={`flex-1 py-1.5 px-2 rounded-md text-xs font-medium transition-all ${
-                    userType === 'professional'
-                      ? 'bg-white text-[#0F172A] shadow-sm'
-                      : 'text-slate-600 hover:text-slate-800'
-                  }`}
-                >
-
-                </button>
+              <div className="w-full max-w-sm mx-auto">
+                <div className="relative grid grid-cols-2 gap-1 p-1 bg-slate-100 rounded-xl">
+                  <div className={`absolute inset-y-0 left-0 w-1/2 bg-white rounded-xl transition-transform duration-200 ${userType === 'professional' ? 'translate-x-full' : ''}`}></div>
+                  <button type="button" onClick={() => setUserType('customer')} className={`z-10 py-2 text-center text-sm font-medium ${userType === 'customer' ? 'text-slate-900' : 'text-slate-600'}`}>Customer</button>
+                  <button type="button" onClick={() => setUserType('professional')} className={`z-10 py-2 text-center text-sm font-medium ${userType === 'professional' ? 'text-slate-900' : 'text-slate-600'}`}>Professional</button>
+                </div>
               </div>
 
               {/* Full Name */}
@@ -212,7 +196,7 @@ export default function RegisterPage() {
                     value={formData.password}
                     onChange={handleChange}
                     placeholder="Enter password"
-                    className="w-full px-3 py-2 text-base text-slate-900 tracking-wider border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38BDF8] focus:border-transparent placeholder:text-slate-400"
+                    className="w-full px-3 py-2 h-10 text-base text-slate-900 font-mono tracking-widest placeholder:tracking-normal placeholder:text-slate-400 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38BDF8] focus:border-transparent"
                     required
                   />
                 </div>
@@ -226,7 +210,7 @@ export default function RegisterPage() {
                     value={formData.confirmPassword}
                     onChange={handleChange}
                     placeholder="Repeat password"
-                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38BDF8] focus:border-transparent placeholder:text-slate-400"
+                    className="w-full px-3 py-2 h-10 text-base text-slate-900 font-mono tracking-widest placeholder:tracking-normal placeholder:text-slate-400 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38BDF8] focus:border-transparent"
                     required
                   />
                 </div>
@@ -254,6 +238,7 @@ export default function RegisterPage() {
               >
                 Create Account
               </button>
+   
             </form>
 
             {/* Login Link */}
