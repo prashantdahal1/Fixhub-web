@@ -5,7 +5,7 @@ dotenv.config(); // implement .env file
 export const PORT: number = Number(process.env.PORT) || 8089; // default port is 8089
 export const DUMMY: string = process.env.DUMMY || "Dummy Export";    
 export const MONGODB_URL: string = 
-    process.env.MONGODB_URL || "mongodb://localhost:27017/class-36a-db"; // default MongoDB URL
+    process.env.MONGODB_URL || "mongodb://localhost:27017/fixhub"; // default MongoDB URL
 export const SECRET_KEY: string = 
     process.env.SECRET_KEY || "merosecretkey";
 // same as 

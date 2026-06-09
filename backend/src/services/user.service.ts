@@ -2,7 +2,7 @@ import { UserMongoRepository } from "../repositories/user.repository";
 import { CreateUserDTO, LoginUserDTO } from "../dtos/user.dto";
 import { IUser } from "../models/user.model";
 import { HttpException } from "../exceptions/http-exception";
-import bcryptjs from "bcryptjs";
+import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { SECRET_KEY } from "../configs/constant";
 
@@ -20,7 +20,7 @@ export class UserService {
             throw new HttpException(400, "Username already exists");
         }
         // hash password
-        const hashedPassword = await bycryptjs.hash(userData.password, 10);
+        const hashedPassword = await bcrypt.hash(userData.password, 10);
         userData.password = hashedPassword;
         const user = await userRepository.createUser(userData);
         return user;
@@ -31,7 +31,7 @@ export class UserService {
         if (!user) {
             throw new HttpException(400, "Invalid email");
         }
-        const isPasswordValid = await bycryptjs.compare(
+        const isPasswordValid = await bcrypt.compare(
             loginData.password,  // client password
             user.password // database password
         );

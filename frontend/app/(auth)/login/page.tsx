@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { LoginUserDTO } from "../../../backend/src/dtos/user.dto";
+import { LoginUserDTO } from "../../../shared/dtos/user.dto";
 import { z } from "zod";
 
 export default function LoginPage() {

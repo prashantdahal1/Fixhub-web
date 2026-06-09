@@ -1,26 +1,21 @@
 import { z } from "zod";
 import { UserSchema } from "../types/user.type";
 
-// Create a DTO for creating a user
-// export const CreateUserDTO = UserSchema.omit({ role: true });
-export const CreateUserDTO = UserSchema.pick({
-    firstName: true,
-    lastName: true,
-    email: true,
-    username: true,
-    password: true
+// Create a DTO for creating a user with explicit validation messages
+export const CreateUserDTO = z.object({
+  firstName: z.string({ required_error: "First name is required" }).trim(),
+  lastName:  z.string({ required_error: "Last name is required" }).trim(),
+  email:     z.string({ required_error: "Email is required" }).email("Invalid email address"),
+  username:  z.string({ required_error: "Username is required" }).trim(),
+  password:  z
+    .string({ required_error: "Password is required" })
+    .min(6, "Password must be at least 6 characters"),
 });
 export type CreateUserDTO = z.infer<typeof CreateUserDTO>;
 
-// Login Dto
-// 1. Create new schame
-// export const LoginUserDTO = z.object({
-//     email: z.email(),
-//     password: z.string().min(6, "Password must be at least 6 characters long")
-// });
-// 2. Reuse existing schema
-export const LoginUserDTO = UserSchema.pick({
-    email: true,
-    password: true
+// Login DTO with explicit validation messages
+export const LoginUserDTO = z.object({
+  email:    z.string({ required_error: "Email is required" }).email("Invalid email address"),
+  password: z.string({ required_error: "Password is required" }).min(6, "Password must be at least 6 characters"),
 });
 export type LoginUserDTO = z.infer<typeof LoginUserDTO>;
