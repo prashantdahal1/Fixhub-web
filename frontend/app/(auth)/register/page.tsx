@@ -105,14 +105,14 @@ export default function RegisterPage() {
 
             {/* Image & Branding */}
             <div className="flex flex-col items-center justify-center text-center relative z-10">
-              <div className="relative w-60 h-72 md:w-72 md:h-80 mb-6">
+              <div className="relative w-60 h-72 md:w-72 md:h-80 mb-6 mt-8">
                                   <Image
                     src="/images/signup_verified.png"
                     alt="Signup"
                     width={240}
                     height={240}
                     sizes="(max-width: 768px) 240px, 288px"
-                    className="object-contain filter drop-shadow-[0_25px_50px_rgba(0,0,0,0.4)]"
+                    className="object-contain filter drop-shadow-[0_25px_50px_rgba(0,0,0,0.4)] mx-auto mt-8"
                   />
               </div>
               <div>
@@ -197,7 +197,7 @@ export default function RegisterPage() {
                     value={formData.password}
                     onChange={handleChange}
                     placeholder="Enter password"
-                    className="w-full px-3 py-2 h-10 text-base text-slate-900 font-mono tracking-widest placeholder:tracking-normal placeholder:text-slate-400 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38BDF8] focus:border-transparent"
+                    className="w-full px-3 py-2 h-10 text-base text-slate-900 font-mono tracking-widest placeholder:tracking-normal placeholder:text-slate-400 placeholder:text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38BDF8] focus:border-transparent"
                     required
                   />
                 </div>
@@ -211,7 +211,7 @@ export default function RegisterPage() {
                     value={formData.confirmPassword}
                     onChange={handleChange}
                     placeholder="Repeat password"
-                    className="w-full px-3 py-2 h-10 text-base text-slate-900 font-mono tracking-widest placeholder:tracking-normal placeholder:text-slate-400 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38BDF8] focus:border-transparent"
+                    className="w-full px-3 py-2 h-10 text-base text-slate-900 font-mono tracking-widest placeholder:tracking-normal placeholder:text-slate-400 placeholder:text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38BDF8] focus:border-transparent"
                     required
                   />
                 </div>
