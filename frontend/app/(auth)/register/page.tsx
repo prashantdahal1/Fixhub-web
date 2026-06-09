@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { CreateUserDTO } from "../../../backend/src/dtos/user.dto"; // adjust import path if needed
+import { CreateUserDTO } from "../../../lib/dtos/user.dto";
 import { z } from "zod";
 
 export default function RegisterPage() {
@@ -58,7 +58,9 @@ export default function RegisterPage() {
     // Validate using Zod schema
     const result = CreateUserDTO.safeParse(payload);
     if (!result.success) {
-      setError(z.prettifyError(result.error));
+      // Concatenate Zod validation messages
+      const messages = result.error.errors.map(e => e.message).join(', ');
+      setError(messages);
       return;
     }
     try {
@@ -78,6 +80,8 @@ export default function RegisterPage() {
       setError('Network error');
     }
   };
+
+  return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
       <div className="w-full max-w-4xl h-[600px] bg-white rounded-3xl shadow-xl overflow-hidden">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-0 h-full">
@@ -165,7 +169,7 @@ export default function RegisterPage() {
                       : 'text-slate-600 hover:text-slate-800'
                   }`}
                 >
-                  Professional
+
                 </button>
               </div>
 
@@ -208,7 +212,7 @@ export default function RegisterPage() {
                     value={formData.password}
                     onChange={handleChange}
                     placeholder="Enter password"
-                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38BDF8] focus:border-transparent placeholder:text-slate-400"
+                    className="w-full px-3 py-2 text-base text-slate-900 tracking-wider border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38BDF8] focus:border-transparent placeholder:text-slate-400"
                     required
                   />
                 </div>

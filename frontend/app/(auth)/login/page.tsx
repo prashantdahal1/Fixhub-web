@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { LoginUserDTO } from "../../../shared/dtos/user.dto";
+import { LoginUserDTO } from "../../../lib/dtos/user.dto";
 import { z } from "zod";
 
 export default function LoginPage() {
@@ -77,6 +77,7 @@ export default function LoginPage() {
                   src="/images/login mobile.png"
                   alt="Login"
                   fill
+                  loading="eager"
                   sizes="(max-width: 768px) 240px, 288px"
                   className="object-contain filter drop-shadow-[0_25px_50px_rgba(0,0,0,0.4)]"
                 />
@@ -161,7 +162,7 @@ export default function LoginPage() {
                   value={formData.password}
                   onChange={handleChange}
                   placeholder="••••••••"
-                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38BDF8] focus:border-transparent placeholder:text-slate-400"
+                  className="w-full px-3 py-2 text-base text-slate-900 tracking-wider border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38BDF8] focus:border-transparent placeholder:text-slate-400"
                   required
                 />
               </div>
