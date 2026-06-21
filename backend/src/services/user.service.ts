@@ -10,20 +10,23 @@ const userRepository = new UserMongoRepository();
 
 export class UserService {
     async createUser(userData: CreateUserDTO): Promise<IUser> {
-        // validation
-        const existingEmail = await userRepository.getUserByEmail(userData.email);
-        if (existingEmail) {
-            throw new HttpException(400, "Email already exists");
+        try {
+            const existingEmail = await userRepository.getUserByEmail(userData.email);
+            if (existingEmail) {
+                throw new HttpException(400, "Email already exists");
+            }
+            const existingUsername = await userRepository.getUserByUsername(userData.username);
+            if (existingUsername) {
+                throw new HttpException(400, "Username already exists");
+            }
+            const hashedPassword = await bcrypt.hash(userData.password, 10);
+            userData.password = hashedPassword;
+            const user = await userRepository.createUser(userData as any);
+            return user;
+        } catch (error: any) {
+            console.error("Mongoose/MongoDB Save Error in UserService:", error);
+            throw error;
         }
-        const existingUsername = await userRepository.getUserByUsername(userData.username);
-        if (existingUsername) {
-            throw new HttpException(400, "Username already exists");
-        }
-        // hash password
-        const hashedPassword = await bcrypt.hash(userData.password, 10);
-        userData.password = hashedPassword;
-        const user = await userRepository.createUser(userData);
-        return user;
     }
 
     async loginUser(loginData: LoginUserDTO){
@@ -32,14 +35,14 @@ export class UserService {
             throw new HttpException(400, "Invalid email");
         }
         const isPasswordValid = await bcrypt.compare(
-            loginData.password,  // client password
-            user.password // database password
+            loginData.password,
+            user.password
         );
         if (!isPasswordValid) {
             throw new HttpException(400, "Invalid password");
         }
         const token = jwt.sign(
-            { id: user._id, email: user.email, role: user.role }, // payload
+            { id: user._id, email: user.email, role: user.role },
             SECRET_KEY,
             { expiresIn: "30d" }
         );

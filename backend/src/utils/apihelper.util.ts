@@ -1,17 +1,5 @@
-// API response example
-const res = {
-    "status": 200,
-    "success": true,
-    "message": "Products fetched successfully",
-    "data": [],
-    "meta": {
-        // pagination
-        "page": 1,
-        "limit": 10,
-        "total": 100
-    }
-}
 import { Response } from "express";
+
 export interface PaginationMeta {
     page: number;
     limit: number;
@@ -23,7 +11,7 @@ export interface ApiResponse<T> {
     success: boolean;
     message: string;
     data: T;
-    meta?: PaginationMeta; // optional
+    meta?: PaginationMeta;
 }
 
 export class ApiResponseHelper {
