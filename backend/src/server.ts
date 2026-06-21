@@ -6,7 +6,7 @@ import { PORT } from "./configs/constant";
 const startServer = async () => {
   try {
     await connectToMongoDB();
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0', () => {
       console.log(chalk.green('Server running on ') + chalk.yellow(`http://localhost:${PORT}`));
     });
   } catch (error) {
