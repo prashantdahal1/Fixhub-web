@@ -1,4 +1,4 @@
-import { Person } from '../types/person.type.js';
+import type { Person } from '../types/person.type.js';
 
 export const dataset: Person[] = [
     { id: 1, name: "Ram", age: 30 },

@@ -1,5 +1,12 @@
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 export const PORT: number = Number(process.env.PORT) || 5000;
 export const DUMMY: string = process.env.DUMMY || 'Dummy Export';
 export const MONGODB_URL: string =
@@ -16,4 +23,4 @@ export const ALLOWED_ORIGINS: string[] = [
   'https://fixhub.web.app',
   'http://192.168.1.9:5000',
 ];
-export const UPLOAD_DIR: string = require('path').resolve(__dirname, '../../uploads');
+export const UPLOAD_DIR: string = path.resolve(__dirname, '../../uploads');

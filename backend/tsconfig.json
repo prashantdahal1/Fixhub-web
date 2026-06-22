@@ -1,11 +1,9 @@
 {
-{
-  // Visit https://aka.ms/tsconfig to read more about this file
   "compilerOptions": {
-    "rootDir": "./",
-    "outDir": "./dist",
-    "module": "ESNext",
-    "moduleResolution": "node16",
+    "rootDir": "src",
+    "outDir": "dist",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "target": "esnext",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
@@ -17,8 +15,11 @@
     "strict": true,
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
-    "noUncheckedSideEffectImports": true,
+    "noUncheckedSideEffectImports": false,
     "moduleDetection": "force",
     "skipLibCheck": true
-  }
+  },
+  "include": [
+    "src/**/*"
+  ]
 }

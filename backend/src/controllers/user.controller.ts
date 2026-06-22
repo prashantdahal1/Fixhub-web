@@ -1,8 +1,8 @@
-import { UserService } from "../services/user.service";
-import { ZodError } from "zod";
-import { CreateUserDTO, LoginUserDTO } from "../dtos/user.dto";
-import { ApiResponseHelper } from "../utils/apihelper.util";
-import { Request, Response } from "express";
+import { UserService } from '../services/user.service.js';
+import { ZodError } from 'zod';
+import { CreateUserDTO, LoginUserDTO } from '../dtos/user.dto.js';
+import { ApiResponseHelper } from '../utils/apihelper.util.js';
+import { type Request, type Response } from 'express';
 
 function formatZodError(error: ZodError): string {
   return error.errors

@@ -1,6 +1,6 @@
 import { UserMongoRepository } from '../repositories/user.repository.js';
 import { type CreateUserDTO, type LoginUserDTO } from '../dtos/user.dto.js';
-import { IUser } from '../models/user.model.js';
+import type { IUser } from '../models/user.model.js';
 import { HttpException } from '../exceptions/http-exception.js';
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";

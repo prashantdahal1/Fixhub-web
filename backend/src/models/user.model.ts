@@ -4,7 +4,7 @@ import { type UserType } from '../types/user.type.js';
 export interface IUser extends UserType, Document {
     _id: mongoose.Types.ObjectId;
     createdAt: Date;
-    updatedAt: Date;
+    profilePicture?: string;
 }
 
 const UserMongoSchema: Schema = new Schema<IUser>(

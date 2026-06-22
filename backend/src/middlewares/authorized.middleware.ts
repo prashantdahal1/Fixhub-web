@@ -1,18 +1,12 @@
 import type { Request, Response, NextFunction } from 'express';
 import { SECRET_KEY } from '../configs/constant.js';
 import jwt from 'jsonwebtoken';
-import { IUser } from '../models/user.model.js';
+import type { IUser } from '../models/user.model.js';
 import { UserMongoRepository } from '../repositories/user.repository.js';
 import { HttpException } from '../exceptions/http-exception.js';
 import { ApiResponseHelper } from '../utils/apihelper.util.js';
 
-declare global {
-    namespace Express {
-        interface Request {
-            user?: Record<string, any> | IUser
-        }
-    }
-} // adding tag (user) to request, can use req.user
+// adding tag (user) to request, can use req.user
 let userRepository = new UserMongoRepository();
 export const authorizedMiddleware =
     async (req: Request, res: Response, next: NextFunction) => {

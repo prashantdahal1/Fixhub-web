@@ -1,6 +1,6 @@
-import { Request, Response } from 'express';
-import { ApiResponseHelper } from '../utils/apihelper.util';
-import { UserMongoRepository } from '../repositories/user.repository';
+import { type Request, type Response } from 'express';
+import { ApiResponseHelper } from '../utils/apihelper.util.js';
+import { UserMongoRepository } from '../repositories/user.repository.js';
 
 export class ProfileController {
   private userRepo = new UserMongoRepository();

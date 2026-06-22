@@ -1,13 +1,17 @@
-import express, { Application, NextFunction, Request, Response } from "express";
+import express, { type Application, type NextFunction, type Request, type Response } from "express";
 import cookieParser from "cookie-parser";
-import { HttpException } from "./exceptions/http-exception";
-import { ApiResponseHelper } from "./utils/apihelper.util";
-import { corsMiddleware } from "./middlewares/cors.middleware";
+import { HttpException } from './exceptions/http-exception.js';
+import { ApiResponseHelper } from './utils/apihelper.util.js';
+import { corsMiddleware } from './middlewares/cors.middleware.js';
 import morgan from "morgan";
 import path from "path";
+import { fileURLToPath } from 'url';
 
-import userRoutes from "./routes/user.route";
-import { profileRouter } from "./routes/profile.route";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+import userRoutes from "./routes/user.route.js";
+import { profileRouter } from './routes/profile.route.js';
 
 const app: Application = express();
 app.use(corsMiddleware);

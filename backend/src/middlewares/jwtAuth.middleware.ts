@@ -2,14 +2,6 @@ import { type Request, type Response, type NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { SECRET_KEY } from '../configs/constant.js';
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: any | undefined;
-    }
-  }
-}
-
 export const jwtAuth = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
@@ -17,8 +9,11 @@ export const jwtAuth = async (req: Request, res: Response, next: NextFunction) =
       return res.status(401).json({ message: 'Unauthorized' });
     }
     const token = authHeader.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
     const payload = jwt.verify(token, SECRET_KEY);
-    req.user = payload;
+    req.user = payload as Record<string, any>;
     next();
   } catch {
     res.status(401).json({ message: 'Unauthorized' });
