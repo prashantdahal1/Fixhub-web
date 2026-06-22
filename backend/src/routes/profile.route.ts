@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { ProfileController } from '../controllers/profile.controller';
-import { authMiddleware } from '../middlewares/auth.middleware';
-import { profileUpload } from '../middlewares/profileUpload.middleware';
+import { ProfileController } from '../controllers/profile.controller.js';
+import { authMiddleware } from '../middlewares/auth.middleware.js';
+import { profileUpload } from '../middlewares/profileUpload.middleware.js';
 
 const router = Router();
 const controller = new ProfileController();

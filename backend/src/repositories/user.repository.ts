@@ -1,4 +1,4 @@
-import { UserModel, IUser } from "../models/user.model";
+import { UserModel, IUser } from '../models/user.model.js';
 
 export interface IUserRepository {
     getUserByEmail(email: string): Promise<IUser | null>;

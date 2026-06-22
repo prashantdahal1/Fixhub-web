@@ -1,10 +1,10 @@
 import type { Request, Response, NextFunction } from 'express';
-import { SECRET_KEY } from '../configs/constant';
+import { SECRET_KEY } from '../configs/constant.js';
 import jwt from 'jsonwebtoken';
-import { IUser } from '../models/user.model';
-import { UserMongoRepository } from '../repositories/user.repository';
-import { HttpException } from '../exceptions/http-exception';
-import { ApiResponseHelper } from '../utils/apihelper.util';
+import { IUser } from '../models/user.model.js';
+import { UserMongoRepository } from '../repositories/user.repository.js';
+import { HttpException } from '../exceptions/http-exception.js';
+import { ApiResponseHelper } from '../utils/apihelper.util.js';
 
 declare global {
     namespace Express {

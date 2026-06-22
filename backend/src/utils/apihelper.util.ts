@@ -1,4 +1,4 @@
-import { Response } from "express";
+import { type Response } from 'express';
 
 export interface PaginationMeta {
     page: number;
@@ -11,7 +11,7 @@ export interface ApiResponse<T> {
     success: boolean;
     message: string;
     data: T;
-    meta?: PaginationMeta;
+    meta?: PaginationMeta | undefined;
 }
 
 export class ApiResponseHelper {

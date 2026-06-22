@@ -1,11 +1,11 @@
-import { Request, Response, NextFunction } from 'express';
+import { type Request, type Response, type NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { SECRET_KEY } from '../configs/constant';
+import { SECRET_KEY } from '../configs/constant.js';
 
 declare global {
   namespace Express {
     interface Request {
-      user?: any;
+      user?: any | undefined;
     }
   }
 }

@@ -1,10 +1,10 @@
-import { UserMongoRepository } from "../repositories/user.repository";
-import { CreateUserDTO, LoginUserDTO } from "../dtos/user.dto";
-import { IUser } from "../models/user.model";
-import { HttpException } from "../exceptions/http-exception";
+import { UserMongoRepository } from '../repositories/user.repository.js';
+import { type CreateUserDTO, type LoginUserDTO } from '../dtos/user.dto.js';
+import { IUser } from '../models/user.model.js';
+import { HttpException } from '../exceptions/http-exception.js';
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { SECRET_KEY } from "../configs/constant";
+import { SECRET_KEY } from '../configs/constant.js';
 
 const userRepository = new UserMongoRepository();
 

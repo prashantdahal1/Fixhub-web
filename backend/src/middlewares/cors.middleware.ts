@@ -1,5 +1,5 @@
-import { Request, Response, NextFunction } from 'express';
-import { ALLOWED_ORIGINS } from '../configs/constant';
+import { type Request, type Response, type NextFunction } from 'express';
+import { ALLOWED_ORIGINS } from '../configs/constant.js';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
