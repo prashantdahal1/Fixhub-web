@@ -12,9 +12,13 @@ const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, PROFILE_PIC_DIR),
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
-    // `req.user` is attached by auth middleware; fallback to timestamp
-    const userId = (req as any).user?.id ?? Date.now();
-    cb(null, `${userId}${ext}`);
+    // `req.user` is attached by auth middleware; fallback to timestamp + random number
+    if ((req as any).user?.id) {
+      cb(null, `${(req as any).user.id}${ext}`);
+    } else {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+      cb(null, `${uniqueSuffix}${ext}`);
+    }
   },
 });
 

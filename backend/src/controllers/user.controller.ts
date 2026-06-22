@@ -51,4 +51,39 @@ export class UserController {
             );
         }
     }
+
+    async whoami(req: Request, res: Response) {
+        try {
+            const userId = (req as any).user?.id;
+            if (!userId) {
+                return ApiResponseHelper.error(res, "Unauthorized", 401);
+            }
+            const user = await userService.getUserById(userId);
+            if (!user) {
+                return ApiResponseHelper.error(res, "User not found", 404);
+            }
+            return ApiResponseHelper.success(res, user, "User details fetched successfully");
+        } catch (error: any) {
+            console.error("Whoami Error:", error);
+            return ApiResponseHelper.error(res, error.message || "Internal Server Error", error.status || 500);
+        }
+    }
+
+    async updateProfile(req: Request, res: Response) {
+        try {
+            const userId = (req as any).user?.id;
+            if (!userId) {
+                return ApiResponseHelper.error(res, "Unauthorized", 401);
+            }
+            const updateData = { ...req.body };
+            if (req.file) {
+                updateData.profilePicture = `/uploads/profile_pics/${req.file.filename}`;
+            }
+            const updatedUser = await userService.updateUser(userId, updateData);
+            return ApiResponseHelper.success(res, updatedUser, "Profile updated successfully");
+        } catch (error: any) {
+            console.error("Update Profile Error:", error);
+            return ApiResponseHelper.error(res, error.message || "Internal Server Error", error.status || 500);
+        }
+    }
 }

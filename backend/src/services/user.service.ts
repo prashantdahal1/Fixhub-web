@@ -48,4 +48,12 @@ export class UserService {
         );
         return { user, token }
     }
+
+    async getUserById(id: string): Promise<IUser | null> {
+        return await userRepository.getUserById(id);
+    }
+
+    async updateUser(id: string, updateData: Partial<IUser>): Promise<IUser | null> {
+        return await userRepository.update(id, updateData);
+    }
 }
