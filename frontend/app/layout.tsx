@@ -17,11 +17,18 @@ export const metadata: Metadata = {
   description: "Book trusted local professionals for home repairs and maintenance.",
 };
 
+import { AuthProvider } from "./contexts/AuthContext";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${geist.variable} ${geistMono.variable}`}>
       <body className="font-[family-name:var(--font-geist)] antialiased min-h-full flex flex-col">
-        {children}
+        <AuthProvider>
+          {children}
+          <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} />
+        </AuthProvider>
       </body>
     </html>
   );

@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { CreateUserDTO } from "../../../lib/dtos/user.dto";
+import { toast } from 'react-toastify';
 
 export default function RegisterPage() {
   const [userType, setUserType] = useState('customer');
@@ -14,6 +15,7 @@ export default function RegisterPage() {
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
+    phone: '',
     password: '',
     confirmPassword: ''
   });
@@ -33,19 +35,30 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!termsAccepted) { setError('You must accept the terms and conditions'); return; }
-    if (formData.password !== formData.confirmPassword) { setError('Passwords do not match'); return; }
+    if (!termsAccepted) { 
+      setError('You must accept the terms and conditions'); 
+      toast.warn('Please accept the terms and conditions to proceed.');
+      return; 
+    }
+    if (formData.password !== formData.confirmPassword) { 
+      setError('Passwords do not match'); 
+      toast.error('Passwords do not match.');
+      return; 
+    }
     const [firstName = '', ...lastNameParts] = formData.fullName.trim().split(' ');
     const payload = {
       firstName,
       lastName: lastNameParts.join(' '),
       email: formData.email,
+      phone: formData.phone,
       username: formData.email,
       password: formData.password,
     };
     const result = CreateUserDTO.safeParse(payload);
     if (!result.success) {
-      setError(result.error.errors.map(e => e.message).join(', '));
+      const errMsg = result.error.errors.map(e => e.message).join(', ');
+      setError(errMsg);
+      toast.error(errMsg);
       return;
     }
     try {
@@ -55,10 +68,16 @@ export default function RegisterPage() {
         body: JSON.stringify(result.data),
       });
       const data = await response.json();
-      if (!response.ok) { setError(data.message || 'Registration failed'); return; }
+      if (!response.ok) { 
+        setError(data.message || 'Registration failed'); 
+        toast.error(data.message || 'Registration failed.');
+        return; 
+      }
+      toast.success('Registration successful! Please login to continue.');
       router.push('/login');
     } catch {
       setError('Network error');
+      toast.error('Network error. Unable to contact backend.');
     }
   };
 
@@ -235,6 +254,22 @@ export default function RegisterPage() {
                   </button>
                 </div>
               </div>
+            </div>
+
+            {/* Phone Number */}
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">
+                Phone Number
+              </label>
+              <input
+                type="tel"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                placeholder="+1 555 123 4567"
+                className="w-full px-4 py-2.5 text-sm text-slate-800 border border-slate-200 rounded-xl placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all" required
+                required
+              />
             </div>
 
             {/* Terms */}

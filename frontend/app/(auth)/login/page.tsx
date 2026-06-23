@@ -16,6 +16,8 @@ const EyeIcon = ({ open }: { open: boolean }) => open ? (
   </svg>
 );
 
+import { toast } from 'react-toastify';
+
 export default function LoginPage() {
   const [userType, setUserType] = useState<'customer' | 'professional'>('customer');
   const [showPassword, setShowPassword] = useState(false);
@@ -40,10 +42,16 @@ export default function LoginPage() {
         body: JSON.stringify({ email: formData.email, password: formData.password, userType }),
       });
       const data = await response.json();
-      if (!response.ok) { setError(data.message || 'Login failed'); return; }
+      if (!response.ok) { 
+        setError(data.message || 'Login failed'); 
+        toast.error(data.message || 'Login failed. Please check your credentials.');
+        return; 
+      }
+      toast.success('Login successful! Welcome to FixHub.');
       router.push('/dashboard');
     } catch {
       setError('Network error. Please try again.');
+      toast.error('Network error. Backend server is unreachable.');
     } finally {
       setLoading(false);
     }
