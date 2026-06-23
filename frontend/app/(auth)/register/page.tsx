@@ -5,11 +5,12 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { CreateUserDTO } from "../../../lib/dtos/user.dto";
-import { z } from "zod";
 
 export default function RegisterPage() {
   const [userType, setUserType] = useState('customer');
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -17,6 +18,7 @@ export default function RegisterPage() {
     confirmPassword: ''
   });
   const [error, setError] = useState('');
+  const router = useRouter();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, type, checked, value } = e.target;
@@ -24,44 +26,26 @@ export default function RegisterPage() {
       setTermsAccepted(checked);
       setError('');
     } else {
-      setFormData({
-        ...formData,
-        [name]: value
-      });
+      setFormData({ ...formData, [name]: value });
       setError('');
     }
   };
 
-  const router = useRouter();
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Ensure terms are accepted
-    if (!termsAccepted) {
-      setError('You must accept the terms and conditions');
-      return;
-    }
-    // Check password confirmation
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-    // Map form fields to DTO shape
+    if (!termsAccepted) { setError('You must accept the terms and conditions'); return; }
+    if (formData.password !== formData.confirmPassword) { setError('Passwords do not match'); return; }
     const [firstName = '', ...lastNameParts] = formData.fullName.trim().split(' ');
     const payload = {
       firstName,
       lastName: lastNameParts.join(' '),
       email: formData.email,
-      username: formData.email, // using email as username
+      username: formData.email,
       password: formData.password,
     };
-    // Validate using Zod schema
     const result = CreateUserDTO.safeParse(payload);
     if (!result.success) {
-      // Concatenate Zod validation messages
-      const messages = result.error.errors.map(
-        e => e.message).join(', ');
-      setError(messages);
+      setError(result.error.errors.map(e => e.message).join(', '));
       return;
     }
     try {
@@ -71,188 +55,226 @@ export default function RegisterPage() {
         body: JSON.stringify(result.data),
       });
       const data = await response.json();
-      if (!response.ok) {
-        setError(data.message || 'Registration failed');
-        return;
-      }
-      // On success, redirect to login page
+      if (!response.ok) { setError(data.message || 'Registration failed'); return; }
       router.push('/login');
-    } catch (err) {
+    } catch {
       setError('Network error');
     }
   };
 
+  // Eye icon for password toggle
+  const EyeIcon = ({ open }: { open: boolean }) => open ? (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+    </svg>
+  ) : (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+      <line x1="1" y1="1" x2="23" y2="23"/>
+    </svg>
+  );
+
   return (
-    <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-4xl h-[600px] bg-white rounded-3xl shadow-xl overflow-hidden">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-0 h-full">
-          {/* Left Split Panel - Blue with Branding & Image */}
-          <div className="bg-gradient-to-b from-[#1E293B] to-[#0F172A] p-6 md:p-8 flex flex-col justify-center items-center relative overflow-hidden">
-            {/* Faint Architectural Topography Pattern */}
-            <svg className="absolute inset-0 w-full h-full opacity-[0.05] pointer-events-none" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <pattern id="topo-reg" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
-                  <path d="M0 50 Q 25 40, 50 50 T 100 50" stroke="#94a3b8" strokeWidth="1" fill="none" />
-                  <path d="M0 30 Q 25 20, 50 30 T 100 30" stroke="#94a3b8" strokeWidth="1" fill="none" />
-                  <path d="M0 70 Q 25 60, 50 70 T 100 70" stroke="#94a3b8" strokeWidth="1" fill="none" />
-                </pattern>
-              </defs>
-              <rect width="100%" height="100%" fill="url(#topo-reg)" />
-            </svg>
+    <div className="min-h-screen bg-slate-200 flex items-center justify-center p-4">
+      <div className="w-full max-w-4xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row" style={{ minHeight: '560px' }}>
 
-            {/* Premium Radial Glow Node */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 rounded-full bg-[#38BDF8] opacity-[0.12] blur-[80px] pointer-events-none" />
+        {/* ── LEFT PANEL — Dark navy with 3D image ── */}
+        <div
+          className="relative md:w-[44%] flex-shrink-0 flex flex-col justify-end items-center overflow-hidden"
+          style={{ background: 'linear-gradient(160deg, #1A56DB 0%, #1E40AF 40%, #0F172A 100%)' }}
+        >
+          {/* Subtle radial highlight top-left */}
+          <div className="absolute top-0 left-0 w-72 h-72 rounded-full opacity-20 pointer-events-none"
+            style={{ background: 'radial-gradient(circle, #60A5FA 0%, transparent 70%)' }} />
 
-            {/* Image & Branding */}
-            <div className="flex flex-col items-center justify-center text-center relative z-10">
-              <div className="relative w-60 h-72 md:w-72 md:h-80 mb-6 mt-8">
-                                  <Image
-                    src="/images/signup_verified.png"
-                    alt="Signup"
-                    width={240}
-                    height={240}
-                    sizes="(max-width: 768px) 240px, 288px"
-                    className="object-contain filter drop-shadow-[0_25px_50px_rgba(0,0,0,0.4)] mx-auto mt-8"
-                  />
-              </div>
-              <div>
-                <h2 className="text-2xl md:text-3xl font-bold mb-2 text-white">Verified Professionals</h2>
-                <p className="text-slate-400 text-sm leading-relaxed max-w-sm">
-                  Screened & verified professionals for your peace of mind
-                </p>
-              </div>
-            </div>
+          {/* 3D technician card image — update path */}
+          <div className="relative z-10 w-full flex justify-center pt-10 px-6">
+            {/* // Update image path: replace src with your actual 3D card image */}
+            <Image
+              src="/images/signup_verified.png" // UPDATE YOUR IMAGE PATH HERE
+              alt="Verified Technician"
+              width={260}
+              height={260}
+              className="object-contain drop-shadow-[0_30px_60px_rgba(0,0,0,0.5)]"
+            />
           </div>
 
-          {/* Right Split Panel - White with Form */}
-          <div className="bg-white px-10 md:px-14 pb-12 flex flex-col justify-center overflow-y-auto">
-            {/* Logo */}
-            <div className="mb-3">
-              <Image
-                src="/fixhub.png"
-                alt="FixHub Logo"
-                width={90}
-                height={90}
+          {/* Bottom text */}
+          <div className="relative z-10 text-center px-8 pb-10 pt-4">
+            <h2 className="text-white text-2xl font-bold mb-2">Verified Professionals</h2>
+            <p className="text-blue-200 text-xs leading-relaxed max-w-[220px] mx-auto">
+              Every technician is screened and verified to deliver reliable, high-quality service for your home.
+            </p>
+          </div>
+        </div>
+
+        {/* ── RIGHT PANEL — White form ── */}
+        <div className="flex-1 flex flex-col justify-center px-8 md:px-12 py-10">
+
+          {/* Logo — update path */}
+          <div className="mb-5">
+            {/* // UPDATE YOUR LOGO PATH HERE */}
+            <Image
+              src="/fixhub.png" // UPDATE YOUR LOGO PATH HERE
+              alt="FixHub"
+              width={110}
+              height={36}
+              className="object-contain"
+            />
+          </div>
+
+          {/* Customer / Professional toggle */}
+          <div className="relative grid grid-cols-2 p-1 bg-slate-100 rounded-xl mb-5 w-full">
+            {/* Sliding pill */}
+            <div
+              className={`absolute inset-y-1 w-[calc(50%-4px)] bg-white rounded-lg shadow-sm transition-transform duration-200 ease-in-out ${userType === 'professional' ? 'translate-x-[calc(100%+4px)]' : 'translate-x-1'}`}
+            />
+            <button
+              type="button"
+              onClick={() => setUserType('customer')}
+              className={`relative z-10 py-2 text-sm font-medium rounded-lg transition-colors ${userType === 'customer' ? 'text-slate-900' : 'text-slate-400'}`}
+            >
+              Customer
+            </button>
+            <button
+              type="button"
+              onClick={() => setUserType('professional')}
+              className={`relative z-10 py-2 text-sm font-medium rounded-lg transition-colors ${userType === 'professional' ? 'text-slate-900' : 'text-slate-400'}`}
+            >
+              Professional
+            </button>
+          </div>
+
+          {/* Error */}
+          {error && (
+            <div className="mb-4 px-3 py-2.5 bg-red-50 border border-red-200 rounded-xl">
+              <p className="text-xs text-red-600 font-medium">{error}</p>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+
+            {/* Full Name */}
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">
+                Full Name
+              </label>
+              <input
+                type="text"
+                name="fullName"
+                value={formData.fullName}
+                onChange={handleChange}
+                placeholder="Enter your full name"
+                className="w-full px-4 py-2.5 text-sm text-slate-800 border border-slate-200 rounded-xl placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all"
+                required
               />
             </div>
 
-            {/* Headings */}
-            <h1 className="text-xl md:text-2xl font-bold text-[#0F172A] mb-1">Create Account</h1>
+            {/* Email */}
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">
+                Email Address
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="yourmail@gmail.com"
+                className="w-full px-4 py-2.5 text-sm text-slate-800 border border-slate-200 rounded-xl placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all"
+                required
+              />
+            </div>
 
-            <p className="text-slate-500 text-xs mb-3">Sign up to get started</p>
-            
-            {/* Error Message */}
-            {error && (
-              <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-xs text-red-700 font-medium">{error}</p>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-3">
-              {/* User Type Toggle - Light Segmented Container */}
-              <div className="w-full max-w-sm mx-auto">
-                <div className="relative grid grid-cols-2 gap-1 p-1 bg-slate-100 rounded-xl">
-                  <div className={`absolute inset-y-0 left-0 w-1/2 bg-white rounded-xl transition-transform duration-200 ${userType === 'professional' ? 'translate-x-full' : ''}`}></div>
-                  <button type="button" onClick={() => setUserType('customer')} className={`z-10 py-2 text-center text-sm font-medium ${userType === 'customer' ? 'text-slate-900' : 'text-slate-600'}`}>Customer</button>
-                  <button type="button" onClick={() => setUserType('professional')} className={`z-10 py-2 text-center text-sm font-medium ${userType === 'professional' ? 'text-slate-900' : 'text-slate-600'}`}>Professional</button>
-                </div>
-              </div>
-
-              {/* Full Name */}
+            {/* Password + Confirm — side by side */}
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 block">Full Name</label>
-                <input
-                  type="text"
-                  name="fullName"
-                  value={formData.fullName}
-                  onChange={handleChange}
-                  placeholder="Enter your full name"
-                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38BDF8] focus:border-transparent placeholder:text-slate-400"
-                  required
-                />
-              </div>
-
-              {/* Email */}
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 block">Email Address</label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  placeholder="youremail@gmail.com"
-                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38BDF8] focus:border-transparent placeholder:text-slate-400"
-                  required
-                />
-              </div>
-
-              {/* Password Grid - Two Columns */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Password */}
-                <div>
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 block">Password</label>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">
+                  Password
+                </label>
+                <div className="relative">
                   <input
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     name="password"
                     value={formData.password}
                     onChange={handleChange}
-                    placeholder="Enter password"
-                    className="w-full px-3 py-2 h-10 text-base text-slate-900 font-mono tracking-widest placeholder:tracking-normal placeholder:text-slate-400 placeholder:text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38BDF8] focus:border-transparent"
+                    placeholder="Enter a strong password"
+                    className="w-full px-4 py-2.5 pr-10 text-sm text-slate-800 border border-slate-200 rounded-xl placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all"
                     required
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <EyeIcon open={showPassword} />
+                  </button>
                 </div>
+              </div>
 
-                {/* Confirm Password */}
-                <div>
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 block">Confirm Password</label>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">
+                  Confirm Password
+                </label>
+                <div className="relative">
                   <input
-                    type="password"
+                    type={showConfirm ? 'text' : 'password'}
                     name="confirmPassword"
                     value={formData.confirmPassword}
                     onChange={handleChange}
-                    placeholder="Repeat password"
-                    className="w-full px-3 py-2 h-10 text-base text-slate-900 font-mono tracking-widest placeholder:tracking-normal placeholder:text-slate-400 placeholder:text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38BDF8] focus:border-transparent"
+                    placeholder="Repeat your password"
+                    className="w-full px-4 py-2.5 pr-10 text-sm text-slate-800 border border-slate-200 rounded-xl placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all"
                     required
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirm(!showConfirm)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <EyeIcon open={showConfirm} />
+                  </button>
                 </div>
               </div>
-
-              {/* Terms */}
-              <div className="flex items-start gap-2 pt-0.5">
-                <input
-                  type="checkbox"
-                  id="terms"
-                  checked={termsAccepted}
-                  onChange={handleChange}
-                  className="w-3.5 h-3.5 mt-0.5 rounded border-slate-300"
-                  required
-                />
-                <label htmlFor="terms" className="text-xs text-slate-600">
-                  I agree to the Terms of Service and Privacy Policy
-                </label>
-              </div>
-
-              {/* Submit Button */}
-              <button
-                type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-xl transition-colors mt-4 text-sm"
-              >
-                Create Account
-              </button>
-   
-            </form>
-
-            {/* Login Link */}
-            <div className="text-center mt-2.5 text-xs">
-              <span className="text-slate-600">Have account? </span>
-              <Link href="/login" className="text-blue-600 hover:text-blue-700 font-semibold">
-                Login
-              </Link>
             </div>
-          </div>
+
+            {/* Terms */}
+            <div className="flex items-center gap-2.5 pt-1">
+              <input
+                type="checkbox"
+                id="terms"
+                checked={termsAccepted}
+                onChange={handleChange}
+                className="w-4 h-4 rounded border-slate-300 accent-blue-600 cursor-pointer"
+              />
+              <label htmlFor="terms" className="text-xs text-slate-500 cursor-pointer select-none">
+                I agree to the{' '}
+                <span className="text-blue-600 hover:underline cursor-pointer">Terms of Service</span>
+                {' '}and{' '}
+                <span className="text-blue-600 hover:underline cursor-pointer">Privacy Policy</span>
+              </label>
+            </div>
+
+            {/* Submit */}
+            <button
+              type="submit"
+              className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-3 rounded-xl transition-colors text-sm flex items-center justify-center gap-2 mt-1"
+            >
+              Create Account
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+              </svg>
+            </button>
+          </form>
+
+          {/* Login link */}
+          <p className="text-center text-xs text-slate-500 mt-4">
+            Already part of the network?{' '}
+            <Link href="/login" className="text-blue-600 font-semibold hover:underline">
+              Login to FixHub
+            </Link>
+          </p>
         </div>
       </div>
     </div>
   );
 }
-
