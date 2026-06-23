@@ -14,7 +14,7 @@ export const authorizedMiddleware =
             let token = '';
             const authHeader = req.headers.authorization;
             if (authHeader && authHeader.startsWith('Bearer ')) {
-                token = authHeader.split(' ')[1];
+                token = authHeader.split(' ')[1] || '';
             } else if (req.cookies && req.cookies.token) {
                 token = req.cookies.token;
             }

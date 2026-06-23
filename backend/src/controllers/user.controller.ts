@@ -1,6 +1,6 @@
 import { UserService } from '../services/user.service.js';
 import { ZodError } from 'zod';
-import { CreateUserDTO, LoginUserDTO } from '../dtos/user.dto.js';
+import { CreateUserDTO, LoginUserDTO, UpdateUserDTO, UpdatePasswordDTO } from '../dtos/user.dto.js';
 import { ApiResponseHelper } from '../utils/apihelper.util.js';
 import { type Request, type Response } from 'express';
 
@@ -75,14 +75,41 @@ export class UserController {
             if (!userId) {
                 return ApiResponseHelper.error(res, "Unauthorized", 401);
             }
-            const updateData = { ...req.body };
+            
+            const parsedData = UpdateUserDTO.safeParse(req.body);
+            if (!parsedData.success) {
+                return ApiResponseHelper.error(res, formatZodError(parsedData.error), 400);
+            }
+
+            const updateData = { ...parsedData.data } as any;
             if (req.file) {
                 updateData.profilePicture = `/uploads/profile_pics/${req.file.filename}`;
             }
+
             const updatedUser = await userService.updateUser(userId.toString(), updateData);
             return ApiResponseHelper.success(res, updatedUser, "Profile updated successfully");
         } catch (error: any) {
             console.error("Update Profile Error:", error);
+            return ApiResponseHelper.error(res, error.message || "Internal Server Error", error.status || 500);
+        }
+    }
+
+    async updatePassword(req: Request, res: Response) {
+        try {
+            const userId = (req as any).user?._id || (req as any).user?.id;
+            if (!userId) {
+                return ApiResponseHelper.error(res, "Unauthorized", 401);
+            }
+            
+            const parsedData = UpdatePasswordDTO.safeParse(req.body);
+            if (!parsedData.success) {
+                return ApiResponseHelper.error(res, formatZodError(parsedData.error), 400);
+            }
+
+            await userService.updatePassword(userId.toString(), parsedData.data);
+            return ApiResponseHelper.success(res, null, "Password updated successfully");
+        } catch (error: any) {
+            console.error("Update Password Error:", error);
             return ApiResponseHelper.error(res, error.message || "Internal Server Error", error.status || 500);
         }
     }

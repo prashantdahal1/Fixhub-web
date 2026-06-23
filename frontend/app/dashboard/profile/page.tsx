@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, ChangeEvent } from 'react';
 import { Pencil, Mail, Phone, MapPin, Briefcase, User, Globe, Camera } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'react-toastify';
+import { useRouter } from 'next/navigation';
 
 interface ProfileData {
   firstName: string;
@@ -18,6 +19,7 @@ interface ProfileData {
 
 const ProfilePage: React.FC = () => {
   const { user, fetchUser } = useAuth();
+  const router = useRouter();
   
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isEditingPersonal, setIsEditingPersonal] = useState(false);
@@ -232,6 +234,32 @@ const ProfilePage: React.FC = () => {
               </button>
             </div>
           )}
+        </div>
+
+        {/* Security Settings & Profile Links */}
+        <div
+          className="rounded-2xl p-6 mb-6 flex items-center justify-between"
+          style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0' }}
+        >
+          <div>
+            <h3 className="text-base font-semibold" style={{ color: '#070B14' }}>
+              Security Credentials
+            </h3>
+            <p className="text-sm mt-0.5 text-gray-500">
+              Keep your password updated to stay secure.
+            </p>
+          </div>
+          <button
+            onClick={() => router.push('/dashboard/profile/password')}
+            className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 hover:shadow-md"
+            style={{
+              backgroundColor: '#FFFFFF',
+              color: '#1565C0',
+              border: '1px solid #1565C0',
+            }}
+          >
+            Change Password
+          </button>
         </div>
 
         {/* Personal Information Card */}

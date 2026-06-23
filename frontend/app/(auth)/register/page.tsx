@@ -15,7 +15,7 @@ export default function RegisterPage() {
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
-    phone: '',
+    phone: '+977 ',
     password: '',
     confirmPassword: ''
   });
@@ -53,6 +53,7 @@ export default function RegisterPage() {
       phone: formData.phone,
       username: formData.email,
       password: formData.password,
+      role: userType,
     };
     const result = CreateUserDTO.safeParse(payload);
     if (!result.success) {
@@ -95,49 +96,47 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen bg-slate-200 flex items-center justify-center p-4">
-      <div className="w-full max-w-4xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row" style={{ minHeight: '560px' }}>
+      <div className="w-full max-w-3xl bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col md:flex-row" style={{ minHeight: '520px' }}>
 
-        {/* ── LEFT PANEL — Dark navy with 3D image ── */}
+        {/* ── LEFT PANEL — Blue with 3D image ── */}
         <div
-          className="relative md:w-[44%] flex-shrink-0 flex flex-col justify-end items-center overflow-hidden"
-          style={{ background: 'linear-gradient(160deg, #1A56DB 0%, #1E40AF 40%, #0F172A 100%)' }}
+          className="relative md:w-[42%] flex-shrink-0 flex flex-col justify-end items-center overflow-hidden py-8"
+          style={{ background: 'linear-gradient(145deg, #3B82F6 0%, #1D4ED8 45%, #1E3A8A 100%)' }}
         >
           {/* Subtle radial highlight top-left */}
           <div className="absolute top-0 left-0 w-72 h-72 rounded-full opacity-20 pointer-events-none"
             style={{ background: 'radial-gradient(circle, #60A5FA 0%, transparent 70%)' }} />
 
-          {/* 3D technician card image — update path */}
-          <div className="relative z-10 w-full flex justify-center pt-10 px-6">
-            {/* // Update image path: replace src with your actual 3D card image */}
+          {/* 3D technician card image */}
+          <div className="relative z-10 w-full flex justify-center pt-8 px-4">
             <Image
-              src="/images/signup_verified.png" // UPDATE YOUR IMAGE PATH HERE
+              src="/images/signup_verified.png"
               alt="Verified Technician"
-              width={260}
-              height={260}
-              className="object-contain drop-shadow-[0_30px_60px_rgba(0,0,0,0.5)]"
+              width={230}
+              height={230}
+              className="object-contain drop-shadow-[0_25px_50px_rgba(0,0,0,0.4)]"
             />
           </div>
 
           {/* Bottom text */}
-          <div className="relative z-10 text-center px-8 pb-10 pt-4">
-            <h2 className="text-white text-2xl font-bold mb-2">Verified Professionals</h2>
-            <p className="text-blue-200 text-xs leading-relaxed max-w-[220px] mx-auto">
+          <div className="relative z-10 text-center px-6 pb-8 pt-4">
+            <h2 className="text-white text-xl font-bold mb-2">Verified Professionals</h2>
+            <p className="text-blue-200 text-[11px] leading-relaxed max-w-[210px] mx-auto">
               Every technician is screened and verified to deliver reliable, high-quality service for your home.
             </p>
           </div>
         </div>
 
         {/* ── RIGHT PANEL — White form ── */}
-        <div className="flex-1 flex flex-col justify-center px-8 md:px-12 py-10">
+        <div className="flex-1 flex flex-col justify-center px-6 sm:px-10 py-6">
 
           {/* Logo — update path */}
-          <div className="mb-5">
-            {/* // UPDATE YOUR LOGO PATH HERE */}
+          <div className="mb-4">
             <Image
-              src="/fixhub.png" // UPDATE YOUR LOGO PATH HERE
+              src="/fixhub.png"
               alt="FixHub"
-              width={110}
-              height={36}
+              width={95}
+              height={30}
               className="object-contain"
             />
           </div>
@@ -166,16 +165,36 @@ export default function RegisterPage() {
 
           {/* Error */}
           {error && (
-            <div className="mb-4 px-3 py-2.5 bg-red-50 border border-red-200 rounded-xl">
-              <p className="text-xs text-red-600 font-medium">{error}</p>
+            <div className="mb-4 px-3.5 py-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2">
+              <svg className="w-4 h-4 text-rose-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <p className="text-xs text-rose-700 font-semibold">{error}</p>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
 
+            {/* Phone Number */}
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                Phone Number
+              </label>
+              <input
+                type="tel"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                placeholder="+977 9800000000"
+                pattern="\+977\s\d{9}"
+                className="w-full px-4 py-2.5 text-sm text-slate-800 border border-slate-200 rounded-xl placeholder:text-slate-350 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 hover:border-slate-300 transition-all"
+                required
+              />
+            </div>
+
             {/* Full Name */}
             <div>
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                 Full Name
               </label>
               <input
@@ -184,14 +203,14 @@ export default function RegisterPage() {
                 value={formData.fullName}
                 onChange={handleChange}
                 placeholder="Enter your full name"
-                className="w-full px-4 py-2.5 text-sm text-slate-800 border border-slate-200 rounded-xl placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all"
+                className="w-full px-4 py-2.5 text-sm text-slate-800 border border-slate-200 rounded-xl placeholder:text-slate-350 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 hover:border-slate-300 transition-all"
                 required
               />
             </div>
 
             {/* Email */}
             <div>
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                 Email Address
               </label>
               <input
@@ -200,7 +219,7 @@ export default function RegisterPage() {
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="yourmail@gmail.com"
-                className="w-full px-4 py-2.5 text-sm text-slate-800 border border-slate-200 rounded-xl placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all"
+                className="w-full px-4 py-2.5 text-sm text-slate-800 border border-slate-200 rounded-xl placeholder:text-slate-350 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 hover:border-slate-300 transition-all"
                 required
               />
             </div>
@@ -208,7 +227,7 @@ export default function RegisterPage() {
             {/* Password + Confirm — side by side */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                   Password
                 </label>
                 <div className="relative">
@@ -218,7 +237,7 @@ export default function RegisterPage() {
                     value={formData.password}
                     onChange={handleChange}
                     placeholder="Enter a strong password"
-                    className="w-full px-4 py-2.5 pr-10 text-sm text-slate-800 border border-slate-200 rounded-xl placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all"
+                    className="w-full px-4 py-2.5 pr-10 text-sm text-slate-800 border border-slate-200 rounded-xl placeholder:text-slate-350 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 hover:border-slate-300 transition-all"
                     required
                   />
                   <button
@@ -232,7 +251,7 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                   Confirm Password
                 </label>
                 <div className="relative">
@@ -242,7 +261,7 @@ export default function RegisterPage() {
                     value={formData.confirmPassword}
                     onChange={handleChange}
                     placeholder="Repeat your password"
-                    className="w-full px-4 py-2.5 pr-10 text-sm text-slate-800 border border-slate-200 rounded-xl placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all"
+                    className="w-full px-4 py-2.5 pr-10 text-sm text-slate-800 border border-slate-200 rounded-xl placeholder:text-slate-350 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 hover:border-slate-300 transition-all"
                     required
                   />
                   <button
@@ -256,24 +275,8 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Phone Number */}
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">
-                Phone Number
-              </label>
-              <input
-                type="tel"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                placeholder="+1 555 123 4567"
-                className="w-full px-4 py-2.5 text-sm text-slate-800 border border-slate-200 rounded-xl placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all" required
-                required
-              />
-            </div>
-
             {/* Terms */}
-            <div className="flex items-center gap-2.5 pt-1">
+            <div className="flex items-center gap-2.5 pt-2">
               <input
                 type="checkbox"
                 id="terms"
@@ -292,7 +295,7 @@ export default function RegisterPage() {
             {/* Submit */}
             <button
               type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-3 rounded-xl transition-colors text-sm flex items-center justify-center gap-2 mt-1"
+              className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-3 rounded-xl transition-all text-sm flex items-center justify-center gap-2 mt-2 shadow-sm hover:shadow-md"
             >
               Create Account
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
