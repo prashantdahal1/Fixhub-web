@@ -5,8 +5,9 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Directory: <projectRoot>/uploads/profile_pics (relative to backend root)
-const PROFILE_PIC_DIR = path.resolve(__dirname, '../../uploads/profile_pics');
+// Directory: <backendRoot>/uploads/profile_pics
+// process.cwd() = backend/ when running 'npm run dev' from backend/
+const PROFILE_PIC_DIR = path.resolve(process.cwd(), 'uploads/profile_pics');
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, PROFILE_PIC_DIR),
@@ -23,7 +24,7 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (_: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  if (['image/jpeg', 'image/png'].includes(file.mimetype)) cb(null, true);
+  if (['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) cb(null, true);
   else cb(null, false);
 };
 

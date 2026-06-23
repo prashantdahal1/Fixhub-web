@@ -21,7 +21,7 @@ app.use(cookieParser());
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use('/uploads', express.static(path.resolve(__dirname, '../../uploads')));
+app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
 app.use(morgan("combined"));
 
 app.use("/api/v1/auth", userRoutes);

@@ -54,11 +54,11 @@ export class UserController {
 
     async whoami(req: Request, res: Response) {
         try {
-            const userId = (req as any).user?.id;
+            const userId = (req as any).user?._id || (req as any).user?.id;
             if (!userId) {
                 return ApiResponseHelper.error(res, "Unauthorized", 401);
             }
-            const user = await userService.getUserById(userId);
+            const user = await userService.getUserById(userId.toString());
             if (!user) {
                 return ApiResponseHelper.error(res, "User not found", 404);
             }
@@ -71,7 +71,7 @@ export class UserController {
 
     async updateProfile(req: Request, res: Response) {
         try {
-            const userId = (req as any).user?.id;
+            const userId = (req as any).user?._id || (req as any).user?.id;
             if (!userId) {
                 return ApiResponseHelper.error(res, "Unauthorized", 401);
             }
@@ -79,7 +79,7 @@ export class UserController {
             if (req.file) {
                 updateData.profilePicture = `/uploads/profile_pics/${req.file.filename}`;
             }
-            const updatedUser = await userService.updateUser(userId, updateData);
+            const updatedUser = await userService.updateUser(userId.toString(), updateData);
             return ApiResponseHelper.success(res, updatedUser, "Profile updated successfully");
         } catch (error: any) {
             console.error("Update Profile Error:", error);

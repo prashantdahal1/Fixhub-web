@@ -11,8 +11,11 @@ export class ProfileController {
         return ApiResponseHelper.error(res, 'No image file provided', 400);
       }
       const filePath = `/uploads/profile_pics/${req.file.filename}`;
-      const userId = (req.user as any)?.id;
-      await this.userRepo.update(userId, { profilePicture: filePath });
+      const userId = (req.user as any)?._id || (req.user as any)?.id;
+      if (!userId) {
+        return ApiResponseHelper.error(res, 'User ID not found in session', 401);
+      }
+      await this.userRepo.update(userId.toString(), { profilePicture: filePath });
       return ApiResponseHelper.success(
         res,
         { profilePicture: filePath },
