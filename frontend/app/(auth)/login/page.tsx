@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 
 const EyeIcon = ({ open }: { open: boolean }) => open ? (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -18,6 +19,7 @@ const EyeIcon = ({ open }: { open: boolean }) => open ? (
 
 import { toast } from 'react-toastify';
 
+
 export default function LoginPage() {
   const [userType, setUserType] = useState<'customer' | 'professional'>('customer');
   const [showPassword, setShowPassword] = useState(false);
@@ -26,6 +28,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { fetchUser } = useAuth();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -47,7 +50,19 @@ export default function LoginPage() {
         toast.error(data.message || 'Login failed. Please check your credentials.');
         return; 
       }
+      
+      const loggedInUser = data.data?.user;
+      if (loggedInUser && loggedInUser.role !== userType) {
+        // Mismatch! Logout immediately to clear cookie
+        await fetch('/api/v1/auth/logout', { method: 'POST' });
+        const errMsg = `This account is registered as a ${loggedInUser.role}. Please log in using the correct toggle above.`;
+        setError(errMsg);
+        toast.error(errMsg);
+        return;
+      }
+
       toast.success('Login successful! Welcome to FixHub.');
+      await fetchUser();
       router.push('/dashboard');
     } catch {
       setError('Network error. Please try again.');
@@ -58,30 +73,21 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-200 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-slate-200 flex flex-col justify-center items-center p-4">
       <div
-        className="w-full max-w-4xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row"
-        style={{ minHeight: '520px' }}
+        className="w-full max-w-3xl bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col md:flex-row"
+        style={{ minHeight: '460px' }}
       >
 
         {/* ── LEFT PANEL — White form ── */}
-        <div className="flex-1 flex flex-col justify-center px-10 md:px-14 py-10">
+        <div className="flex-1 flex flex-col justify-center px-6 sm:px-10 py-8">
 
-          {/* Logo — UPDATE YOUR LOGO PATH HERE */}
-          <div className="mb-6">
-            <Image
-              src="/fixhub.png"
-              alt="FixHub"
-              width={110}
-              height={36}
-              className="object-contain"
-            />
-          </div>
-
-          <h1 className="text-2xl font-bold text-slate-900 mb-5">Welcome back !</h1>
+          <h1 className="text-2xl font-bold text-slate-800 mb-2">Welcome back !</h1>
+          <p className="text-slate-500 text-xs mb-6">Enter your details to access your account</p>
 
           {/* Customer / Professional toggle */}
-          <div className="relative grid grid-cols-2 p-1 bg-slate-100 rounded-xl mb-5">
+          <div className="relative grid grid-cols-2 p-1 bg-slate-100 rounded-xl mb-5 w-full">
+            {/* Sliding pill */}
             <div
               className={`absolute inset-y-1 w-[calc(50%-4px)] bg-white rounded-lg shadow-sm transition-transform duration-200 ease-in-out ${
                 userType === 'professional' ? 'translate-x-[calc(100%+4px)]' : 'translate-x-1'
@@ -109,8 +115,11 @@ export default function LoginPage() {
 
           {/* Error */}
           {error && (
-            <div className="mb-4 px-3 py-2.5 bg-red-50 border border-red-200 rounded-xl">
-              <p className="text-xs text-red-600 font-medium">{error}</p>
+            <div className="mb-4 px-3.5 py-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2">
+              <svg className="w-4 h-4 text-rose-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <p className="text-xs text-rose-700 font-semibold">{error}</p>
             </div>
           )}
 
@@ -118,7 +127,7 @@ export default function LoginPage() {
 
             {/* Email */}
             <div>
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                 Email Address
               </label>
               <input
@@ -127,7 +136,7 @@ export default function LoginPage() {
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="youremail@gmail.com"
-                className="w-full px-4 py-2.5 text-sm text-slate-800 border border-slate-200 rounded-xl placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all"
+                className="w-full px-4 py-2.5 text-sm text-slate-800 border border-slate-200 rounded-xl placeholder:text-slate-350 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 hover:border-slate-300 transition-all"
                 required
               />
             </div>
@@ -135,12 +144,12 @@ export default function LoginPage() {
             {/* Password */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
                   Password
                 </label>
                 <Link
                   href="/forgot-password"
-                  className="text-xs text-slate-500 hover:text-blue-600 transition-colors"
+                  className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors"
                 >
                   Forgot Password?
                 </Link>
@@ -152,7 +161,7 @@ export default function LoginPage() {
                   value={formData.password}
                   onChange={handleChange}
                   placeholder="••••••••"
-                  className="w-full px-4 py-2.5 pr-10 text-sm text-slate-800 border border-slate-200 rounded-xl placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all"
+                  className="w-full px-4 py-2.5 pr-10 text-sm text-slate-800 border border-slate-200 rounded-xl placeholder:text-slate-350 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 hover:border-slate-300 transition-all"
                   required
                 />
                 <button
@@ -174,7 +183,7 @@ export default function LoginPage() {
                 onChange={(e) => setStayLoggedIn(e.target.checked)}
                 className="w-4 h-4 rounded border-slate-300 accent-blue-600 cursor-pointer"
               />
-              <label htmlFor="stayLoggedIn" className="text-xs text-slate-500 cursor-pointer select-none">
+              <label htmlFor="stayLoggedIn" className="text-xs font-medium text-slate-500 cursor-pointer select-none">
                 Stay logged in for 30 days
               </label>
             </div>
@@ -183,27 +192,51 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition-colors text-sm mt-1"
+              className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition-all text-sm mt-1 flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
             >
-              {loading ? 'Logging in...' : 'Login'}
+              {loading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Logging in...
+                </>
+              ) : 'Login'}
             </button>
           </form>
 
+          {/* Social login partition */}
+          <div className="relative flex py-3 items-center mt-4">
+            <div className="flex-grow border-t border-slate-150"></div>
+            <span className="flex-shrink mx-4 text-slate-400 text-[10px] uppercase font-bold tracking-wider">or login with</span>
+            <div className="flex-grow border-t border-slate-150"></div>
+          </div>
+
+          <div className="grid grid-cols-1">
+            <button className="flex items-center justify-center gap-2 border border-slate-200 hover:border-slate-350 py-2.5 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-all shadow-sm">
+              <svg className="w-4 h-4" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+              </svg>
+              Continue with Google
+            </button>
+          </div>
+
           {/* Register link */}
-          <div className="mt-5 space-y-3">
-            <p className="text-center text-xs text-slate-400">New to the platform?</p>
-            <Link
-              href="/register"
-              className="block w-full text-center border border-slate-200 hover:border-blue-400 hover:text-blue-600 text-slate-700 font-medium py-2.5 rounded-xl text-sm transition-all"
-            >
+          <p className="text-center text-xs text-slate-500 mt-6">
+            New to the platform?{' '}
+            <Link href="/register" className="text-blue-650 font-semibold hover:underline">
               Create an account
             </Link>
-          </div>
+          </p>
         </div>
 
         {/* ── RIGHT PANEL — Blue with 3D phone mockup ── */}
         <div
-          className="relative md:w-[45%] flex-shrink-0 flex flex-col justify-end items-center overflow-hidden"
+          className="relative md:w-[42%] flex-shrink-0 flex flex-col justify-end items-center overflow-hidden py-6"
           style={{
             background: 'linear-gradient(145deg, #3B82F6 0%, #1D4ED8 45%, #1E3A8A 100%)',
           }}
@@ -215,22 +248,27 @@ export default function LoginPage() {
             style={{ background: 'radial-gradient(circle, #93C5FD 0%, transparent 70%)' }} />
 
           {/* 3D phone mockup image */}
-          <div className="relative z-10 w-full flex justify-center pt-8 px-4">
-            {/* 3D phone image — UPDATE YOUR IMAGE PATH HERE */}
+          <div className="relative z-10 w-full flex justify-center pt-4 px-4">
             <Image
-              src="/images/login_phone_mockup.png"
+              src="/images/login mobile.png"
               alt="FixHub App"
-              width={300}
-              height={300}
-              className="object-contain drop-shadow-[0_30px_60px_rgba(0,0,0,0.4)]"
+              width={210}
+              height={210}
+              className="object-contain drop-shadow-[0_20px_40px_rgba(0,0,0,0.3)]"
             />
           </div>
 
-          {/* Bottom text */}
-          <div className="relative z-10 text-center px-8 pb-10 pt-4">
-            <h2 className="text-white text-2xl font-bold mb-2">Instant Home Solutions</h2>
-            <p className="text-blue-200 text-xs leading-relaxed max-w-[240px] mx-auto">
-              Book verified home service professionals in minutes. Fast, secure, and trusted across Kathmandu.
+          {/* Trust Badge & Copy */}
+          <div className="relative z-10 text-center px-6 pt-4">
+            <div className="inline-flex items-center gap-1.5 bg-white/10 backdrop-blur-md rounded-full px-2.5 py-0.5 mb-2 border border-white/10">
+              <svg className="w-3 h-3 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M6.267 3.455a.75.75 0 00-.708-.523H4.5a2 2 0 00-2 2v1.07a.75.75 0 00.17.478l1.41 1.761a.75.75 0 01.17.478v2.32a.75.75 0 01-.17.478l-1.41 1.762a.75.75 0 00-.17.478v1.07a2 2 0 002 2h1.059a.75.75 0 00.708-.523l1.56-4.679a.75.75 0 01.708-.523h3.768a.75.75 0 01.708.523l1.56 4.679a.75.75 0 00.708.523H15.5a2 2 0 002-2v-1.07a.75.75 0 00-.17-.478l-1.41-1.762a.75.75 0 01-.17-.478v-2.32a.75.75 0 01.17-.478l1.41-1.76a.75.75 0 00.17-.479V4.932a2 2 0 00-2-2h-1.059a.75.75 0 00-.708.523l-1.56 4.679a.75.75 0 01-.708.523H8.535a.75.75 0 01-.708-.523L6.267 3.455z" clipRule="evenodd" />
+              </svg>
+              <span className="text-[9px] text-white font-bold tracking-wider uppercase">100% Verified Pros</span>
+            </div>
+            <h2 className="text-white text-lg font-bold mb-1">Instant Home Solutions</h2>
+            <p className="text-blue-100 text-[11px] leading-relaxed max-w-[220px] mx-auto">
+              Book home services in minutes. Fast, secure, and trusted across Kathmandu.
             </p>
           </div>
         </div>

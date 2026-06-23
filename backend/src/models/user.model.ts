@@ -14,7 +14,7 @@ const UserMongoSchema: Schema = new Schema<IUser>(
         email: { type: String, required: true, unique: true },
         username: { type: String, required: true, unique: true },
         password: { type: String, required: true },
-        role: { type: String, enum: ["admin", "user", "customer", "professional"], default: "user" },
+        role: { type: String, enum: ["admin", "customer", "professional"], default: "customer" },
         phoneNumber: { type: String },
         profilePicture: { type: String, default: '' },
     },

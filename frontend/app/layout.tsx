@@ -27,7 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="font-[family-name:var(--font-geist)] antialiased min-h-full flex flex-col">
         <AuthProvider>
           {children}
-          <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} />
+          <ToastContainer position="bottom-right" autoClose={3000} hideProgressBar={false} />
         </AuthProvider>
       </body>
     </html>

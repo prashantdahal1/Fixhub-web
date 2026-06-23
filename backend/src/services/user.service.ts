@@ -56,4 +56,17 @@ export class UserService {
     async updateUser(id: string, updateData: Partial<IUser>): Promise<IUser | null> {
         return await userRepository.update(id, updateData);
     }
+
+    async updatePassword(id: string, passwordData: any): Promise<void> {
+        const user = await userRepository.getUserById(id);
+        if (!user) {
+            throw new HttpException(404, "User not found");
+        }
+        const isPasswordValid = await bcrypt.compare(passwordData.oldPassword, user.password);
+        if (!isPasswordValid) {
+            throw new HttpException(400, "Invalid old password");
+        }
+        const hashedPassword = await bcrypt.hash(passwordData.newPassword, 10);
+        await userRepository.update(id, { password: hashedPassword });
+    }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState } from "react";
 import {
   Wrench,
@@ -22,9 +23,8 @@ import {
   MapPin,
   Phone,
   Mail,
-  Menu,
-  X,
 } from "lucide-react";
+import Navbar from "./components/navbar";
 
 const services = [
   { icon: Droplets, title: "Plumbing", desc: "Leak fixes, pipe installation, drain cleaning", color: "bg-blue-50 text-blue-600" },
@@ -63,57 +63,7 @@ export default function LandingPage() {
     <main className="min-h-screen bg-white text-slate-900 font-sans antialiased">
 
       {/* ── NAV ── */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-100">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-blue-500 flex items-center justify-center">
-              <Wrench size={16} className="text-white" />
-            </div>
-            <span className="text-lg font-bold tracking-tight text-slate-900">
-              Fix<span className="text-blue-600">Hub</span>
-            </span>
-          </div>
-
-          <div className="hidden md:flex items-center gap-8 text-sm text-slate-500 font-medium">
-            <a href="#services" className="hover:text-blue-600 transition-colors">Services</a>
-            <a href="#how" className="hover:text-blue-600 transition-colors">How it works</a>
-            <a href="#reviews" className="hover:text-blue-600 transition-colors">Reviews</a>
-            <a href="#faq" className="hover:text-blue-600 transition-colors">FAQ</a>
-          </div>
-
-          <div className="hidden md:flex items-center gap-3">
-            <Link href="/login" className="text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors px-4 py-2">
-              Log in
-            </Link>
-            <Link
-              href="/signup"
-              className="text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl transition-all shadow-sm shadow-blue-600/20"
-            >
-              Get started
-            </Link>
-          </div>
-
-          <button 
-            className="md:hidden p-2 text-slate-500"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          >
-            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
-        </div>
-
-        {/* Mobile menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden bg-white border-b border-slate-100 px-6 py-4 space-y-3">
-            <a href="#services" className="block text-sm font-medium text-slate-600 py-2">Services</a>
-            <a href="#how" className="block text-sm font-medium text-slate-600 py-2">How it works</a>
-            <a href="#reviews" className="block text-sm font-medium text-slate-600 py-2">Reviews</a>
-            <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
-              <Link href="/login" className="text-sm font-medium text-slate-500 text-center py-2">Log in</Link>
-              <Link href="/signup" className="text-sm font-semibold bg-blue-600 text-white text-center py-2.5 rounded-xl">Get started</Link>
-            </div>
-          </div>
-        )}
-      </nav>
+      <Navbar />
 
       {/* ── HERO ── */}
       <section className="relative pt-32 pb-20 md:pt-40 md:pb-28 px-6 overflow-hidden">
