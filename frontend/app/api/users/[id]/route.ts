@@ -12,7 +12,8 @@ interface RouteParams {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     await connectDB();
-    const { id } = await params;
+    const resolvedParams = await params;
+    const id = resolvedParams?.id || (params as any)?.id;
     const query = mongoose.Types.ObjectId.isValid(id) ? { _id: new mongoose.Types.ObjectId(id) } : { _id: id as any };
     console.log("Next route GET user query:", query);
     const user = await DbUser.findOne(query);
@@ -41,7 +42,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
     await connectDB();
-    const { id } = await params;
+    const resolvedParams = await params;
+    const id = resolvedParams?.id || (params as any)?.id;
     const query = mongoose.Types.ObjectId.isValid(id) ? { _id: new mongoose.Types.ObjectId(id) } : { _id: id as any };
     const user = await DbUser.findOne(query);
     if (!user) {
@@ -137,7 +139,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     await connectDB();
-    const { id } = await params;
+    const resolvedParams = await params;
+    const id = resolvedParams?.id || (params as any)?.id;
     const query = mongoose.Types.ObjectId.isValid(id) ? { _id: new mongoose.Types.ObjectId(id) } : { _id: id as any };
     const user = await DbUser.findOneAndDelete(query);
     if (!user) {

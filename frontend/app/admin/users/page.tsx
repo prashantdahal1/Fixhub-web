@@ -16,6 +16,9 @@ import {
   User,
 } from "lucide-react";
 
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
 interface UserRow {
   id: string;
   name: string;
@@ -128,8 +131,10 @@ function UserModal({
 
       onSave();
       onClose();
+      toast.success(user ? 'User updated successfully' : 'User created successfully');
     } catch (err) {
-      setError("Failed to save user");
+      setError('Failed to save user');
+      toast.error('Failed to save user');
     }
   };
 
@@ -362,15 +367,22 @@ export default function RegisteredUsersPage() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/users?page=${page}&size=${pageSize}&search=${encodeURIComponent(search)}`);
-      if (res.ok) {
-        const body = await res.json();
-        setUsers(body.data || []);
-        setTotalPages(body.meta?.totalPages || 1);
-        setTotalItems(body.meta?.totalItems || 0);
+      const res = await fetch(`/api/users?page=${page}&size=${pageSize}&search=${encodeURIComponent(search)}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('Failed to fetch users:', res.status, errorText);
+        return;
       }
+      const body = await res.json();
+      setUsers(body.data || []);
+      setTotalPages(body.meta?.totalPages || 1);
+      setTotalItems(body.meta?.totalItems || 0);
     } catch (err) {
-      console.error(err);
+      console.error('Error fetching users:', err);
     } finally {
       setLoading(false);
     }
@@ -388,6 +400,7 @@ export default function RegisteredUsersPage() {
       const res = await fetch(`/api/users/${id}`, { method: "DELETE" });
       if (res.ok) {
         fetchUsers();
+    toast.success('User deleted successfully');
       }
     } catch (err) {
     }
@@ -709,5 +722,6 @@ export default function RegisteredUsersPage() {
         <UserModal user={modalUser} onClose={() => setModalUser(undefined)} onSave={fetchUsers} />
       )}
     </div>
+    <ToastContainer />
   );
 }

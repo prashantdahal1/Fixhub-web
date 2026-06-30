@@ -32,7 +32,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const fetchUser = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/v1/auth/whoami');
+      const response = await fetch('/api/v1/auth/whoami', { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
         setUser(data.data);
