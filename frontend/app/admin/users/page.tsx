@@ -24,6 +24,8 @@ interface UserRow {
   _id: string;
   id?: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
   email: string;
   role: string;
   status: string;
@@ -119,9 +121,8 @@ function UserModal({
   onClose: () => void;
   onSave: () => void;
 }) {
-  const nameParts = (user?.name ?? "").split(" ");
-  const [firstName, setFirstName] = useState(nameParts[0] || "");
-  const [lastName, setLastName] = useState(nameParts.slice(1).join(" ") || "");
+  const [firstName, setFirstName] = useState(user?.firstName || (user?.name ?? "").split(" ")[0] || "");
+  const [lastName, setLastName] = useState(user?.lastName || (user?.name ?? "").split(" ").slice(1).join(" ") || "");
   const [email, setEmail] = useState(user?.email ?? "");
   const [username, setUsername] = useState(user?.username ?? "");
   const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber ?? "");
@@ -130,9 +131,14 @@ function UserModal({
   const [avatarPreview, setAvatarPreview] = useState((user as any)?.profilePicture ?? "");
   const [role, setRole] = useState(user?.role ?? "customer");
   const [status, setStatus] = useState(user?.status ?? "active");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
   const handleSubmit = async () => {
+    if (!user && !password) {
+      setError("Password is required for new users");
+      return;
+    }
     try {
       const url = user ? `/api/v1/admin/users/${user._id}` : "/api/v1/admin/users";
       const method = user ? "PUT" : "POST";
@@ -146,6 +152,9 @@ function UserModal({
       formData.append("address", address);
       formData.append("role", role === "expert" ? "professional" : role);
       formData.append("status", status);
+      if (password) {
+        formData.append("password", password);
+      }
 
       let response;
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -179,8 +188,9 @@ function UserModal({
             username,
             phoneNumber,
             address,
-            role,
+            role: role === "expert" ? "professional" : role,
             status,
+            password: password || undefined,
             profilePicture: avatarPreview // Keep existing profile picture url if not changing it
           }),
         });
@@ -310,6 +320,20 @@ function UserModal({
             />
           </div>
 
+          {/* Password (only for new users) */}
+          {!user && (
+            <div>
+              <label className={labelCls}>Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className={inputCls}
+              />
+            </div>
+          )}
+
           {/* Username + Phone */}
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -419,6 +443,8 @@ const getMockAddress = (userId: string) => {
 export default function RegisteredUsersPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [search, setSearch] = useState("");
+  const [filterRole, setFilterRole] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
@@ -437,7 +463,7 @@ export default function RegisteredUsersPage() {
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
-      const res = await fetch(`/api/v1/admin/users?page=${page}&size=${pageSize}&search=${encodeURIComponent(search)}`, {
+      const res = await fetch(`/api/v1/admin/users?page=${page}&size=${pageSize}&search=${encodeURIComponent(search)}&role=${filterRole}&status=${filterStatus}`, {
         method: 'GET',
         headers,
         credentials: 'include',
@@ -450,7 +476,7 @@ export default function RegisteredUsersPage() {
       const body = await res.json();
       setUsers(body.data || []);
       setTotalPages(body.meta?.totalPages || 1);
-      setTotalItems(body.meta?.totalItems || 0);
+      setTotalItems(body.meta?.total || 0);
     } catch (err) {
       console.error('Error fetching users:', err);
     } finally {
@@ -462,7 +488,7 @@ export default function RegisteredUsersPage() {
     fetchUsers();
     setSelectedIds([]);
     setExpandedIds([]);
-  }, [page, search]);
+  }, [page, search, filterRole, filterStatus]);
 
   const handleDelete = (id: string) => {
     setDeleteTargetId(id);
@@ -519,7 +545,7 @@ export default function RegisteredUsersPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-5">
         <div>
           <h1 className="text-xl font-semibold text-slate-700 tracking-tight">
-            Registered Users
+            Users
           </h1>
           <p className="text-sm text-slate-400 mt-0.5 font-normal">
             {totalItems} {totalItems === 1 ? "user" : "users"} found
@@ -553,6 +579,34 @@ export default function RegisteredUsersPage() {
               className="w-full sm:w-64 rounded-xl border border-slate-200 bg-white pl-10 pr-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none shadow-sm focus:border-blue-500 focus:shadow-[0_0_0_4px_rgba(37,99,235,0.08)] transition-all duration-200"
             />
           </div>
+
+          <select
+            value={filterRole}
+            onChange={(e) => {
+              setFilterRole(e.target.value);
+              setPage(1);
+            }}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-600 outline-none shadow-sm focus:border-blue-500 focus:shadow-[0_0_0_4px_rgba(37,99,235,0.08)] transition-all duration-200 cursor-pointer"
+          >
+            <option value="all">All Roles</option>
+            <option value="admin">Admin</option>
+            <option value="professional">Expert</option>
+            <option value="customer">Customer</option>
+          </select>
+
+          <select
+            value={filterStatus}
+            onChange={(e) => {
+              setFilterStatus(e.target.value);
+              setPage(1);
+            }}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-600 outline-none shadow-sm focus:border-blue-500 focus:shadow-[0_0_0_4px_rgba(37,99,235,0.08)] transition-all duration-200 cursor-pointer"
+          >
+            <option value="all">All Statuses</option>
+            <option value="active">Active</option>
+            <option value="pending">Pending</option>
+            <option value="suspended">Suspended</option>
+          </select>
 
           <button
             onClick={() => setModalUser(null)}
@@ -636,7 +690,7 @@ export default function RegisteredUsersPage() {
                           />
                         </td>
                         <td className="px-4 py-2 font-medium text-slate-700">
-                          {user.name}
+                          {user.firstName || user.lastName ? `${user.firstName || ""} ${user.lastName || ""}`.trim() : user.name || "N/A"}
                         </td>
                         <td className="px-4 py-2 text-slate-400 font-normal">{user.email}</td>
                         <td className="px-4 py-2">

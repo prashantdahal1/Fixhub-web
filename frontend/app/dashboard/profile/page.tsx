@@ -70,8 +70,14 @@ const ProfilePage: React.FC = () => {
     formData.append('cityState', tempProfile.cityState);
 
     try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
       const res = await fetch('/api/v1/auth/update', {
         method: 'PUT',
+        headers,
         body: formData,
       });
 
@@ -115,8 +121,14 @@ const ProfilePage: React.FC = () => {
       formData.append('avatar', file);
 
       try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const headers: Record<string, string> = {};
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
         const res = await fetch('/api/v1/auth/upload', {
           method: 'PUT',
+          headers,
           body: formData,
         });
 

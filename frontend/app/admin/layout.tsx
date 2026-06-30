@@ -17,11 +17,11 @@ import {
   User,
   Settings2,
 } from "lucide-react";
-import { getTokenCookie, clearAuthCookies } from "@/lib/cookies";
+import { getTokenCookie, getUserData, clearAuthCookies } from "@/lib/cookies";
 
 const navItems = [
   { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
-  { label: "Registered Users", href: "/admin/users", icon: Users },
+  { label: "Users", href: "/admin/users", icon: Users },
   { label: "Settings", href: "/admin/settings", icon: Settings },
 ];
 
@@ -120,6 +120,8 @@ export default function AdminLayout({
   const [profileOpen, setProfileOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
+  const [adminInfo, setAdminInfo] = useState<{ email: string; name: string } | null>(null);
+
   useEffect(() => {
     async function checkAuth() {
       if (pathname === "/admin/login") {
@@ -131,6 +133,10 @@ export default function AdminLayout({
         window.location.href = "/admin/login";
       } else {
         setIsAuthenticated(true);
+        const userData = await getUserData();
+        if (userData) {
+          setAdminInfo(userData);
+        }
       }
     }
     checkAuth();
@@ -232,16 +238,16 @@ export default function AdminLayout({
                 className="flex items-center gap-2 rounded-lg pl-1 pr-2 py-1 hover:bg-slate-100 transition"
               >
                 <div
-                  className="h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                  className="h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-bold uppercase"
                   style={{
                     background: "linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)",
                     boxShadow: "0 1px 6px rgba(37,99,235,0.40)",
                   }}
                 >
-                  PP
+                  {adminInfo?.name ? adminInfo.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2) : "AD"}
                 </div>
                 <span className="hidden sm:block text-sm font-medium text-slate-700">
-                  Prashant Patel
+                  {adminInfo?.name || "Admin"}
                 </span>
                 <ChevronDown className="hidden sm:block h-3.5 w-3.5 text-slate-400" />
               </button>
@@ -255,10 +261,10 @@ export default function AdminLayout({
                   <div className="absolute right-0 top-full mt-2 w-52 rounded-xl border border-slate-200 bg-white shadow-lg py-1.5 z-20">
                     <div className="px-3 py-2 border-b border-slate-100">
                       <p className="text-sm font-medium text-slate-900">
-                        Prashant Patel
+                        {adminInfo?.name || "Admin"}
                       </p>
                       <p className="text-xs text-slate-400">
-                        admin@fixhub.com
+                        {adminInfo?.email || "admin@fixhub.com"}
                       </p>
                     </div>
                     <button className="flex w-full items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
