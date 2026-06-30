@@ -1,15 +1,15 @@
-import { UserModel, IUser } from "../models/user.model";
+import { UserModel, type IUser } from '../models/user.model.js';
 
 export interface IUserRepository {
     getUserByEmail(email: string): Promise<IUser | null>;
     getUserByUsername(username: string): Promise<IUser | null>;
-    // 5 common mandatory methods for a repository
     createUser(user: Partial<IUser>): Promise<IUser>;
     getUserById(id: string): Promise<IUser | null>;
     getAll(): Promise<IUser[]>;
     update(id: string, user: Partial<IUser>): Promise<IUser | null>;
     delete(id: string): Promise<boolean>;
 }
+
 export class UserMongoRepository implements IUserRepository {  
     async getUserById(id: string): Promise<IUser | null> {
         const found = await UserModel.findOne({ _id: id });

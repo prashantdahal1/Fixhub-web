@@ -1,34 +1,38 @@
-import express, { Application, NextFunction, Request, Response } from "express";
+import express, { type Application, type NextFunction, type Request, type Response } from "express";
 import cookieParser from "cookie-parser";
-import { HttpException } from "./exceptions/http-exception";
-import { ApiResponseHelper } from "./utils/apihelper.util";
-import cors from "cors";
+import { HttpException } from './exceptions/http-exception.js';
+import { ApiResponseHelper } from './utils/apihelper.util.js';
+import { corsMiddleware } from './middlewares/cors.middleware.js';
 import morgan from "morgan";
+import path from "path";
+import { fileURLToPath } from 'url';
 
-// routes
-import userRoutes from "./routes/user.route";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+import userRoutes from "./routes/user.route.js";
+import { profileRouter } from './routes/profile.route.js';
 
 const app: Application = express();
-const corsOptions = {
-    origin: ["*"], // ["http://localhost:3000", "http://example.com"]
-    successStatus: 200
-}
-app.use(cors(corsOptions)); // enable CORS for all routes
-app.use(cookieParser()); // parse cookies
+app.use(corsMiddleware);
 
-app.use(express.json()); // json input
-app.use(express.urlencoded({ extended: true })); // x-www-form-urlencoded
-app.use(morgan("combined")); // log all requests
+app.use(cookieParser());
 
-app.use("/api/v1/auth", userRoutes); // user related routes
 
-// global api handler (at the last)
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
+app.use(morgan("combined"));
+
+app.use("/api/v1/auth", userRoutes);
+app.use("/api/v1/auth", profileRouter);
+
 app.use(
     (req: Request, res: Response) => {
         return res.status(404).json({ message: "API not found" });
     }
 )
-// global error handler (at the last)
+
 app.use(
     (err: Error, req: Request, res: Response, next: NextFunction) => {
         console.error("Error:", err);

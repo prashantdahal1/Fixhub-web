@@ -5,11 +5,8 @@ import { connectToMongoDB } from "./src/database/mongodb";
 
 connectToMongoDB();
 
-app.listen(
-    API_PORT,  // start backend in this PORT
-    () => {
-        console.log(`Server: http://localhost:${API_PORT}`); // backtick
-    }
-);
+app.listen(API_PORT, '0.0.0.0', () => {
+    console.log(`Server: http://localhost:${API_PORT}`);
+});
 // execute: npx tsx --watch index.ts
 // http://localhost:8089

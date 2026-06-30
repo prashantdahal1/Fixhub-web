@@ -1,12 +1,12 @@
-import app from "./app";
+import app from "./app.js";
 import chalk from "chalk";
-import { connectToMongoDB } from "./database/mongodb";
-import { PORT } from "./configs/constant";
+import { connectToMongoDB } from './database/mongodb.js';
+import { PORT } from './configs/constant.js';
 
 const startServer = async () => {
   try {
     await connectToMongoDB();
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0', () => {
       console.log(chalk.green('Server running on ') + chalk.yellow(`http://localhost:${PORT}`));
     });
   } catch (error) {

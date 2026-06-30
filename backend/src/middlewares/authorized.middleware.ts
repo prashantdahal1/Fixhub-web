@@ -1,28 +1,28 @@
-import { Request, Response, NextFunction } from 'express';
-import { SECRET_KEY } from '../configs/constant';
+import type { Request, Response, NextFunction } from 'express';
+import { SECRET_KEY } from '../configs/constant.js';
 import jwt from 'jsonwebtoken';
-import { IUser } from '../models/user.model';
-import { UserMongoRepository } from '../repositories/user.repository';
-import { HttpException } from '../exceptions/http-exception';
-import { ApiResponseHelper } from '../utils/apihelper.util';
+import type { IUser } from '../models/user.model.js';
+import { UserMongoRepository } from '../repositories/user.repository.js';
+import { HttpException } from '../exceptions/http-exception.js';
+import { ApiResponseHelper } from '../utils/apihelper.util.js';
 
-declare global {
-    namespace Express {
-        interface Request {
-            user?: Record<string, any> | IUser
-        }
-    }
-} // adding tag (user) to request, can use req.user
+// adding tag (user) to request, can use req.user
 let userRepository = new UserMongoRepository();
 export const authorizedMiddleware =
     async (req: Request, res: Response, next: NextFunction) => {
         try {
+            let token = '';
             const authHeader = req.headers.authorization;
-            if (!authHeader || !authHeader.startsWith('Bearer '))
-                throw new HttpException(401, 'Unauthorized JWT invalid');
-            // JWT token should start with "Bearer <token>"
-            const token = authHeader.split(' ')[1]; // 0 -> Bearer, 1 -> token
-            if (!token) throw new HttpException(401, 'Unauthorized JWT missing');
+            if (authHeader && authHeader.startsWith('Bearer ')) {
+                token = authHeader.split(' ')[1] || '';
+            } else if (req.cookies && req.cookies.token) {
+                token = req.cookies.token;
+            }
+
+            if (!token) {
+                throw new HttpException(401, 'Unauthorized JWT missing');
+            }
+
             const decodedToken = jwt.verify(token, SECRET_KEY) as Record<string, any>;
             if (!decodedToken || !decodedToken.id) {
                 throw new HttpException(401, 'Unauthorized JWT unverified');
