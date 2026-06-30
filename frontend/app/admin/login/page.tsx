@@ -2,19 +2,33 @@
 
 import { useState } from "react";
 import { Eye, EyeOff, Loader2, Wrench, Lock, Mail } from "lucide-react";
+import { setTokenCookie, storeUserData } from "@/lib/cookies";
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
+    setError("");
+
+    try {
+      if (email === "admin@fixhub.com" && password === "admin@fixhub") {
+        await setTokenCookie("admin-mock-token");
+        await storeUserData({ email: "admin@fixhub.com", name: "Prashant Patel" });
+        window.location.href = "/admin";
+      } else {
+        setError("Invalid email or password");
+      }
+    } catch (err) {
+      setError("An unexpected error occurred");
+    } finally {
       setLoading(false);
-    }, 1800);
+    }
   };
 
   return (
@@ -36,6 +50,12 @@ export default function AdminLoginPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <div className="p-3 text-sm text-red-600 bg-red-50 rounded-lg border border-red-100">
+                {error}
+              </div>
+            )}
+
             <div>
               <label
                 htmlFor="email"

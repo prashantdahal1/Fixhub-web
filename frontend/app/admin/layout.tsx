@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import {
@@ -17,6 +17,7 @@ import {
   User,
   Settings2,
 } from "lucide-react";
+import { getTokenCookie, clearAuthCookies } from "@/lib/cookies";
 
 const navItems = [
   { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
@@ -34,15 +35,20 @@ function getBreadcrumbs(pathname: string) {
 }
 
 function SidebarContent({ pathname }: { pathname: string }) {
+  const handleLogout = async () => {
+    await clearAuthCookies();
+    window.location.href = "/admin/login";
+  };
+
   return (
     <div className="flex h-full flex-col bg-white">
-      <div className="flex items-center gap-2 px-5 h-16 border-b border-slate-100">
-        <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center shrink-0">
-          <Wrench className="h-4 w-4 text-white" />
+      <div className="flex items-center gap-3 px-6 h-16 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+        <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center shrink-0 shadow-md shadow-blue-200">
+          <Wrench className="h-4.5 w-4.5 text-white" />
         </div>
         <div className="leading-tight">
-          <p className="text-sm font-semibold text-slate-900">FixHub</p>
-          <p className="text-[11px] text-slate-400">Enterprise Control</p>
+          <p className="text-base font-bold tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">FixHub</p>
+          <p className="text-[10px] font-semibold text-blue-600 tracking-wider uppercase">Enterprise</p>
         </div>
       </div>
 
@@ -58,7 +64,7 @@ function SidebarContent({ pathname }: { pathname: string }) {
               href={item.href}
               className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
                 active
-                  ? "bg-blue-600 text-white"
+                  ? "bg-blue-600 text-white animate-pulse-subtle"
                   : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
               }`}
             >
@@ -70,7 +76,10 @@ function SidebarContent({ pathname }: { pathname: string }) {
       </nav>
 
       <div className="px-3 py-4 border-t border-slate-100">
-        <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-500 hover:bg-red-50 hover:text-red-500 transition">
+        <button
+          onClick={handleLogout}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-500 hover:bg-red-50 hover:text-red-500 transition"
+        >
           <LogOut className="h-4 w-4 shrink-0" />
           Log Out
         </button>
@@ -87,7 +96,42 @@ export default function AdminLayout({
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    async function checkAuth() {
+      if (pathname === "/admin/login") {
+        setIsAuthenticated(true);
+        return;
+      }
+      const token = await getTokenCookie();
+      if (!token) {
+        window.location.href = "/admin/login";
+      } else {
+        setIsAuthenticated(true);
+      }
+    }
+    checkAuth();
+  }, [pathname]);
+
+  const handleLogout = async () => {
+    await clearAuthCookies();
+    window.location.href = "/admin/login";
+  };
+
   const breadcrumbs = getBreadcrumbs(pathname || "/admin");
+
+  if (pathname === "/admin/login") {
+    return <>{children}</>;
+  }
+
+  if (isAuthenticated === null) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -193,7 +237,10 @@ export default function AdminLayout({
                       Account Settings
                     </button>
                     <div className="border-t border-slate-100 mt-1 pt-1">
-                      <button className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50">
+                      <button
+                        onClick={handleLogout}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50"
+                      >
                         <LogOut className="h-4 w-4" />
                         Log Out
                       </button>
