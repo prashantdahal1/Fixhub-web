@@ -40,7 +40,11 @@ export class UserController {
                 return ApiResponseHelper.error(res, formatZodError(parsedData.error), 400);
             }
             const { user, token } = await userService.loginUser(parsedData.data);
-            res.cookie('token', token, { httpOnly: true, sameSite: 'strict', secure: false });
+            const cookieOptions: any = { httpOnly: true, sameSite: 'strict', secure: false };
+            if (parsedData.data.stayLoggedIn) {
+                cookieOptions.maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
+            }
+            res.cookie('token', token, cookieOptions);
             return ApiResponseHelper.success(res, { user, token }, "Login successful");
         } catch (error: any) {
             console.error("Login Error:", error);

@@ -15,6 +15,7 @@ export type CreateUserDTO = z.infer<typeof CreateUserDTO>;
 export const LoginUserDTO = z.object({
   email:    z.string().email(),
   password: z.string().min(6),
+  stayLoggedIn: z.boolean().optional(),
 });
 
 export type LoginUserDTO = z.infer<typeof LoginUserDTO>;
