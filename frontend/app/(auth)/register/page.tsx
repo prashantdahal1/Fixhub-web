@@ -57,7 +57,7 @@ export default function RegisterPage() {
     };
     const result = CreateUserDTO.safeParse(payload);
     if (!result.success) {
-      const errMsg = result.error.errors.map(e => e.message).join(', ');
+      const errMsg = result.error.issues.map((e) => e.message).join(', ');
       setError(errMsg);
       toast.error(errMsg);
       return;

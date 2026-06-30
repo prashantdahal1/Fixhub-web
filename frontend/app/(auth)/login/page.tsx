@@ -42,7 +42,7 @@ export default function LoginPage() {
       const response = await fetch('/api/v1/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: formData.email, password: formData.password, userType }),
+        body: JSON.stringify({ email: formData.email, password: formData.password, userType, stayLoggedIn }),
       });
       const data = await response.json();
       if (!response.ok) { 
