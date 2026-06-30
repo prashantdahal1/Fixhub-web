@@ -48,8 +48,10 @@ export async function GET(request: NextRequest) {
         status: u.status || "active",
         createdAt: u.createdAt.toISOString(),
         updatedAt: u.updatedAt.toISOString(),
-        username: u.username,
-        phoneNumber: u.phoneNumber || ""
+        username: u.username || "",
+        phoneNumber: u.phoneNumber || "",
+        profilePicture: u.profilePicture || "",
+        address: u.address || ""
       };
     });
 
@@ -70,22 +72,57 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     await connectDB();
-    const body = await request.json();
-    const { name, email, role, status } = body;
+    
+    let firstName, lastName, email, username, role, status, phoneNumber, profilePicture = "", address = "";
+    
+    const contentType = request.headers.get("content-type") || "";
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await request.formData();
+      firstName = formData.get("firstName")?.toString();
+      lastName = formData.get("lastName")?.toString();
+      email = formData.get("email")?.toString();
+      username = formData.get("username")?.toString();
+      role = formData.get("role")?.toString();
+      status = formData.get("status")?.toString();
+      phoneNumber = formData.get("phoneNumber")?.toString();
+      address = formData.get("address")?.toString();
+      
+      const file = formData.get("avatar") as File | null;
+      if (file && file.size > 0) {
+        // Read file stream and encode to base64 data URI to keep self-contained inside DB user avatar,
+        // which avoids storing/mounting difficulties in separate uploads dir across NextJS vs Express backend.
+        const arrayBuffer = await file.arrayBuffer();
+        const base64String = Buffer.from(arrayBuffer).toString("base64");
+        profilePicture = `data:${file.type};base64,${base64String}`;
+      }
+    } else {
+      const body = await request.json();
+      firstName = body.firstName;
+      lastName = body.lastName;
+      email = body.email;
+      username = body.username;
+      role = body.role;
+      status = body.status;
+      phoneNumber = body.phoneNumber;
+      profilePicture = body.profilePicture || "";
+      address = body.address || "";
+    }
 
-    if (!name || !email || !role || !status) {
+    if (!firstName || !lastName || !email || !role || !status) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const existingUser = await DbUser.findOne({ email: email.toLowerCase() });
-    if (existingUser) {
+    const existingEmail = await DbUser.findOne({ email: email.toLowerCase() });
+    if (existingEmail) {
       return NextResponse.json({ error: "Email already exists" }, { status: 400 });
     }
 
-    const nameParts = name.trim().split(" ");
-    const firstName = nameParts[0];
-    const lastName = nameParts.slice(1).join(" ") || ".";
-    const username = email.split("@")[0] + Math.floor(100 + Math.random() * 900);
+    const newUsername = username || email.split("@")[0] + Math.floor(100 + Math.random() * 900);
+    const existingUsername = await DbUser.findOne({ username: newUsername });
+    if (existingUsername) {
+      return NextResponse.json({ error: "Username already exists" }, { status: 400 });
+    }
+
     const hashedPassword = await bcrypt.hash("fixhub@123", 10);
     const dbRole = role === "expert" ? "professional" : role;
 
@@ -93,11 +130,13 @@ export async function POST(request: NextRequest) {
       firstName,
       lastName,
       email: email.toLowerCase(),
-      username,
+      username: newUsername,
       password: hashedPassword,
       role: dbRole,
       status,
-      phoneNumber: ""
+      phoneNumber: phoneNumber || "",
+      profilePicture: profilePicture || "",
+      address: address || ""
     });
 
     const mappedRole = newUser.role === "professional" ? "expert" : newUser.role;
@@ -109,9 +148,14 @@ export async function POST(request: NextRequest) {
       role: mappedRole,
       status: newUser.status || "active",
       createdAt: newUser.createdAt.toISOString(),
-      updatedAt: newUser.updatedAt.toISOString()
+      updatedAt: newUser.updatedAt.toISOString(),
+      username: newUser.username,
+      phoneNumber: newUser.phoneNumber,
+      profilePicture: newUser.profilePicture,
+      address: newUser.address || ""
     }, { status: 201 });
   } catch (error) {
+    console.error("POST User Proxy error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

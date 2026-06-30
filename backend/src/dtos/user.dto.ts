@@ -46,6 +46,8 @@ export const AdminUpdateUserDTO = z.object({
   username:  z.string().trim().optional(),
   role:      z.enum(["admin", "customer", "professional"]).optional(),
   phoneNumber: z.string().optional(),
+  address: z.string().optional(),
+  avatar: z.string().optional(),
   profilePicture: z.string().optional(),
 });
 
@@ -59,6 +61,8 @@ export const AdminCreateUserDTO = z.object({
   password:  z.string().min(6),
   role:      z.enum(["admin", "customer", "professional"]).optional(),
   phoneNumber: z.string().optional(),
+  address: z.string().optional(),
+  avatar: z.string().optional(),
 });
 
 export type AdminCreateUserDTO = z.infer<typeof AdminCreateUserDTO>;

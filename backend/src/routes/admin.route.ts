@@ -11,8 +11,9 @@ adminRouter.use(adminMiddleware);
 
 adminRouter.get('/users', userController.getUsers.bind(userController));
 adminRouter.get('/users/:id', userController.getUserById.bind(userController));
-adminRouter.post('/users', profileUpload.single('profilePicture'), userController.adminCreateUser.bind(userController));
-adminRouter.put('/users/:id', profileUpload.single('profilePicture'), userController.updateUser.bind(userController));
+adminRouter.post('/users', profileUpload.single('avatar'), userController.adminCreateUser.bind(userController));
+adminRouter.put('/users/:id', profileUpload.single('avatar'), userController.updateUser.bind(userController));
+adminRouter.patch('/users/:id', profileUpload.single('avatar'), userController.updateUser.bind(userController));
 adminRouter.delete('/users/:id', userController.deleteUser.bind(userController));
 
 export default adminRouter;

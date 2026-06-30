@@ -8,6 +8,7 @@ export interface IDbUser extends Document {
   role: "admin" | "customer" | "professional";
   phoneNumber?: string;
   profilePicture?: string;
+  address?: string;
   status?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -22,6 +23,7 @@ const DbUserSchema = new Schema<IDbUser>(
     role: { type: String, enum: ["admin", "customer", "professional"], default: "customer" },
     phoneNumber: { type: String },
     profilePicture: { type: String, default: "" },
+    address: { type: String, default: "" },
     status: { type: String, default: "active" }
   },
   {
