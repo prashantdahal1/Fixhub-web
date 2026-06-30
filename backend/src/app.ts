@@ -10,8 +10,9 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-import userRoutes from "./routes/user.route.js";
+import userRoutes from "./routes/admin/user.route.js";
 import { profileRouter } from './routes/profile.route.js';
+import adminRoutes from "./routes/admin.route.js";
 
 const app: Application = express();
 app.use(corsMiddleware);
@@ -26,6 +27,7 @@ app.use(morgan("combined"));
 
 app.use("/api/v1/auth", userRoutes);
 app.use("/api/v1/auth", profileRouter);
+app.use("/api/v1/admin", adminRoutes);
 
 app.use(
     (req: Request, res: Response) => {

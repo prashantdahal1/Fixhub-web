@@ -6,6 +6,7 @@ export interface IUserRepository {
     createUser(user: Partial<IUser>): Promise<IUser>;
     getUserById(id: string): Promise<IUser | null>;
     getAll(): Promise<IUser[]>;
+    getPaginatedUsers(page: number, limit: number, search?: string): Promise<{ data: IUser[], total: number }>;
     update(id: string, user: Partial<IUser>): Promise<IUser | null>;
     delete(id: string): Promise<boolean>;
 }
@@ -31,8 +32,27 @@ export class UserMongoRepository implements IUserRepository {
         const found = await UserModel.find();
         return found;
     }
+    async getPaginatedUsers(page: number, limit: number, search?: string): Promise<{ data: IUser[], total: number }> {
+        const query: any = {};
+        if (search) {
+            const regex = new RegExp(search, 'i');
+            query.$or = [
+                { email: regex },
+                { firstName: regex },
+                { lastName: regex }
+            ];
+        }
+        
+        const skip = (page - 1) * limit;
+        const [data, total] = await Promise.all([
+            UserModel.find(query).skip(skip).limit(limit).sort({ createdAt: -1 }),
+            UserModel.countDocuments(query)
+        ]);
+        
+        return { data, total };
+    }
     async update(id: string, user: Partial<IUser>): Promise<IUser | null> {
-        const updated = await UserModel.findByIdAndUpdate(id, user, { new: true });
+        const updated = await UserModel.findByIdAndUpdate(id, user, { new: true, runValidators: true });
         return updated;
     }
     async delete(id: string): Promise<boolean> {
