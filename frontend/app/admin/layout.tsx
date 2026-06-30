@@ -39,6 +39,9 @@ function SidebarContent({ pathname }: { pathname: string }) {
     document.cookie = "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     document.cookie = "user_data=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     await clearAuthCookies();
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('token');
+    }
     window.location.href = "/admin/login";
   };
 
@@ -137,6 +140,9 @@ export default function AdminLayout({
     document.cookie = "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     document.cookie = "user_data=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     await clearAuthCookies();
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('token');
+    }
     window.location.href = "/admin/login";
   };
 

@@ -17,6 +17,8 @@ export const authorizedMiddleware =
                 token = authHeader.split(' ')[1] || '';
             } else if (req.cookies && req.cookies.token) {
                 token = req.cookies.token;
+            } else if (req.cookies && req.cookies.auth_token) {
+                token = req.cookies.auth_token;
             }
 
             if (!token) {

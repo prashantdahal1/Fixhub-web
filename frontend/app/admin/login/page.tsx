@@ -17,15 +17,34 @@ export default function AdminLoginPage() {
     setError("");
 
     try {
-      if (email === "admin@fixhub.com" && password === "admin@fixhub") {
-        await setTokenCookie("admin-mock-token");
-        await storeUserData({ email: "admin@fixhub.com", name: "Prashant Patel" });
-        window.location.href = "/admin";
-      } else {
-        setError("Invalid email or password");
+      const response = await fetch('/api/v1/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, userType: 'admin', stayLoggedIn: true }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.message || "Invalid email or password");
+        return;
       }
+
+      const token = data.data?.token;
+      const user = data.data?.user;
+      if (user && user.role !== 'admin') {
+        setError("Access denied. You are not an admin.");
+        return;
+      }
+
+      if (token) {
+        await setTokenCookie(token);
+        localStorage.setItem('token', token);
+      }
+      if (user) {
+        await storeUserData({ email: user.email, name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || "Admin" });
+      }
+      window.location.href = "/admin";
     } catch (err) {
-      setError("An unexpected error occurred");
+      setError("An unexpected error occurred or backend is unreachable");
     } finally {
       setLoading(false);
     }

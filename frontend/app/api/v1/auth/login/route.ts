@@ -1,33 +1,33 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { connectDB } from '@/lib/mongodb';
-import { DbUser } from '@/lib/db-user';
-import bcrypt from 'bcryptjs';
 
-const SESSION_COOKIE = 'fixhub_session';
-
-function setSessionCookie(response: NextResponse, userId: string) {
-  const cookieValue = Buffer.from(userId).toString('base64');
-  response.headers.set('Set-Cookie', `${SESSION_COOKIE}=${cookieValue}; Path=/; HttpOnly; SameSite=Lax`);
-  return response;
-}
-
+// This route proxies login to the Express backend (port 5000).
+// The Express backend handles auth and sets the 'token' JWT cookie itself.
 export async function POST(request: NextRequest) {
   try {
-    await connectDB();
-    const { email, password } = await request.json();
-    const user = await DbUser.findOne({ email: email.toLowerCase() });
-    if (!user) {
-      return NextResponse.json({ message: 'Invalid credentials' }, { status: 401 });
+    const body = await request.json();
+
+    const backendResponse = await fetch('http://localhost:5000/api/v1/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    const data = await backendResponse.json();
+
+    // Forward the response (including Set-Cookie from Express) to the browser
+    const response = NextResponse.json(data, { status: backendResponse.status });
+
+    // Copy the Set-Cookie header from the Express response so the JWT cookie
+    // gets set on the browser's localhost:3000 origin.
+    const setCookie = backendResponse.headers.get('set-cookie');
+    if (setCookie) {
+      response.headers.set('set-cookie', setCookie);
     }
-    const valid = await bcrypt.compare(password, user.password);
-    if (!valid) {
-      return NextResponse.json({ message: 'Invalid credentials' }, { status: 401 });
-    }
-    const resp = NextResponse.json({ message: 'Logged in' }, { status: 200 });
-    return setSessionCookie(resp, user._id.toString());
+
+    return response;
   } catch (e) {
-    console.error(e);
-    return NextResponse.json({ message: 'Server error' }, { status: 500 });
+    console.error('Login proxy error:', e);
+    return NextResponse.json({ message: 'Backend unreachable. Is the Express server running on port 5000?' }, { status: 503 });
   }
 }

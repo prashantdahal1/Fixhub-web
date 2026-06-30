@@ -14,13 +14,15 @@ import {
   MapPin,
   Clock,
   User,
+  AlertCircle,
 } from "lucide-react";
 
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 interface UserRow {
-  id: string;
+  _id: string;
+  id?: string;
   name: string;
   email: string;
   role: string;
@@ -61,6 +63,53 @@ const statusBadgeStyles: Record<string, { bg: string; dot: string }> = {
   },
 };
 
+function DeleteConfirmModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  title = "Delete user",
+  message = "Are you sure you want to delete this user? This action cannot be undone.",
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title?: string;
+  message?: string;
+}) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
+      <div className="w-full max-w-[340px] bg-white rounded-3xl p-6 shadow-xl border border-slate-100 flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-150">
+        {/* Red warning icon with glow */}
+        <div className="h-12 w-12 rounded-full bg-red-50 flex items-center justify-center mb-4 ring-8 ring-red-50/50">
+          <AlertCircle className="h-6 w-6 text-red-500" />
+        </div>
+
+        <h3 className="text-[17px] font-bold text-slate-800 mb-2">{title}</h3>
+        <p className="text-xs text-slate-400 leading-relaxed px-2 mb-6">
+          {message}
+        </p>
+
+        <div className="grid grid-cols-2 gap-3 w-full">
+          <button
+            onClick={onClose}
+            className="w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200/80 text-sm font-semibold text-slate-600 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="w-full py-2.5 px-4 rounded-xl bg-red-500 hover:bg-red-600 text-sm font-semibold text-white transition-colors shadow-sm shadow-red-200"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function UserModal({
   user,
   onClose,
@@ -85,7 +134,7 @@ function UserModal({
 
   const handleSubmit = async () => {
     try {
-      const url = user ? `/api/users/${user.id}` : "/api/users";
+      const url = user ? `/api/v1/admin/users/${user._id}` : "/api/v1/admin/users";
       const method = user ? "PUT" : "POST";
 
       const formData = new FormData();
@@ -99,15 +148,30 @@ function UserModal({
       formData.append("status", status);
 
       let response;
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const authHeaders: Record<string, string> = {};
+      if (token) {
+        authHeaders['Authorization'] = `Bearer ${token}`;
+      }
+
       if (avatarFile) {
         formData.append("avatar", avatarFile);
-        const responseFormData = await fetch(url, { method, body: formData });
+        const responseFormData = await fetch(url, {
+          method,
+          body: formData,
+          headers: authHeaders,
+          credentials: 'include'
+        });
         response = responseFormData;
       } else {
         // Fallback to sending JSON if no file, matching existing structure
         const responseJson = await fetch(url, {
           method,
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...authHeaders
+          },
+          credentials: 'include',
           body: JSON.stringify({
             firstName,
             lastName,
@@ -361,15 +425,21 @@ export default function RegisteredUsersPage() {
   const [totalItems, setTotalItems] = useState(0);
   const [loading, setLoading] = useState(false);
   const [modalUser, setModalUser] = useState<UserRow | null | undefined>(undefined);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
 
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/users?page=${page}&size=${pageSize}&search=${encodeURIComponent(search)}`, {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      const res = await fetch(`/api/v1/admin/users?page=${page}&size=${pageSize}&search=${encodeURIComponent(search)}`, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         credentials: 'include',
       });
       if (!res.ok) {
@@ -394,21 +464,39 @@ export default function RegisteredUsersPage() {
     setExpandedIds([]);
   }, [page, search]);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this user?")) return;
+  const handleDelete = (id: string) => {
+    setDeleteTargetId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTargetId) return;
     try {
-      const res = await fetch(`/api/users/${id}`, { method: "DELETE" });
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      const res = await fetch(`/api/v1/admin/users/${deleteTargetId}`, {
+        method: "DELETE",
+        headers,
+        credentials: 'include'
+      });
       if (res.ok) {
         fetchUsers();
-    toast.success('User deleted successfully');
+        toast.success('User deleted successfully');
+      } else {
+        toast.error('Failed to delete user');
       }
     } catch (err) {
+      toast.error('An error occurred while deleting');
+    } finally {
+      setDeleteTargetId(null);
     }
   };
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-      setSelectedIds(users.map((u) => u.id));
+      setSelectedIds(users.map((u) => u._id));
     } else {
       setSelectedIds([]);
     }
@@ -522,12 +610,12 @@ export default function RegisteredUsersPage() {
                 </tr>
               ) : (
                 users.map((user) => {
-                  const isExpanded = expandedIds.includes(user.id);
-                  const isSelected = selectedIds.includes(user.id);
+                  const isExpanded = expandedIds.includes(user._id);
+                  const isSelected = selectedIds.includes(user._id);
                   return (
-                    <React.Fragment key={user.id}>
+                    <React.Fragment key={user._id}>
                       <tr
-                        onClick={() => toggleExpand(user.id)}
+                        onClick={() => toggleExpand(user._id)}
                         className={`border-b border-slate-100 last:border-0 hover:bg-slate-50/70 cursor-pointer transition-colors ${
                           isExpanded ? "bg-slate-50/30" : isSelected ? "bg-blue-50/10" : ""
                         }`}
@@ -536,7 +624,7 @@ export default function RegisteredUsersPage() {
                           <input
                             type="checkbox"
                             checked={isSelected}
-                            onChange={() => handleSelectOne(user.id)}
+                            onChange={() => handleSelectOne(user._id)}
                             className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 transition cursor-pointer"
                           />
                         </td>
@@ -553,26 +641,26 @@ export default function RegisteredUsersPage() {
                         <td className="px-4 py-2 text-slate-400 font-normal">{user.email}</td>
                         <td className="px-4 py-2">
                           {(() => {
-                            const style = roleBadgeStyles[user.role.toLowerCase()] || roleBadgeStyles.customer;
+                            const style = roleBadgeStyles[user.role?.toLowerCase() || ''] || roleBadgeStyles.customer;
                             return (
                               <span
                                 className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium border capitalize ${style.bg}`}
                               >
                                 <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
-                                {user.role}
+                                {user.role || 'Customer'}
                               </span>
                             );
                           })()}
                         </td>
                         <td className="px-4 py-2">
                           {(() => {
-                            const style = statusBadgeStyles[user.status.toLowerCase()] || statusBadgeStyles.active;
+                            const style = statusBadgeStyles[user.status?.toLowerCase() || ''] || statusBadgeStyles.active;
                             return (
                               <span
                                 className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium border capitalize ${style.bg}`}
                               >
                                 <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
-                                {user.status}
+                                {user.status || 'Active'}
                               </span>
                             );
                           })()}
@@ -587,7 +675,7 @@ export default function RegisteredUsersPage() {
                               <Pencil className="h-3.5 w-3.5" />
                             </button>
                             <button
-                              onClick={() => handleDelete(user.id)}
+                              onClick={() => handleDelete(user._id)}
                               className="h-7 w-7 flex items-center justify-center rounded-md text-slate-400 hover:bg-white hover:text-red-600 hover:shadow-sm transition-all"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
@@ -622,7 +710,7 @@ export default function RegisteredUsersPage() {
                                 <div>
                                   <p className="text-[10px] uppercase font-medium text-slate-400 tracking-wider">Last Login</p>
                                   <p className="text-[13px] font-medium text-slate-600 mt-0.5">
-                                    {getMockLastLogin(user.id)}
+                                    {getMockLastLogin(user._id)}
                                   </p>
                                 </div>
                               </div>
@@ -720,8 +808,15 @@ export default function RegisteredUsersPage() {
 
       {modalUser !== undefined && (
         <UserModal user={modalUser} onClose={() => setModalUser(undefined)} onSave={fetchUsers} />
-      )}
+      ) }
+      <DeleteConfirmModal
+        isOpen={deleteTargetId !== null}
+        onClose={() => setDeleteTargetId(null)}
+        onConfirm={confirmDelete}
+        title="Delete user"
+        message="Are you sure you want to delete this user? This action cannot be undone."
+      />
+      <ToastContainer />
     </div>
-    <ToastContainer />
   );
 }

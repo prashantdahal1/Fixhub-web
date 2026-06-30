@@ -1,27 +1,27 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { connectDB } from '@/lib/mongodb';
-import { DbUser } from '@/lib/db-user';
 
-const SESSION_COOKIE = 'fixhub_session';
-
+// Proxy whoami to the Express backend.
+// The Express backend reads the 'token' JWT cookie from the request.
 export async function GET(request: NextRequest) {
-  const cookie = request.cookies.get(SESSION_COOKIE);
-  if (!cookie) {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-  }
-
-  const userId = Buffer.from(cookie.value, 'base64').toString('utf-8');
-
   try {
-    await connectDB();
-    const user = await DbUser.findById(userId).select('-password');
-    if (!user) {
-      return NextResponse.json({ message: 'User not found' }, { status: 404 });
-    }
-    return NextResponse.json({ user }, { status: 200 });
+    // Forward the cookies from the browser to the Express backend
+    const cookieHeader = request.headers.get('cookie') || '';
+    const authHeader = request.headers.get('authorization') || '';
+
+    const backendResponse = await fetch('http://localhost:5000/api/v1/auth/whoami', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'cookie': cookieHeader,
+        'Authorization': authHeader,
+      },
+    });
+
+    const data = await backendResponse.json();
+    return NextResponse.json(data, { status: backendResponse.status });
   } catch (e) {
-    console.error(e);
-    return NextResponse.json({ message: 'Server error' }, { status: 500 });
+    console.error('Whoami proxy error:', e);
+    return NextResponse.json({ message: 'Backend unreachable' }, { status: 503 });
   }
 }

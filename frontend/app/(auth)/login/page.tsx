@@ -42,6 +42,7 @@ export default function LoginPage() {
       const response = await fetch('/api/v1/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ email: formData.email, password: formData.password, userType, stayLoggedIn }),
       });
       const data = await response.json();
@@ -52,8 +53,13 @@ export default function LoginPage() {
       }
       
       const loggedInUser = data.data?.user;
+      const token = data.data?.token;
+      if (token) {
+        localStorage.setItem('token', token);
+      }
       if (loggedInUser && loggedInUser.role !== userType) {
         // Mismatch! Logout immediately to clear cookie
+        localStorage.removeItem('token');
         await fetch('/api/v1/auth/logout', { method: 'POST' });
         const errMsg = `This account is registered as a ${loggedInUser.role}. Please log in using the correct toggle above.`;
         setError(errMsg);
@@ -64,7 +70,7 @@ export default function LoginPage() {
       toast.success('Login successful! Welcome to FixHub.');
       await fetchUser();
       router.push('/dashboard');
-    } catch {
+    } catch (err) {
       setError('Network error. Please try again.');
       toast.error('Network error. Backend server is unreachable.');
     } finally {

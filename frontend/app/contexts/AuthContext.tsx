@@ -32,15 +32,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const fetchUser = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/v1/auth/whoami', { credentials: 'include' });
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      const response = await fetch('/api/v1/auth/whoami', {
+        headers,
+        credentials: 'include'
+      });
       if (response.ok) {
         const data = await response.json();
-        setUser(data.data);
+        // Express returns: { success: true, data: { ...userObject } }
+        setUser(data.data || null);
       } else {
         setUser(null);
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('token');
+        }
       }
     } catch (error) {
       setUser(null);
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('token');
+      }
     } finally {
       setLoading(false);
     }
