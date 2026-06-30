@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import {
   LayoutDashboard,
   Users,
@@ -36,20 +37,23 @@ function getBreadcrumbs(pathname: string) {
 
 function SidebarContent({ pathname }: { pathname: string }) {
   const handleLogout = async () => {
+    document.cookie = "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    document.cookie = "user_data=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     await clearAuthCookies();
     window.location.href = "/admin/login";
   };
 
   return (
     <div className="flex h-full flex-col bg-white">
-      <div className="flex items-center gap-3 px-6 h-16 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-        <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center shrink-0 shadow-md shadow-blue-200">
-          <Wrench className="h-4.5 w-4.5 text-white" />
-        </div>
-        <div className="leading-tight">
-          <p className="text-base font-bold tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">FixHub</p>
-          <p className="text-[10px] font-semibold text-blue-600 tracking-wider uppercase">Enterprise</p>
-        </div>
+      <div className="flex items-center gap-3 px-6 h-16 border-b border-slate-100">
+        <Image
+          src="/images/fixhub.png"
+          alt="FixHub Logo"
+          width={120}
+          height={40}
+          className="object-contain"
+          priority
+        />
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1">
@@ -115,6 +119,8 @@ export default function AdminLayout({
   }, [pathname]);
 
   const handleLogout = async () => {
+    document.cookie = "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    document.cookie = "user_data=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     await clearAuthCookies();
     window.location.href = "/admin/login";
   };
