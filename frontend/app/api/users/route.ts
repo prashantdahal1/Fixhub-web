@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { users, User } from "@/lib/users-store";
+import { connectDB } from "@/lib/mongodb";
+import { DbUser } from "@/lib/db-user";
+import bcrypt from "bcryptjs";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
+    await connectDB();
     const { searchParams } = request.nextUrl;
     const page = parseInt(searchParams.get("page") || "1", 10);
     const size = parseInt(searchParams.get("size") || "10", 10);
@@ -12,24 +17,44 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Invalid pagination parameters" }, { status: 400 });
     }
 
-    let filtered = users;
+    const query: any = {};
     if (search) {
-      const searchLower = search.toLowerCase();
-      filtered = users.filter(
-        (u) =>
-          u.name.toLowerCase().includes(searchLower) ||
-          u.email.toLowerCase().includes(searchLower)
-      );
+      const searchRegex = { $regex: search, $options: "i" };
+      query.$or = [
+        { firstName: searchRegex },
+        { lastName: searchRegex },
+        { email: searchRegex },
+        { username: searchRegex }
+      ];
     }
 
-    const totalItems = filtered.length;
+    const totalItems = await DbUser.countDocuments(query);
     const totalPages = Math.ceil(totalItems / size) || 1;
     const currentPage = Math.min(page, totalPages);
-    const startIndex = (currentPage - 1) * size;
-    const paginated = filtered.slice(startIndex, startIndex + size);
+    const skip = (currentPage - 1) * size;
+
+    const dbUsers = await DbUser.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(size);
+
+    const formattedUsers = dbUsers.map((u) => {
+      const mappedRole = u.role === "professional" ? "expert" : u.role;
+      return {
+        id: u._id.toString(),
+        name: `${u.firstName} ${u.lastName}`.trim(),
+        email: u.email,
+        role: mappedRole,
+        status: u.status || "active",
+        createdAt: u.createdAt.toISOString(),
+        updatedAt: u.updatedAt.toISOString(),
+        username: u.username,
+        phoneNumber: u.phoneNumber || ""
+      };
+    });
 
     return NextResponse.json({
-      data: paginated,
+      data: formattedUsers,
       meta: {
         totalItems,
         totalPages,
@@ -44,6 +69,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    await connectDB();
     const body = await request.json();
     const { name, email, role, status } = body;
 
@@ -51,23 +77,40 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    if (users.some((u) => u.email.toLowerCase() === email.toLowerCase())) {
+    const existingUser = await DbUser.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
       return NextResponse.json({ error: "Email already exists" }, { status: 400 });
     }
 
-    const newUser: User = {
-      id: Math.random().toString(36).substring(2, 9),
-      name,
-      email,
-      role,
+    const nameParts = name.trim().split(" ");
+    const firstName = nameParts[0];
+    const lastName = nameParts.slice(1).join(" ") || ".";
+    const username = email.split("@")[0] + Math.floor(100 + Math.random() * 900);
+    const hashedPassword = await bcrypt.hash("fixhub@123", 10);
+    const dbRole = role === "expert" ? "professional" : role;
+
+    const newUser = await DbUser.create({
+      firstName,
+      lastName,
+      email: email.toLowerCase(),
+      username,
+      password: hashedPassword,
+      role: dbRole,
       status,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
+      phoneNumber: ""
+    });
 
-    users.push(newUser);
+    const mappedRole = newUser.role === "professional" ? "expert" : newUser.role;
 
-    return NextResponse.json(newUser, { status: 201 });
+    return NextResponse.json({
+      id: newUser._id.toString(),
+      name: `${newUser.firstName} ${newUser.lastName}`.trim(),
+      email: newUser.email,
+      role: mappedRole,
+      status: newUser.status || "active",
+      createdAt: newUser.createdAt.toISOString(),
+      updatedAt: newUser.updatedAt.toISOString()
+    }, { status: 201 });
   } catch (error) {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }

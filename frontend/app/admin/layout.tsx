@@ -13,7 +13,6 @@ import {
   X,
   Bell,
   ChevronDown,
-  Wrench,
   ChevronRight,
   User,
   Settings2,
@@ -44,8 +43,14 @@ function SidebarContent({ pathname }: { pathname: string }) {
   };
 
   return (
-    <div className="flex h-full flex-col bg-white">
-      <div className="flex items-center gap-3 px-6 h-16 border-b border-slate-100">
+    <div className="flex h-full flex-col bg-white relative">
+      {/* Brand accent strip — FixHub blue */}
+      <div
+        className="absolute left-0 top-0 bottom-0 w-[3px] rounded-r"
+        style={{ background: "#2563EB" }}
+      />
+
+      <div className="flex items-center gap-3 px-6 h-16 border-b border-slate-100 ml-[3px]">
         <Image
           src="/images/fixhub.png"
           alt="FixHub Logo"
@@ -56,7 +61,7 @@ function SidebarContent({ pathname }: { pathname: string }) {
         />
       </div>
 
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="flex-1 px-3 py-4 space-y-1 ml-[3px]">
         {navItems.map((item) => {
           const active =
             pathname === item.href ||
@@ -66,25 +71,35 @@ function SidebarContent({ pathname }: { pathname: string }) {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
+              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all ${
                 active
-                  ? "bg-blue-600 text-white animate-pulse-subtle"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                  ? "bg-blue-50 text-blue-700 shadow-sm"
+                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
               }`}
             >
-              <Icon className="h-4 w-4 shrink-0" />
+              <div
+                className={`h-7 w-7 rounded-lg flex items-center justify-center shrink-0 transition-all ${
+                  active
+                    ? "bg-blue-600 text-white shadow-md shadow-blue-200"
+                    : "bg-slate-100 text-slate-500"
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+              </div>
               {item.label}
             </Link>
           );
         })}
       </nav>
 
-      <div className="px-3 py-4 border-t border-slate-100">
+      <div className="px-3 py-4 border-t border-slate-100 ml-[3px]">
         <button
           onClick={handleLogout}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-500 hover:bg-red-50 hover:text-red-500 transition"
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all"
         >
-          <LogOut className="h-4 w-4 shrink-0" />
+          <div className="h-7 w-7 rounded-lg flex items-center justify-center bg-slate-100 text-slate-400">
+            <LogOut className="h-3.5 w-3.5" />
+          </div>
           Log Out
         </button>
       </div>
@@ -210,7 +225,13 @@ export default function AdminLayout({
                 onClick={() => setProfileOpen((v) => !v)}
                 className="flex items-center gap-2 rounded-lg pl-1 pr-2 py-1 hover:bg-slate-100 transition"
               >
-                <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-semibold">
+                <div
+                  className="h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                  style={{
+                    background: "linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)",
+                    boxShadow: "0 1px 6px rgba(37,99,235,0.40)",
+                  }}
+                >
                   PP
                 </div>
                 <span className="hidden sm:block text-sm font-medium text-slate-700">
