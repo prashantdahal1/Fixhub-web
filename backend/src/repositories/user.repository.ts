@@ -6,7 +6,7 @@ export interface IUserRepository {
     createUser(user: Partial<IUser>): Promise<IUser>;
     getUserById(id: string): Promise<IUser | null>;
     getAll(): Promise<IUser[]>;
-    getPaginatedUsers(page: number, limit: number, search?: string): Promise<{ data: IUser[], total: number }>;
+    getPaginatedUsers(page: number, limit: number, search?: string, role?: string, status?: string): Promise<{ data: IUser[], total: number }>;
     update(id: string, user: Partial<IUser>): Promise<IUser | null>;
     delete(id: string): Promise<boolean>;
 }
@@ -32,7 +32,7 @@ export class UserMongoRepository implements IUserRepository {
         const found = await UserModel.find();
         return found;
     }
-    async getPaginatedUsers(page: number, limit: number, search?: string): Promise<{ data: IUser[], total: number }> {
+    async getPaginatedUsers(page: number, limit: number, search?: string, role?: string, status?: string): Promise<{ data: IUser[], total: number }> {
         const query: any = {};
         if (search) {
             const regex = new RegExp(search, 'i');
@@ -41,6 +41,12 @@ export class UserMongoRepository implements IUserRepository {
                 { firstName: regex },
                 { lastName: regex }
             ];
+        }
+        if (role && role !== 'all') {
+            query.role = role;
+        }
+        if (status && status !== 'all') {
+            query.status = status;
         }
         
         const skip = (page - 1) * limit;

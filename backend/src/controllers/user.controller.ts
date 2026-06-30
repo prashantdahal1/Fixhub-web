@@ -167,8 +167,10 @@ export class UserController {
             const page = parseInt(req.query.page as string) || 1;
             const limit = parseInt(req.query.limit as string) || 10;
             const search = req.query.search as string;
+            const role = req.query.role as string;
+            const status = req.query.status as string;
 
-            const { data, total } = await userService.getPaginatedUsers(page, limit, search);
+            const { data, total } = await userService.getPaginatedUsers(page, limit, search, role, status);
             
             return res.status(200).json({
                 success: true,

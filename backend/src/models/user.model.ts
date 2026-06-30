@@ -19,6 +19,7 @@ const UserMongoSchema: Schema = new Schema<IUser>(
         phoneNumber: { type: String },
         profilePicture: { type: String, default: '' },
         address: { type: String, default: '' },
+        status: { type: String, enum: ["active", "pending", "suspended"], default: "active" },
     },
     {
         timestamps: true

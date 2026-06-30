@@ -49,6 +49,7 @@ export const AdminUpdateUserDTO = z.object({
   address: z.string().optional(),
   avatar: z.string().optional(),
   profilePicture: z.string().optional(),
+  status: z.enum(["active", "pending", "suspended"]).optional(),
 });
 
 export type AdminUpdateUserDTO = z.infer<typeof AdminUpdateUserDTO>;
@@ -63,6 +64,7 @@ export const AdminCreateUserDTO = z.object({
   phoneNumber: z.string().optional(),
   address: z.string().optional(),
   avatar: z.string().optional(),
+  status: z.enum(["active", "pending", "suspended"]).optional(),
 });
 
 export type AdminCreateUserDTO = z.infer<typeof AdminCreateUserDTO>;
