@@ -26,8 +26,9 @@ export const UpdateUserDTO = z.object({
   email:     z.string().email().optional(),
   phoneNumber: z.string().optional(),
   bio:       z.string().optional(),
-  country:   z.string().optional(),
-  cityState: z.string().optional(),
+  province:  z.string().optional(),
+  city:      z.string().optional(),
+  address:   z.string().optional(),
 });
 
 export type UpdateUserDTO = z.infer<typeof UpdateUserDTO>;
@@ -50,6 +51,8 @@ export const AdminUpdateUserDTO = z.object({
   avatar: z.string().optional(),
   profilePicture: z.string().optional(),
   status: z.enum(["active", "pending", "suspended"]).optional(),
+  province: z.string().optional(),
+  city: z.string().optional(),
 });
 
 export type AdminUpdateUserDTO = z.infer<typeof AdminUpdateUserDTO>;
@@ -65,6 +68,8 @@ export const AdminCreateUserDTO = z.object({
   address: z.string().optional(),
   avatar: z.string().optional(),
   status: z.enum(["active", "pending", "suspended"]).optional(),
+  province: z.string().optional(),
+  city: z.string().optional(),
 });
 
 export type AdminCreateUserDTO = z.infer<typeof AdminCreateUserDTO>;

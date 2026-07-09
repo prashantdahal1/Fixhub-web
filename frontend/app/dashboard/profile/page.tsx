@@ -6,6 +6,50 @@ import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
 
+const NEPAL_PROVINCES = [
+  "Koshi Province",
+  "Madhesh Province",
+  "Bagmati Province",
+  "Gandaki Province",
+  "Lumbini Province",
+  "Karnali Province",
+  "Sudurpashchim Province"
+];
+
+const NEPAL_CITIES = [
+  "Kathmandu",
+  "Lalitpur",
+  "Bhaktapur",
+  "Pokhara",
+  "Bharatpur",
+  "Biratnagar",
+  "Birgunj",
+  "Butwal",
+  "Dharan",
+  "Itahari",
+  "Nepalgunj",
+  "Dhangadhi",
+  "Hetauda",
+  "Siddharthanagar (Bhairahawa)"
+];
+
+const CITY_TO_PROVINCE_MAP: Record<string, string> = {
+  "Kathmandu": "Bagmati Province",
+  "Lalitpur": "Bagmati Province",
+  "Bhaktapur": "Bagmati Province",
+  "Pokhara": "Gandaki Province",
+  "Bharatpur": "Bagmati Province",
+  "Biratnagar": "Koshi Province",
+  "Birgunj": "Madhesh Province",
+  "Butwal": "Lumbini Province",
+  "Dharan": "Koshi Province",
+  "Itahari": "Koshi Province",
+  "Nepalgunj": "Lumbini Province",
+  "Dhangadhi": "Sudurpashchim Province",
+  "Hetauda": "Bagmati Province",
+  "Siddharthanagar (Bhairahawa)": "Lumbini Province"
+};
+
 interface ProfileData {
   firstName: string;
   lastName: string;
@@ -13,8 +57,9 @@ interface ProfileData {
   phone: string;
   bio: string;
   title: string;
-  country: string;
-  cityState: string;
+  province: string;
+  city: string;
+  address: string;
 }
 
 const ProfilePage: React.FC = () => {
@@ -26,7 +71,7 @@ const ProfilePage: React.FC = () => {
   const [isEditingAddress, setIsEditingAddress] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
-
+  
   const [profile, setProfile] = useState<ProfileData>({
     firstName: '',
     lastName: '',
@@ -34,8 +79,9 @@ const ProfilePage: React.FC = () => {
     phone: '',
     bio: '',
     title: 'Customer',
-    country: '',
-    cityState: '',
+    province: '',
+    city: '',
+    address: '',
   });
 
   const [tempProfile, setTempProfile] = useState<ProfileData>(profile);
@@ -50,8 +96,9 @@ const ProfilePage: React.FC = () => {
         phone: user.phoneNumber || '',
         bio: user.bio || '',
         title: user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Customer',
-        country: user.country || '',
-        cityState: user.cityState || '',
+        province: (user as any).province || '',
+        city: (user as any).city || '',
+        address: (user as any).address || '',
       };
       setProfile(initialProfile);
       setTempProfile(initialProfile);
@@ -66,8 +113,9 @@ const ProfilePage: React.FC = () => {
     formData.append('email', tempProfile.email);
     formData.append('phoneNumber', tempProfile.phone);
     formData.append('bio', tempProfile.bio);
-    formData.append('country', tempProfile.country);
-    formData.append('cityState', tempProfile.cityState);
+    formData.append('province', tempProfile.province);
+    formData.append('city', tempProfile.city);
+    formData.append('address', tempProfile.address);
 
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -107,6 +155,15 @@ const ProfilePage: React.FC = () => {
 
   const updateField = (field: keyof ProfileData, value: string) => {
     setTempProfile((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleCityChange = (cityValue: string) => {
+    const mappedProvince = CITY_TO_PROVINCE_MAP[cityValue];
+    setTempProfile((prev) => ({
+      ...prev,
+      city: cityValue,
+      ...(mappedProvince ? { province: mappedProvince } : {})
+    }));
   };
 
   const handleAvatarClick = () => {
@@ -176,7 +233,7 @@ const ProfilePage: React.FC = () => {
                 <div
                   className="w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-semibold"
                   style={{
-                    background: 'linear-gradient(135deg, #1565C0, #2196F3)',
+                    background: 'linear-gradient(135deg, #2563EB, #3B82F6)',
                   }}
                 >
                   {initials}
@@ -200,13 +257,13 @@ const ProfilePage: React.FC = () => {
                 {profile.firstName || 'User'} {profile.lastName}
               </h2>
               <p className="text-sm mt-0.5 flex items-center gap-1.5" style={{ color: '#64748B' }}>
-                <Briefcase size={14} style={{ color: '#1565C0' }} />
+                <Briefcase size={14} style={{ color: '#2563EB' }} />
                 {profile.title}
               </p>
-              {(profile.cityState || profile.country) && (
+              {(profile.city || profile.province || profile.address) && (
                 <p className="text-sm mt-0.5 flex items-center gap-1.5" style={{ color: '#64748B' }}>
-                  <MapPin size={14} style={{ color: '#1565C0' }} />
-                  {profile.cityState}{profile.country ? `, ${profile.country}` : ''}
+                  <MapPin size={14} style={{ color: '#2563EB' }} />
+                  {profile.address ? `${profile.address}, ` : ''}{profile.city}{profile.province ? `, ${profile.province}` : ''}
                 </p>
               )}
             </div>
@@ -221,8 +278,8 @@ const ProfilePage: React.FC = () => {
               className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 hover:shadow-md"
               style={{
                 backgroundColor: '#FFFFFF',
-                color: '#1565C0',
-                border: '1px solid #1565C0',
+                color: '#2563EB',
+                border: '1px solid #2563EB',
               }}
             >
               <Pencil size={14} />
@@ -233,7 +290,7 @@ const ProfilePage: React.FC = () => {
               <button
                 onClick={() => handleSave('profile')}
                 className="px-4 py-2 rounded-full text-sm font-medium text-white transition-all duration-200 hover:shadow-md"
-                style={{ background: 'linear-gradient(135deg, #1565C0, #2196F3)' }}
+                style={{ background: 'linear-gradient(135deg, #2563EB, #3B82F6)' }}
               >
                 Save
               </button>
@@ -266,8 +323,8 @@ const ProfilePage: React.FC = () => {
             className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 hover:shadow-md"
             style={{
               backgroundColor: '#FFFFFF',
-              color: '#1565C0',
-              border: '1px solid #1565C0',
+              color: '#2563EB',
+              border: '1px solid #2563EB',
             }}
           >
             Change Password
@@ -292,8 +349,8 @@ const ProfilePage: React.FC = () => {
                 className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 hover:shadow-md"
                 style={{
                   backgroundColor: '#FFFFFF',
-                  color: '#1565C0',
-                  border: '1px solid #1565C0',
+                  color: '#2563EB',
+                  border: '1px solid #2563EB',
                 }}
               >
                 <Pencil size={14} />
@@ -304,7 +361,7 @@ const ProfilePage: React.FC = () => {
                 <button
                   onClick={() => handleSave('personal')}
                   className="px-4 py-2 rounded-full text-sm font-medium text-white transition-all duration-200 hover:shadow-md"
-                  style={{ background: 'linear-gradient(135deg, #1565C0, #2196F3)' }}
+                  style={{ background: 'linear-gradient(135deg, #2563EB, #3B82F6)' }}
                 >
                   Save
                 </button>
@@ -416,29 +473,31 @@ const ProfilePage: React.FC = () => {
               )}
             </div>
 
-            <div className="col-span-2">
-              <label className="text-xs font-medium uppercase tracking-wider mb-2 block" style={{ color: '#94A3B8' }}>
-                <Briefcase size={12} className="inline mr-1" />
-                Bio
-              </label>
-              {isEditingPersonal ? (
-                <textarea
-                  value={tempProfile.bio}
-                  onChange={(e) => updateField('bio', e.target.value)}
-                  rows={2}
-                  className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all resize-none"
-                  style={{
-                    border: '1px solid #60AAFF',
-                    color: '#070B14',
-                    backgroundColor: '#F8FAFC',
-                  }}
-                />
-              ) : (
-                <p className="text-sm font-medium" style={{ color: '#070B14' }}>
-                  {profile.bio || '—'}
-                </p>
-              )}
-            </div>
+            {user?.role === 'professional' && (
+              <div className="col-span-2">
+                <label className="text-xs font-medium uppercase tracking-wider mb-2 block" style={{ color: '#94A3B8' }}>
+                  <Briefcase size={12} className="inline mr-1" />
+                  Bio
+                </label>
+                {isEditingPersonal ? (
+                  <textarea
+                    value={tempProfile.bio}
+                    onChange={(e) => updateField('bio', e.target.value)}
+                    rows={2}
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all resize-none"
+                    style={{
+                      border: '1px solid #2563EB',
+                      color: '#070B14',
+                      backgroundColor: '#F8FAFC',
+                    }}
+                  />
+                ) : (
+                  <p className="text-sm font-medium" style={{ color: '#070B14' }}>
+                    {profile.bio || '—'}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -460,8 +519,8 @@ const ProfilePage: React.FC = () => {
                 className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 hover:shadow-md"
                 style={{
                   backgroundColor: '#FFFFFF',
-                  color: '#1565C0',
-                  border: '1px solid #1565C0',
+                  color: '#2563EB',
+                  border: '1px solid #2563EB',
                 }}
               >
                 <Pencil size={14} />
@@ -472,7 +531,7 @@ const ProfilePage: React.FC = () => {
                 <button
                   onClick={() => handleSave('address')}
                   className="px-4 py-2 rounded-full text-sm font-medium text-white transition-all duration-200 hover:shadow-md"
-                  style={{ background: 'linear-gradient(135deg, #1565C0, #2196F3)' }}
+                  style={{ background: 'linear-gradient(135deg, #2563EB, #3B82F6)' }}
                 >
                   Save
                 </button>
@@ -488,26 +547,26 @@ const ProfilePage: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-2 gap-x-8 gap-y-6">
-            <div>
+            <div className="col-span-2">
               <label className="text-xs font-medium uppercase tracking-wider mb-2 block" style={{ color: '#94A3B8' }}>
-                <Globe size={12} className="inline mr-1" />
-                Country
+                <MapPin size={12} className="inline mr-1" />
+                Street Address
               </label>
               {isEditingAddress ? (
                 <input
                   type="text"
-                  value={tempProfile.country}
-                  onChange={(e) => updateField('country', e.target.value)}
+                  value={tempProfile.address}
+                  onChange={(e) => updateField('address', e.target.value)}
                   className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all"
                   style={{
-                    border: '1px solid #60AAFF',
+                    border: '1px solid #2563EB',
                     color: '#070B14',
                     backgroundColor: '#F8FAFC',
                   }}
                 />
               ) : (
                 <p className="text-sm font-medium" style={{ color: '#070B14' }}>
-                  {profile.country || '—'}
+                  {profile.address || '—'}
                 </p>
               )}
             </div>
@@ -515,23 +574,53 @@ const ProfilePage: React.FC = () => {
             <div>
               <label className="text-xs font-medium uppercase tracking-wider mb-2 block" style={{ color: '#94A3B8' }}>
                 <MapPin size={12} className="inline mr-1" />
-                City / State
+                City
               </label>
               {isEditingAddress ? (
-                <input
-                  type="text"
-                  value={tempProfile.cityState}
-                  onChange={(e) => updateField('cityState', e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all"
+                <select
+                  value={tempProfile.city}
+                  onChange={(e) => handleCityChange(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all bg-[#F8FAFC]"
                   style={{
-                    border: '1px solid #60AAFF',
+                    border: '1px solid #2563EB',
                     color: '#070B14',
-                    backgroundColor: '#F8FAFC',
                   }}
-                />
+                >
+                  <option value="">Select City</option>
+                  {NEPAL_CITIES.map((city) => (
+                    <option key={city} value={city}>{city}</option>
+                  ))}
+                </select>
               ) : (
                 <p className="text-sm font-medium" style={{ color: '#070B14' }}>
-                  {profile.cityState || '—'}
+                  {profile.city || '—'}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="text-xs font-medium uppercase tracking-wider mb-2 block" style={{ color: '#94A3B8' }}>
+                <Globe size={12} className="inline mr-1" />
+                Province
+              </label>
+              {isEditingAddress ? (
+                <select
+                  value={tempProfile.province}
+                  onChange={(e) => updateField('province', e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all bg-[#F8FAFC]"
+                  style={{
+                    border: '1px solid #2563EB',
+                    color: '#070B14',
+                  }}
+                >
+                  <option value="">Select Province</option>
+                  {NEPAL_PROVINCES.map((prov) => (
+                    <option key={prov} value={prov}>{prov}</option>
+                  ))}
+                </select>
+              ) : (
+                <p className="text-sm font-medium" style={{ color: '#070B14' }}>
+                  {profile.province || '—'}
                 </p>
               )}
             </div>
