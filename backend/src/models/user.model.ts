@@ -5,6 +5,7 @@ export interface IUser extends UserType, Document {
     _id: mongoose.Types.ObjectId;
     createdAt: Date;
     profilePicture?: string;
+    address?: string;
 }
 
 const UserMongoSchema: Schema = new Schema<IUser>(
@@ -17,6 +18,8 @@ const UserMongoSchema: Schema = new Schema<IUser>(
         role: { type: String, enum: ["admin", "customer", "professional"], default: "customer" },
         phoneNumber: { type: String },
         profilePicture: { type: String, default: '' },
+        address: { type: String, default: '' },
+        status: { type: String, enum: ["active", "pending", "suspended"], default: "active" },
     },
     {
         timestamps: true

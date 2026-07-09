@@ -112,25 +112,36 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           />
         </div>
 
-        <div className="flex items-center gap-3">
-          <button className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors">
+        <div className="flex items-center gap-2">
+          <button className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors shadow-sm shadow-blue-300/30">
             Emergency Service
           </button>
-          <button className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors">
-            <BellIcon />
-          </button>
-          <button className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors">
+
+          {/* Bell — ghost style with red notification dot for urgency */}
+          <div className="relative">
+            <button className="w-9 h-9 rounded-full border border-gray-200 bg-white flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors">
+              <BellIcon />
+            </button>
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500 border-2 border-white pointer-events-none" />
+          </div>
+
+          {/* Help — filled blue-tint so it reads differently from Bell at a glance */}
+          <button className="w-9 h-9 rounded-full border border-blue-200 bg-blue-50 flex items-center justify-center text-[#2563EB] hover:bg-blue-100 hover:border-blue-300 transition-colors">
             <HelpIcon />
           </button>
+
+          {/* Subtle separator before avatar */}
+          <div className="w-px h-5 bg-gray-200 mx-1" />
+
           {/* Dynamic Avatar */}
           {avatarUrl ? (
-            <img 
-              src={avatarUrl} 
-              alt="Profile" 
-              className="w-9 h-9 rounded-full object-cover ring-2 ring-white" 
+            <img
+              src={avatarUrl}
+              alt="Profile"
+              className="w-9 h-9 rounded-full object-cover ring-2 ring-blue-100"
             />
           ) : (
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#2563EB] to-[#60A5FA] flex items-center justify-center text-white text-xs font-bold ring-2 ring-white">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#2563EB] to-[#60A5FA] flex items-center justify-center text-white text-xs font-bold ring-2 ring-blue-100 cursor-pointer hover:ring-blue-300 transition-all">
               {initials}
             </div>
           )}

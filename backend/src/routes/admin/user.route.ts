@@ -1,7 +1,7 @@
-import { UserController } from '../controllers/user.controller.js';
+import { UserController } from '../../controllers/user.controller.js';
 import { Router } from 'express';
-import { authMiddleware } from '../middlewares/auth.middleware.js';
-import { profileUpload } from '../middlewares/profileUpload.middleware.js';
+import { authMiddleware } from '../../middlewares/auth.middleware.js';
+import { profileUpload } from '../../middlewares/profileUpload.middleware.js';
 
 const userRouter = Router();
 const userController = new UserController();

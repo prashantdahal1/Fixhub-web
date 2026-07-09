@@ -53,8 +53,16 @@ export class UserService {
         return await userRepository.getUserById(id);
     }
 
+    async getPaginatedUsers(page: number, limit: number, search?: string, role?: string, status?: string) {
+        return await userRepository.getPaginatedUsers(page, limit, search, role, status);
+    }
+
     async updateUser(id: string, updateData: Partial<IUser>): Promise<IUser | null> {
         return await userRepository.update(id, updateData);
+    }
+
+    async deleteUser(id: string): Promise<boolean> {
+        return await userRepository.delete(id);
     }
 
     async updatePassword(id: string, passwordData: any): Promise<void> {
