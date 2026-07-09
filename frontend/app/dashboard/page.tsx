@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import { IntelligentSearchBar } from "../components/IntelligentSearchBar";
 
 // ─── Service Category Icons ────────────────────────────────────────────────────
 // Each icon is purpose-drawn to clearly represent the trade — not generic defaults.
@@ -105,7 +106,6 @@ const recentActivity = [
 
 // ─── Page ──────────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
-  const [search, setSearch]   = useState("");
   const [promoIdx, setPromoIdx] = useState(0);
   const { user } = useAuth();
 
@@ -114,25 +114,14 @@ export default function DashboardPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-5">
 
-      {/* ── Greeting + Search ── */}
+      {/* ── Greeting + Intelligent Search ── */}
       <div className="flex flex-col sm:flex-row sm:items-start gap-4">
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-gray-900">Hello, {name}!</h1>
           <p className="text-gray-500 text-sm mt-0.5">What can we help you maintain today?</p>
         </div>
-        <div className="relative flex-1 max-w-sm">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-          </span>
-          <input
-            type="text"
-            placeholder="Search for any home service..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100 transition-all"
-          />
+        <div className="flex-1 max-w-sm">
+          <IntelligentSearchBar />
         </div>
       </div>
 

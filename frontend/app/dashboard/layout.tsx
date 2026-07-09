@@ -45,10 +45,10 @@ import { useAuth } from "../contexts/AuthContext";
 
 const navItems = [
   { label: "Home", icon: HomeIcon, href: "/dashboard" },
-  { label: "Active Bookings", icon: BookingsIcon, href: "/bookings" },
-  { label: "Service History", icon: HistoryIcon, href: "/history" },
+  { label: "Active Bookings", icon: BookingsIcon, href: "/dashboard/bookings" },
+  { label: "Service History", icon: HistoryIcon, href: "/dashboard/history" },
   { label: "Profile", icon: ProfileIcon, href: "/dashboard/profile" },
-  { label: "Support", icon: SupportIcon, href: "/support" },
+  { label: "Support", icon: SupportIcon, href: "/dashboard/support" },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
