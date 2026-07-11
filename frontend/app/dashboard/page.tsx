@@ -86,12 +86,12 @@ const services = [
 const promos = [
   { title: "Get 30% Off",      sub: "on your first Geyser Service!", badge: "Limited Time" },
   { title: "Free Inspection",  sub: "on all electrical checkups this month!", badge: "This Month" },
-  { title: "AC Deep Clean",    sub: "Flat ₹500 off — limited slots!", badge: "Few Slots Left" },
+  { title: "AC Deep Clean",    sub: "Flat Rs 500 off — limited slots!", badge: "Few Slots Left" },
 ];
 
 const recentActivity = [
-  { icon: "ac",    label: "AC Maintenance",     date: "Oct 24, 2024", amount: "₹2,500.00", status: "Completed" },
-  { icon: "light", label: "Light Installation", date: "Oct 18, 2024", amount: "₹4,200.50", status: "Completed" },
+  { icon: "ac",    label: "AC Maintenance",     date: "Oct 24, 2024", amount: "Rs 2,500.00", status: "Completed" },
+  { icon: "light", label: "Light Installation", date: "Oct 18, 2024", amount: "Rs 4,200.50", status: "Completed" },
 ];
 
 export default function DashboardPage() {
