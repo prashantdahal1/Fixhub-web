@@ -6,6 +6,50 @@ import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
 
+const NEPAL_PROVINCES = [
+  "Koshi Province",
+  "Madhesh Province",
+  "Bagmati Province",
+  "Gandaki Province",
+  "Lumbini Province",
+  "Karnali Province",
+  "Sudurpashchim Province"
+];
+
+const NEPAL_CITIES = [
+  "Kathmandu",
+  "Lalitpur",
+  "Bhaktapur",
+  "Pokhara",
+  "Bharatpur",
+  "Biratnagar",
+  "Birgunj",
+  "Butwal",
+  "Dharan",
+  "Itahari",
+  "Nepalgunj",
+  "Dhangadhi",
+  "Hetauda",
+  "Siddharthanagar (Bhairahawa)"
+];
+
+const CITY_TO_PROVINCE_MAP: Record<string, string> = {
+  "Kathmandu": "Bagmati Province",
+  "Lalitpur": "Bagmati Province",
+  "Bhaktapur": "Bagmati Province",
+  "Pokhara": "Gandaki Province",
+  "Bharatpur": "Bagmati Province",
+  "Biratnagar": "Koshi Province",
+  "Birgunj": "Madhesh Province",
+  "Butwal": "Lumbini Province",
+  "Dharan": "Koshi Province",
+  "Itahari": "Koshi Province",
+  "Nepalgunj": "Lumbini Province",
+  "Dhangadhi": "Sudurpashchim Province",
+  "Hetauda": "Bagmati Province",
+  "Siddharthanagar (Bhairahawa)": "Lumbini Province"
+};
+
 interface ProfileData {
   firstName: string;
   lastName: string;
@@ -13,8 +57,9 @@ interface ProfileData {
   phone: string;
   bio: string;
   title: string;
-  country: string;
-  cityState: string;
+  province: string;
+  city: string;
+  address: string;
 }
 
 const ProfilePage: React.FC = () => {
@@ -26,7 +71,7 @@ const ProfilePage: React.FC = () => {
   const [isEditingAddress, setIsEditingAddress] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
-
+  
   const [profile, setProfile] = useState<ProfileData>({
     firstName: '',
     lastName: '',
@@ -34,8 +79,9 @@ const ProfilePage: React.FC = () => {
     phone: '',
     bio: '',
     title: 'Customer',
-    country: '',
-    cityState: '',
+    province: '',
+    city: '',
+    address: '',
   });
 
   const [tempProfile, setTempProfile] = useState<ProfileData>(profile);
@@ -50,8 +96,9 @@ const ProfilePage: React.FC = () => {
         phone: user.phoneNumber || '',
         bio: user.bio || '',
         title: user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Customer',
-        country: user.country || '',
-        cityState: user.cityState || '',
+        province: (user as any).province || '',
+        city: (user as any).city || '',
+        address: (user as any).address || '',
       };
       setProfile(initialProfile);
       setTempProfile(initialProfile);
@@ -66,8 +113,9 @@ const ProfilePage: React.FC = () => {
     formData.append('email', tempProfile.email);
     formData.append('phoneNumber', tempProfile.phone);
     formData.append('bio', tempProfile.bio);
-    formData.append('country', tempProfile.country);
-    formData.append('cityState', tempProfile.cityState);
+    formData.append('province', tempProfile.province);
+    formData.append('city', tempProfile.city);
+    formData.append('address', tempProfile.address);
 
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -107,6 +155,15 @@ const ProfilePage: React.FC = () => {
 
   const updateField = (field: keyof ProfileData, value: string) => {
     setTempProfile((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleCityChange = (cityValue: string) => {
+    const mappedProvince = CITY_TO_PROVINCE_MAP[cityValue];
+    setTempProfile((prev) => ({
+      ...prev,
+      city: cityValue,
+      ...(mappedProvince ? { province: mappedProvince } : {})
+    }));
   };
 
   const handleAvatarClick = () => {
@@ -150,20 +207,16 @@ const ProfilePage: React.FC = () => {
   const avatarUrl = user?.profilePicture;
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#F8FAFC' }}>
-      <div className="max-w-4xl mx-auto px-6 py-10">
+    <div className="min-h-screen bg-[#F9FAFB]">
+      <div className="max-w-4xl mx-auto px-6 py-8">
         {/* Page Title */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-semibold" style={{ color: '#070B14' }}>
-            My Profile
-          </h1>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-slate-900">My Profile</h1>
+          <p className="text-sm text-slate-500 mt-1">Manage your personal information and account settings.</p>
         </div>
 
         {/* Profile Header Card */}
-        <div
-          className="rounded-2xl p-6 mb-6 flex items-center justify-between"
-          style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0' }}
-        >
+        <div className="rounded-2xl p-5 mb-5 flex items-center justify-between bg-white border border-gray-200 transition-shadow hover:shadow-sm">
           <div className="flex items-center gap-5">
             <div className="relative group cursor-pointer" onClick={handleAvatarClick}>
               {avatarUrl ? (
@@ -176,7 +229,7 @@ const ProfilePage: React.FC = () => {
                 <div
                   className="w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-semibold"
                   style={{
-                    background: 'linear-gradient(135deg, #1565C0, #2196F3)',
+                    background: 'linear-gradient(135deg, #2563EB, #3B82F6)',
                   }}
                 >
                   {initials}
@@ -196,123 +249,56 @@ const ProfilePage: React.FC = () => {
               />
             </div>
             <div>
-              <h2 className="text-lg font-semibold" style={{ color: '#070B14' }}>
+              <h2 className="text-[15px] font-semibold text-slate-900">
                 {profile.firstName || 'User'} {profile.lastName}
               </h2>
-              <p className="text-sm mt-0.5 flex items-center gap-1.5" style={{ color: '#64748B' }}>
-                <Briefcase size={14} style={{ color: '#1565C0' }} />
+              <p className="text-sm mt-0.5 flex items-center gap-1.5 text-slate-500">
+                <Briefcase size={13} className="text-[#2563EB]" />
                 {profile.title}
               </p>
-              {(profile.cityState || profile.country) && (
-                <p className="text-sm mt-0.5 flex items-center gap-1.5" style={{ color: '#64748B' }}>
-                  <MapPin size={14} style={{ color: '#1565C0' }} />
-                  {profile.cityState}{profile.country ? `, ${profile.country}` : ''}
+              {(profile.city || profile.province || profile.address) && (
+                <p className="text-sm mt-0.5 flex items-center gap-1.5 text-slate-500">
+                  <MapPin size={13} className="text-[#2563EB]" />
+                  {profile.address ? `${profile.address}, ` : ''}{profile.city}{profile.province ? `, ${profile.province}` : ''}
                 </p>
               )}
             </div>
           </div>
-
-          {!isEditingProfile ? (
-            <button
-              onClick={() => {
-                setTempProfile(profile);
-                setIsEditingProfile(true);
-              }}
-              className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 hover:shadow-md"
-              style={{
-                backgroundColor: '#FFFFFF',
-                color: '#1565C0',
-                border: '1px solid #1565C0',
-              }}
-            >
-              <Pencil size={14} />
-              Edit
-            </button>
-          ) : (
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleSave('profile')}
-                className="px-4 py-2 rounded-full text-sm font-medium text-white transition-all duration-200 hover:shadow-md"
-                style={{ background: 'linear-gradient(135deg, #1565C0, #2196F3)' }}
-              >
-                Save
-              </button>
-              <button
-                onClick={() => handleCancel('profile')}
-                className="px-4 py-2 rounded-full text-sm font-medium transition-all duration-200"
-                style={{ color: '#64748B', border: '1px solid #E2E8F0' }}
-              >
-                Cancel
-              </button>
-            </div>
-          )}
+          {/* Edit button removed since Personal Information and Address sections have their own edit controls */}
         </div>
 
         {/* Security Settings & Profile Links */}
-        <div
-          className="rounded-2xl p-6 mb-6 flex items-center justify-between"
-          style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0' }}
-        >
+        <div className="rounded-2xl p-5 mb-5 flex items-center justify-between bg-white border border-gray-200 transition-shadow hover:shadow-sm">
           <div>
-            <h3 className="text-base font-semibold" style={{ color: '#070B14' }}>
-              Security Credentials
-            </h3>
-            <p className="text-sm mt-0.5 text-gray-500">
-              Keep your password updated to stay secure.
-            </p>
+            <h3 className="text-[15px] font-semibold text-slate-900">Security Credentials</h3>
+            <p className="text-sm text-slate-500 mt-0.5">Keep your password updated to stay secure.</p>
           </div>
           <button
             onClick={() => router.push('/dashboard/profile/password')}
-            className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 hover:shadow-md"
-            style={{
-              backgroundColor: '#FFFFFF',
-              color: '#1565C0',
-              border: '1px solid #1565C0',
-            }}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-medium text-[#2563EB] border border-[#2563EB] bg-white hover:bg-blue-50 transition-colors"
           >
             Change Password
           </button>
         </div>
 
         {/* Personal Information Card */}
-        <div
-          className="rounded-2xl p-6 mb-6"
-          style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0' }}
-        >
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-base font-semibold" style={{ color: '#070B14' }}>
-              Personal information
-            </h3>
+        <div className="rounded-2xl p-5 mb-5 bg-white border border-gray-200 transition-shadow hover:shadow-sm">
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="text-[15px] font-semibold text-slate-900">Personal information</h3>
             {!isEditingPersonal ? (
               <button
-                onClick={() => {
-                  setTempProfile(profile);
-                  setIsEditingPersonal(true);
-                }}
-                className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 hover:shadow-md"
-                style={{
-                  backgroundColor: '#FFFFFF',
-                  color: '#1565C0',
-                  border: '1px solid #1565C0',
-                }}
+                onClick={() => { setTempProfile(profile); setIsEditingPersonal(true); }}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-medium text-[#2563EB] border border-[#2563EB] bg-white hover:bg-blue-50 transition-colors"
               >
-                <Pencil size={14} />
+                <Pencil size={13} />
                 Edit
               </button>
             ) : (
               <div className="flex gap-2">
-                <button
-                  onClick={() => handleSave('personal')}
-                  className="px-4 py-2 rounded-full text-sm font-medium text-white transition-all duration-200 hover:shadow-md"
-                  style={{ background: 'linear-gradient(135deg, #1565C0, #2196F3)' }}
-                >
+                <button onClick={() => handleSave('personal')} className="px-3.5 py-1.5 rounded-lg text-sm font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] transition-colors">
                   Save
                 </button>
-                <button
-                  onClick={() => handleCancel('personal')}
-                  className="px-4 py-2 rounded-full text-sm font-medium transition-all duration-200"
-                  style={{ color: '#64748B', border: '1px solid #E2E8F0' }}
-                >
+                <button onClick={() => handleCancel('personal')} className="px-3.5 py-1.5 rounded-lg text-sm font-medium text-slate-500 border border-gray-200 hover:bg-gray-50 transition-colors">
                   Cancel
                 </button>
               </div>
@@ -321,166 +307,92 @@ const ProfilePage: React.FC = () => {
 
           <div className="grid grid-cols-2 gap-x-8 gap-y-6">
             <div>
-              <label className="text-xs font-medium uppercase tracking-wider mb-2 block" style={{ color: '#94A3B8' }}>
-                <User size={12} className="inline mr-1" />
+              <label className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-2 block flex items-center gap-1">
+                <User size={11} />
                 First Name
               </label>
               {isEditingPersonal ? (
-                <input
-                  type="text"
-                  value={tempProfile.firstName}
-                  onChange={(e) => updateField('firstName', e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all"
-                  style={{
-                    border: '1px solid #60AAFF',
-                    color: '#070B14',
-                    backgroundColor: '#F8FAFC',
-                  }}
-                />
+                <input type="text" value={tempProfile.firstName} onChange={(e) => updateField('firstName', e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm border border-blue-300 bg-slate-50 text-slate-900 outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
               ) : (
-                <p className="text-sm font-medium" style={{ color: '#070B14' }}>
-                  {profile.firstName || '—'}
-                </p>
+                <p className="text-sm font-medium text-slate-800">{profile.firstName || '—'}</p>
               )}
             </div>
 
             <div>
-              <label className="text-xs font-medium uppercase tracking-wider mb-2 block" style={{ color: '#94A3B8' }}>
-                <User size={12} className="inline mr-1" />
+              <label className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-2 block flex items-center gap-1">
+                <User size={11} />
                 Last Name
               </label>
               {isEditingPersonal ? (
-                <input
-                  type="text"
-                  value={tempProfile.lastName}
-                  onChange={(e) => updateField('lastName', e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all"
-                  style={{
-                    border: '1px solid #60AAFF',
-                    color: '#070B14',
-                    backgroundColor: '#F8FAFC',
-                  }}
-                />
+                <input type="text" value={tempProfile.lastName} onChange={(e) => updateField('lastName', e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm border border-blue-300 bg-slate-50 text-slate-900 outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
               ) : (
-                <p className="text-sm font-medium" style={{ color: '#070B14' }}>
-                  {profile.lastName || '—'}
-                </p>
+                <p className="text-sm font-medium text-slate-800">{profile.lastName || '—'}</p>
               )}
             </div>
 
             <div>
-              <label className="text-xs font-medium uppercase tracking-wider mb-2 block" style={{ color: '#94A3B8' }}>
-                <Mail size={12} className="inline mr-1" />
+              <label className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-2 block flex items-center gap-1">
+                <Mail size={11} />
                 Email address
               </label>
               {isEditingPersonal ? (
-                <input
-                  type="email"
-                  value={tempProfile.email}
-                  onChange={(e) => updateField('email', e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all"
-                  style={{
-                    border: '1px solid #60AAFF',
-                    color: '#070B14',
-                    backgroundColor: '#F8FAFC',
-                  }}
-                />
+                <input type="email" value={tempProfile.email} onChange={(e) => updateField('email', e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm border border-blue-300 bg-slate-50 text-slate-900 outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
               ) : (
-                <p className="text-sm font-medium" style={{ color: '#070B14' }}>
-                  {profile.email || '—'}
-                </p>
+                <p className="text-sm font-medium text-slate-800">{profile.email || '—'}</p>
               )}
             </div>
 
             <div>
-              <label className="text-xs font-medium uppercase tracking-wider mb-2 block" style={{ color: '#94A3B8' }}>
-                <Phone size={12} className="inline mr-1" />
+              <label className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-2 block flex items-center gap-1">
+                <Phone size={11} />
                 Phone
               </label>
               {isEditingPersonal ? (
-                <input
-                  type="text"
-                  value={tempProfile.phone}
-                  onChange={(e) => updateField('phone', e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all"
-                  style={{
-                    border: '1px solid #60AAFF',
-                    color: '#070B14',
-                    backgroundColor: '#F8FAFC',
-                  }}
-                />
+                <input type="text" value={tempProfile.phone} onChange={(e) => updateField('phone', e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm border border-blue-300 bg-slate-50 text-slate-900 outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
               ) : (
-                <p className="text-sm font-medium" style={{ color: '#070B14' }}>
-                  {profile.phone || '—'}
-                </p>
+                <p className="text-sm font-medium text-slate-800">{profile.phone || '—'}</p>
               )}
             </div>
 
-            <div className="col-span-2">
-              <label className="text-xs font-medium uppercase tracking-wider mb-2 block" style={{ color: '#94A3B8' }}>
-                <Briefcase size={12} className="inline mr-1" />
-                Bio
-              </label>
-              {isEditingPersonal ? (
-                <textarea
-                  value={tempProfile.bio}
-                  onChange={(e) => updateField('bio', e.target.value)}
-                  rows={2}
-                  className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all resize-none"
-                  style={{
-                    border: '1px solid #60AAFF',
-                    color: '#070B14',
-                    backgroundColor: '#F8FAFC',
-                  }}
-                />
-              ) : (
-                <p className="text-sm font-medium" style={{ color: '#070B14' }}>
-                  {profile.bio || '—'}
-                </p>
-              )}
-            </div>
+            {user?.role === 'professional' && (
+              <div className="col-span-2">
+                <label className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-2 block flex items-center gap-1">
+                  <Briefcase size={11} />
+                  Bio
+                </label>
+                {isEditingPersonal ? (
+                  <textarea value={tempProfile.bio} onChange={(e) => updateField('bio', e.target.value)} rows={2}
+                    className="w-full px-3 py-2 rounded-lg text-sm border border-blue-300 bg-slate-50 text-slate-900 outline-none focus:ring-2 focus:ring-blue-100 transition-all resize-none" />
+                ) : (
+                  <p className="text-sm font-medium text-slate-800">{profile.bio || '—'}</p>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
         {/* Address Card */}
-        <div
-          className="rounded-2xl p-6"
-          style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0' }}
-        >
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-base font-semibold" style={{ color: '#070B14' }}>
-              Address
-            </h3>
+        <div className="rounded-2xl p-5 bg-white border border-gray-200 transition-shadow hover:shadow-sm">
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="text-[15px] font-semibold text-slate-900">Address</h3>
             {!isEditingAddress ? (
               <button
-                onClick={() => {
-                  setTempProfile(profile);
-                  setIsEditingAddress(true);
-                }}
-                className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 hover:shadow-md"
-                style={{
-                  backgroundColor: '#FFFFFF',
-                  color: '#1565C0',
-                  border: '1px solid #1565C0',
-                }}
+                onClick={() => { setTempProfile(profile); setIsEditingAddress(true); }}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-medium text-[#2563EB] border border-[#2563EB] bg-white hover:bg-blue-50 transition-colors"
               >
-                <Pencil size={14} />
+                <Pencil size={13} />
                 Edit
               </button>
             ) : (
               <div className="flex gap-2">
-                <button
-                  onClick={() => handleSave('address')}
-                  className="px-4 py-2 rounded-full text-sm font-medium text-white transition-all duration-200 hover:shadow-md"
-                  style={{ background: 'linear-gradient(135deg, #1565C0, #2196F3)' }}
-                >
+                <button onClick={() => handleSave('address')} className="px-3.5 py-1.5 rounded-lg text-sm font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] transition-colors">
                   Save
                 </button>
-                <button
-                  onClick={() => handleCancel('address')}
-                  className="px-4 py-2 rounded-full text-sm font-medium transition-all duration-200"
-                  style={{ color: '#64748B', border: '1px solid #E2E8F0' }}
-                >
+                <button onClick={() => handleCancel('address')} className="px-3.5 py-1.5 rounded-lg text-sm font-medium text-slate-500 border border-gray-200 hover:bg-gray-50 transition-colors">
                   Cancel
                 </button>
               </div>
@@ -488,51 +400,48 @@ const ProfilePage: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-2 gap-x-8 gap-y-6">
-            <div>
-              <label className="text-xs font-medium uppercase tracking-wider mb-2 block" style={{ color: '#94A3B8' }}>
-                <Globe size={12} className="inline mr-1" />
-                Country
+            <div className="col-span-2">
+              <label className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-2 block flex items-center gap-1">
+                <MapPin size={11} />
+                Street Address
               </label>
               {isEditingAddress ? (
-                <input
-                  type="text"
-                  value={tempProfile.country}
-                  onChange={(e) => updateField('country', e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all"
-                  style={{
-                    border: '1px solid #60AAFF',
-                    color: '#070B14',
-                    backgroundColor: '#F8FAFC',
-                  }}
-                />
+                <input type="text" value={tempProfile.address} onChange={(e) => updateField('address', e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm border border-blue-300 bg-slate-50 text-slate-900 outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
               ) : (
-                <p className="text-sm font-medium" style={{ color: '#070B14' }}>
-                  {profile.country || '—'}
-                </p>
+                <p className="text-sm font-medium text-slate-800">{profile.address || '—'}</p>
               )}
             </div>
 
             <div>
-              <label className="text-xs font-medium uppercase tracking-wider mb-2 block" style={{ color: '#94A3B8' }}>
-                <MapPin size={12} className="inline mr-1" />
-                City / State
+              <label className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-2 block flex items-center gap-1">
+                <MapPin size={11} />
+                City
               </label>
               {isEditingAddress ? (
-                <input
-                  type="text"
-                  value={tempProfile.cityState}
-                  onChange={(e) => updateField('cityState', e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all"
-                  style={{
-                    border: '1px solid #60AAFF',
-                    color: '#070B14',
-                    backgroundColor: '#F8FAFC',
-                  }}
-                />
+                <select value={tempProfile.city} onChange={(e) => handleCityChange(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm border border-blue-300 bg-slate-50 text-slate-900 outline-none focus:ring-2 focus:ring-blue-100 transition-all">
+                  <option value="">Select City</option>
+                  {NEPAL_CITIES.map((city) => (<option key={city} value={city}>{city}</option>))}
+                </select>
               ) : (
-                <p className="text-sm font-medium" style={{ color: '#070B14' }}>
-                  {profile.cityState || '—'}
-                </p>
+                <p className="text-sm font-medium text-slate-800">{profile.city || '—'}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-2 block flex items-center gap-1">
+                <Globe size={11} />
+                Province
+              </label>
+              {isEditingAddress ? (
+                <select value={tempProfile.province} onChange={(e) => updateField('province', e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm border border-blue-300 bg-slate-50 text-slate-900 outline-none focus:ring-2 focus:ring-blue-100 transition-all">
+                  <option value="">Select Province</option>
+                  {NEPAL_PROVINCES.map((prov) => (<option key={prov} value={prov}>{prov}</option>))}
+                </select>
+              ) : (
+                <p className="text-sm font-medium text-slate-800">{profile.province || '—'}</p>
               )}
             </div>
           </div>

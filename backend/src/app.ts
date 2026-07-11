@@ -13,6 +13,7 @@ const __dirname = path.dirname(__filename);
 import userRoutes from "./routes/admin/user.route.js";
 import { profileRouter } from './routes/profile.route.js';
 import adminRoutes from "./routes/admin.route.js";
+import ticketRoutes from "./routes/ticket.routes.js";
 
 const app: Application = express();
 app.use(corsMiddleware);
@@ -28,6 +29,7 @@ app.use(morgan("combined"));
 app.use("/api/v1/auth", userRoutes);
 app.use("/api/v1/auth", profileRouter);
 app.use("/api/v1/admin", adminRoutes);
+app.use("/api/v1/tickets", ticketRoutes);
 
 app.use(
     (req: Request, res: Response) => {

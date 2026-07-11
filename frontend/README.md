@@ -16,6 +16,37 @@ This repository houses the frontend web client built using **Next.js (App Router
 ---
 
 ## 🛠️ Tech Stack
+# FixHub
+
+A cross-platform mobile app that connects homeowners with verified home service professionals in Nepal.
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Mobile Frontend | Flutter (Dart) |
+| Admin Web Panel | React.js |
+| Backend API | Node.js & Express.js |
+| Database | MongoDB |
+| Authentication | JWT & OTP |
+| Payment Gateway | eSewa / Khalti |
+| Maps & Location | Google Maps API |
+
+
+
+## Features
+
+- User authentication via JWT and OTP
+- Home Vault — verified service records with before/after photos
+- Home Health Score — dynamic property maintenance indicator
+- Asset tracking with maintenance reminders
+- Dual-role marketplace for customers and service experts
+- Real-time technician tracking via Google Maps
+- Secure escrow payments via eSewa and Khalti
+
+## Architecture
+
+Follows the **MVVM** (Model-View-ViewModel) pattern with a clear separation between Flutter UI, business logic, and the Express/MongoDB backend.
 
 - **Framework:** Next.js 15+ (App Router)
 - **Language:** TypeScript

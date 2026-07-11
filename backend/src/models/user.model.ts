@@ -6,6 +6,8 @@ export interface IUser extends UserType, Document {
     createdAt: Date;
     profilePicture?: string;
     address?: string;
+    province?: string;
+    city?: string;
 }
 
 const UserMongoSchema: Schema = new Schema<IUser>(
@@ -19,6 +21,8 @@ const UserMongoSchema: Schema = new Schema<IUser>(
         phoneNumber: { type: String },
         profilePicture: { type: String, default: '' },
         address: { type: String, default: '' },
+        province: { type: String, default: '' },
+        city: { type: String, default: '' },
         status: { type: String, enum: ["active", "pending", "suspended"], default: "active" },
     },
     {
