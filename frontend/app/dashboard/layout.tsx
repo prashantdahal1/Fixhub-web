@@ -27,12 +27,6 @@ const HistoryIcon = () => (
     <path d="M3.51 15a9 9 0 1 0 .49-4.95" />
   </svg>
 );
-const ProfileIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-    <circle cx="12" cy="7" r="4" />
-  </svg>
-);
 const SupportIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="10" />
@@ -64,7 +58,6 @@ const navItems = [
   { label: "Home",            icon: HomeIcon,     href: "/dashboard"          },
   { label: "Active Bookings", icon: BookingsIcon, href: "/dashboard/bookings" },
   { label: "Service History", icon: HistoryIcon,  href: "/dashboard/history"  },
-  { label: "Profile",         icon: ProfileIcon,  href: "/dashboard/profile"  },
   { label: "Support",         icon: SupportIcon,  href: "/dashboard/support"  },
 ];
 
@@ -104,7 +97,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen bg-[#F9FAFB] font-sans flex">
 
       {/* ── SIDEBAR ─────────────────────────────────────────────────────────── */}
-      <aside className="w-[220px] bg-white border-r border-slate-200 flex-shrink-0 flex flex-col sticky top-0 h-screen">
+      <aside className="w-[240px] bg-white border-r border-slate-200 flex-shrink-0 flex flex-col sticky top-0 h-screen">
 
         {/* Logo */}
         <div className="h-[60px] flex items-center px-5 border-b border-slate-100 shrink-0">
@@ -134,10 +127,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           })}
         </nav>
 
-        {/* Bottom: User + Logout */}
-        <div className="border-t border-slate-100 px-3 py-3 shrink-0 space-y-1">
-          {/* User row */}
-          <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors group">
+        {/* Bottom: User Card Pinned (Approach A & B merge) */}
+        <div className="border-t border-slate-100 px-3 py-4 shrink-0 space-y-1 bg-white mb-2">
+          {/* User profile navigation card */}
+          <Link
+            href="/dashboard/profile"
+            className={`flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors group ${
+              pathname === "/dashboard/profile" ? "bg-[#EFF6FF] text-[#2563EB]" : "hover:bg-slate-50"
+            }`}
+          >
             {avatarUrl ? (
               <img src={avatarUrl} alt="Avatar" className="w-7 h-7 rounded-full object-cover ring-1 ring-slate-200" />
             ) : (
@@ -146,13 +144,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-slate-800 truncate">{fullName}</p>
+              <p className={`text-xs font-semibold truncate ${pathname === "/dashboard/profile" ? "text-[#2563EB]" : "text-slate-800"}`}>
+                {fullName}
+              </p>
               <p className="text-[10px] text-slate-400 truncate">{user?.email || ""}</p>
             </div>
-            <span className="text-slate-300 group-hover:text-slate-500 transition-colors shrink-0">
+            <span className={`transition-colors shrink-0 ${pathname === "/dashboard/profile" ? "text-[#2563EB]" : "text-slate-300 group-hover:text-slate-500"}`}>
               <ChevronRight />
             </span>
-          </div>
+          </Link>
 
           {/* Logout */}
           <button
@@ -173,7 +173,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {/* Page title derived from pathname */}
           <div>
             <p className="text-sm font-semibold text-slate-800">
-              {navItems.find(n => n.href === pathname)?.label ?? "Dashboard"}
+              {pathname === "/dashboard/profile" ? "My Profile" : (navItems.find(n => n.href === pathname)?.label ?? "Dashboard")}
             </p>
           </div>
 
@@ -197,14 +197,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {/* Separator */}
             <div className="w-px h-5 bg-slate-200" />
 
-            {/* Avatar */}
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="Profile" className="w-8 h-8 rounded-full object-cover ring-2 ring-slate-100" />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-[#2563EB] flex items-center justify-center text-white text-[10px] font-bold ring-2 ring-blue-100 cursor-pointer">
-                {initials}
-              </div>
-            )}
+            {/* Top Right Avatar Link to Profile */}
+            <Link href="/dashboard/profile" className="flex-shrink-0 transition-opacity hover:opacity-85">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="Profile" className="w-8 h-8 rounded-full object-cover ring-2 ring-slate-100" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-[#2563EB] flex items-center justify-center text-white text-[10px] font-bold ring-2 ring-blue-100">
+                  {initials}
+                </div>
+              )}
+            </Link>
           </div>
         </header>
 

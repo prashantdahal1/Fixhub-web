@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, Fragment } from "react";
 import { Search, FileText, Image as ImageIcon, ChevronRight, CheckCircle2, XCircle, ArrowUpDown, Download } from "lucide-react";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -140,9 +140,8 @@ export default function HistoryPage() {
               {filtered.map((h) => {
                 const isExpanded = expandedId === h.id;
                 return (
-                  <>
+                  <Fragment key={h.id}>
                     <tr
-                      key={h.id}
                       onClick={() => setExpandedId(isExpanded ? null : h.id)}
                       className="cursor-pointer hover:bg-slate-50/50 transition-colors"
                     >
@@ -221,7 +220,7 @@ export default function HistoryPage() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
             </tbody>

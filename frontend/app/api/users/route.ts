@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
       role = formData.get("role")?.toString();
       status = formData.get("status")?.toString();
       phoneNumber = formData.get("phoneNumber")?.toString();
-      address = formData.get("address")?.toString();
+      address = formData.get("address")?.toString() || "";
       
       const file = formData.get("avatar") as File | null;
       if (file && file.size > 0) {
