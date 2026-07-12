@@ -24,6 +24,8 @@ const UserMongoSchema: Schema = new Schema<IUser>(
         province: { type: String, default: '' },
         city: { type: String, default: '' },
         status: { type: String, enum: ["active", "pending", "suspended"], default: "active" },
+        resetPasswordToken: { type: String },
+        resetPasswordExpires: { type: Date },
     },
     {
         timestamps: true

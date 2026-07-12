@@ -7,8 +7,15 @@ import { SECRET_KEY } from "../configs/constant.js";
 import { UserModel } from "../models/user.model.js";
 import { sendPasswordResetEmail } from "../utils/email.util.js";
 import type { IUser } from "../models/user.model.js";
+import rateLimit from "express-rate-limit";
 
 const router = Router();
+
+const forgotPasswordLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 5,
+    message: { success: false, message: "Too many password reset attempts, please try again later." },
+});
 
 // /auth/google: Redirect user to Google
 router.get(
@@ -36,13 +43,14 @@ router.get(
 );
 
 // POST /auth/forgot-password — Generate token and send reset email
-router.post("/forgot-password", async (req, res) => {
+router.post("/forgot-password", forgotPasswordLimiter, async (req, res) => {
     try {
         const { email } = req.body;
         if (!email) {
             res.status(400).json({ success: false, message: "Email is required" });
             return;
         }
+        console.info('Forgot password request for:', email);
 
         const user = await UserModel.findOne({ email });
         // Always respond with success to prevent email enumeration attacks
@@ -54,13 +62,12 @@ router.post("/forgot-password", async (req, res) => {
         // Generate a cryptographically secure token
         const resetToken = crypto.randomBytes(32).toString("hex");
         const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
-
-        // Save token + expiry to user document
-        user.resetPasswordToken = resetToken;
+        // Store a hashed version of the token
+        const hashedResetToken = await bcrypt.hash(resetToken, 10);
+        user.resetPasswordToken = hashedResetToken;
         user.resetPasswordExpires = expires;
         await user.save();
-
-        // Send the magic link email
+        // Send the magic link email (plain token)
         await sendPasswordResetEmail(email, resetToken);
 
         res.status(200).json({ success: true, message: "If that email exists, a reset link has been sent." });
@@ -78,17 +85,23 @@ router.post("/reset-password", async (req, res) => {
             res.status(400).json({ success: false, message: "Token and new password are required" });
             return;
         }
-        if (newPassword.length < 6) {
-            res.status(400).json({ success: false, message: "Password must be at least 6 characters" });
+        if (newPassword.length < 8) {
+            res.status(400).json({ success: false, message: "Password must be at least 8 characters" });
             return;
         }
 
-        // Find user with matching, non-expired token
-        const user = await UserModel.findOne({
-            resetPasswordToken: token,
-            resetPasswordExpires: { $gt: new Date() }, // Must not be expired
+        // Find a user with a non‑expired reset token and verify the token
+        const candidates = await UserModel.find({
+            resetPasswordExpires: { $gt: new Date() },
         });
-
+        let user = null;
+        for (const cand of candidates) {
+            const match = await bcrypt.compare(token, cand.resetPasswordToken || "");
+            if (match) {
+                user = cand;
+                break;
+            }
+        }
         if (!user) {
             res.status(400).json({ success: false, message: "Invalid or expired reset token. Please request a new one." });
             return;
