@@ -62,6 +62,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
+    // Check if token is in URL (e.g. from Google OAuth callback)
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tokenFromUrl = urlParams.get('token');
+      if (tokenFromUrl) {
+        localStorage.setItem('token', tokenFromUrl);
+        window.location.href = '/dashboard';
+        return; // Stop execution, let the redirect happen
+      }
+    }
     fetchUser();
   }, []);
 
