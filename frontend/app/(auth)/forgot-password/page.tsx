@@ -61,6 +61,7 @@ export default function ForgotPasswordPage() {
                   src="/images/password.png"
                   alt="Password recovery illustration"
                   fill
+                  loading="eager"
                   sizes="(max-width: 768px) 290px, 300px"
                   className="object-contain filter drop-shadow-[0_25px_50px_rgba(0,0,0,0.4)]"
                 />
