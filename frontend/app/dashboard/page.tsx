@@ -76,11 +76,11 @@ const LightSVG = () => (
 );
 
 const services = [
-  { label: "Electrician", icon: ElectricianIcon },
-  { label: "Plumber",     icon: PlumberIcon },
-  { label: "Painter",     icon: PainterIcon },
-  { label: "Carpenter",   icon: CarpenterIcon },
-  { label: "AC Repair",   icon: ACIcon },
+  { label: "Electrician", value: "electrician", icon: ElectricianIcon },
+  { label: "Plumber",     value: "plumber", icon: PlumberIcon },
+  { label: "Painter",     value: "painter", icon: PainterIcon },
+  { label: "Carpenter",   value: "carpenter", icon: CarpenterIcon },
+  { label: "AC Repair",   value: "ac_repair", icon: ACIcon },
 ];
 
 const promos = [
@@ -139,16 +139,16 @@ export default function DashboardPage() {
       <div className="rounded-2xl border border-gray-200 bg-white p-5 transition-shadow hover:shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <span className="text-[15px] font-semibold text-slate-900">Services Categories</span>
-          <button className="text-xs font-medium text-slate-500 hover:text-blue-600 transition-colors">View all</button>
+          <Link href="/dashboard/services" className="text-xs font-medium text-slate-500 hover:text-blue-600 transition-colors">View all</Link>
         </div>
         <div className="grid grid-cols-5 gap-3">
-          {services.map(({ label, icon: Icon }) => (
-            <button key={label} className="flex flex-col items-center gap-2 p-3 rounded-xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50/60 hover:shadow-sm active:scale-[0.97] transition-all duration-150 group">
+          {services.map(({ label, value, icon: Icon }) => (
+            <Link href={`/dashboard/services?category=${value}`} key={label} className="flex flex-col items-center gap-2 p-3 rounded-xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50/60 hover:shadow-sm active:scale-[0.97] transition-all duration-150 group">
               <div className="w-12 h-12 rounded-xl bg-blue-50/60 border border-blue-100/50 flex items-center justify-center group-hover:bg-blue-100/60 transition-colors">
                 <Icon />
               </div>
               <span className="text-[11px] text-slate-600 font-semibold group-hover:text-blue-600 transition-colors leading-tight text-center">{label}</span>
-            </button>
+            </Link>
           ))}
         </div>
       </div>

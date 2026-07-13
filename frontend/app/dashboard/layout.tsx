@@ -28,6 +28,14 @@ const HistoryIcon = () => (
     <path d="M3.51 15a9 9 0 1 0 .49-4.95" />
   </svg>
 );
+const ServicesIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="3" width="6" height="6" rx="1" />
+    <rect x="16" y="3" width="6" height="6" rx="1" />
+    <rect x="2" y="15" width="6" height="6" rx="1" />
+    <rect x="16" y="15" width="6" height="6" rx="1" />
+  </svg>
+);
 const SupportIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="10" />
@@ -129,6 +137,7 @@ const notifColor: Record<string, string> = {
 // ─── Nav items ────────────────────────────────────────────────────────────────
 const navItems = [
   { label: "Home",            icon: HomeIcon,     href: "/dashboard"          },
+  { label: "Services",        icon: ServicesIcon, href: "/dashboard/services" },
   { label: "Active Bookings", icon: BookingsIcon, href: "/dashboard/bookings" },
   { label: "Service History", icon: HistoryIcon,  href: "/dashboard/history"  },
   { label: "Support",         icon: SupportIcon,  href: "/dashboard/support"  },
@@ -233,6 +242,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="space-y-0.5">
               {[
                 { label: "Dashboard", icon: HomeIcon, href: "/dashboard" },
+                { label: "Services", icon: ServicesIcon, href: "/dashboard/services" },
                 { label: "Active Bookings", icon: BookingsIcon, href: "/dashboard/bookings" },
                 { label: "Service History", icon: HistoryIcon, href: "/dashboard/history" },
               ].map(({ label, icon: Icon, href }) => {
