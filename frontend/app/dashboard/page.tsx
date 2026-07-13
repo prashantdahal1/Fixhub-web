@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import { IntelligentSearchBar } from "../components/IntelligentSearchBar";
 
 // ─── Service Category Icons ────────────────────────────────────────────────────
 const ElectricianIcon = () => (
@@ -101,14 +100,9 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold text-slate-900">Hello, {name}!</h1>
-          <p className="text-sm text-slate-500 mt-1">What can we help you maintain today?</p>
-        </div>
-        <div className="flex-1 max-w-sm">
-          <IntelligentSearchBar />
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">Hello, {name}!</h1>
+        <p className="text-sm text-slate-500 mt-1">What can we help you maintain today?</p>
       </div>
 
       <div className="rounded-2xl border border-gray-200 bg-white p-5 transition-shadow hover:shadow-sm">

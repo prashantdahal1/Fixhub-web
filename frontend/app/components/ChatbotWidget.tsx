@@ -1,12 +1,78 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { MessageSquare, X, Send, Sparkles, Bot, User, RotateCcw } from "lucide-react";
+import { X, Send, RotateCcw } from "lucide-react";
 
 interface Message {
   role: "user" | "model";
   text: string;
+  isError?: boolean;
 }
+
+/* ─── Fixie Identity: the •• mark ──────────────────────────────────────── */
+
+/** Fixie launcher — two white dots, slow blink. Nothing else. */
+const FixieDots = () => (
+  <svg
+    viewBox="0 0 44 18"
+    className="w-full h-full"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <style>{`
+      @keyframes fixie-blink {
+        0%, 90%, 100% { transform: scaleY(1); }
+        94%            { transform: scaleY(0.05); }
+      }
+      .fixie-dot   { transform-origin: center; animation: fixie-blink 4s infinite ease-in-out; }
+      .fixie-dot-r { animation-delay: 0.1s; }
+    `}</style>
+    <circle cx="12" cy="9" r="6.5" fill="white" className="fixie-dot" />
+    <circle cx="32" cy="9" r="6.5" fill="white" className="fixie-dot fixie-dot-r" />
+  </svg>
+);
+
+/** Avatar mark used in message list (24 px container) */
+const FixieAvatar = ({ thinking = false, error = false }: { thinking?: boolean; error?: boolean }) => {
+  if (thinking) {
+    // Three tiny pulsing dots in a row
+    return (
+      <div className="flex items-center gap-[3px]">
+        <span className="w-[4px] h-[4px] rounded-full bg-blue-500 animate-bounce [animation-delay:-0.3s]" />
+        <span className="w-[4px] h-[4px] rounded-full bg-blue-500 animate-bounce [animation-delay:-0.15s]" />
+        <span className="w-[4px] h-[4px] rounded-full bg-blue-500 animate-bounce" />
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <svg viewBox="0 0 20 12" className="w-4 h-3" fill="none">
+        {/* Worried eyes */}
+        <circle cx="4" cy="8" r="3" fill="#1e3a8a" />
+        <circle cx="16" cy="8" r="3" fill="#1e3a8a" />
+        <path d="M2 3 L6 5" stroke="#1e3a8a" strokeWidth="2" strokeLinecap="round" />
+        <path d="M18 3 L14 5" stroke="#1e3a8a" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  // Default: two calm dots
+  return (
+    <svg viewBox="0 0 20 10" className="w-4 h-2.5" fill="none">
+      <style>{`
+        @keyframes fixie-blink-sm {
+          0%, 88%, 100% { transform: scaleY(1); }
+          92%            { transform: scaleY(0.08); }
+        }
+        .fd { transform-origin: center; animation: fixie-blink-sm 5s infinite ease-in-out; }
+        .fd2 { animation-delay: 0.08s; }
+      `}</style>
+      <circle cx="5" cy="5" r="3.5" fill="#2563eb" className="fd" />
+      <circle cx="15" cy="5" r="3.5" fill="#2563eb" className="fd fd2" />
+    </svg>
+  );
+};
+
+/* ─── Main Widget ────────────────────────────────────────────────────────── */
 
 export default function ChatbotWidget() {
   const [isOpen, setIsOpen] = useState(false);
@@ -14,7 +80,7 @@ export default function ChatbotWidget() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "model",
-      text: "Hello! I'm your FixHub AI Assistant. Ask me anything about home repairs, plumbing, electrical issues, or how to navigate our platform!",
+      text: "Hi, I'm Fixie.\nI can help you book services, track requests, and answer questions.",
     },
   ]);
   const [isLoading, setIsLoading] = useState(false);
@@ -22,47 +88,26 @@ export default function ChatbotWidget() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Scroll to bottom whenever messages change
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
   useEffect(() => {
     if (isOpen) {
-      scrollToBottom();
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, isOpen]);
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
+  const handleSend = async (textToSend: string) => {
+    if (!textToSend.trim() || isLoading) return;
 
-    const userMessageText = input.trim();
-    setInput("");
     setError(null);
-
-    // 1. Add User message to the messages list
-    const updatedMessages = [...messages, { role: "user" as const, text: userMessageText }];
+    const updatedMessages = [...messages, { role: "user" as const, text: textToSend }];
     setMessages(updatedMessages);
     setIsLoading(true);
 
     try {
-      // 2. Prepare payload
-      // According to MERN way, we send the entire array to the backend so Gemini keeps context.
-      // We pass the new message separately or keep history up to the previous message.
-      // The backend handles history by starting a chat with `history` (excluding the new user message)
-      // and then sending the new `message`.
-      const payload = {
-        message: userMessageText,
-        // send history before the user sent the new message
-        history: messages,
-      };
+      const payload = { message: textToSend, history: messages };
 
       const response = await fetch("/api/v1/chat", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
@@ -72,159 +117,277 @@ export default function ChatbotWidget() {
       }
 
       const resData = await response.json();
-      
+
       if (resData.success && resData.data?.response) {
         setMessages((prev) => [
           ...prev,
           { role: "model" as const, text: resData.data.response },
         ]);
       } else {
-        throw new Error("Invalid API response format");
+        throw new Error("Invalid response from server");
       }
     } catch (err: any) {
       console.error("Chat error:", err);
-      setError(err?.message || "Something went wrong. Please try again.");
+      const errMsg = err?.message || "Something went wrong. Please try again.";
+      setError(errMsg);
+      setMessages((prev) => [
+        ...prev,
+        { role: "model" as const, text: `Sorry, I ran into an issue: ${errMsg}`, isError: true },
+      ]);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+    const text = input;
+    setInput("");
+    handleSend(text);
+  };
+
   const handleReset = () => {
-    if (window.confirm("Are you sure you want to clear the chat history?")) {
+    if (window.confirm("Reset your conversation with Fixie?")) {
       setMessages([
         {
           role: "model",
-          text: "Chat history cleared. How can I assist you now?",
+          text: "Hi, I'm Fixie.\nI can help you book services, track requests, and answer questions.",
         },
       ]);
       setError(null);
     }
   };
 
+  const handleSuggestionClick = (suggestion: string) => handleSend(suggestion);
+
   return (
     <div className="fixed bottom-6 right-6 z-50 font-sans">
-      {/* Floating Chat Button */}
+
+      {/* ── Launcher Button ─────────────────────────────────────────────── */}
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="group relative flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-indigo-500/20 active:scale-95"
-          aria-label="Open Chatbot"
+          aria-label="Chat with Fixie"
+          style={{
+            background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
+            boxShadow: "0 12px 36px rgba(37,99,235,0.38), 0 2px 8px rgba(37,99,235,0.18)",
+          }}
+          className="flex h-[58px] w-[58px] items-center justify-center rounded-full transition-transform duration-200 hover:scale-105 active:scale-95 cursor-pointer"
         >
-          <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-75"></span>
-            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-sky-500"></span>
-          </span>
-          <MessageSquare className="h-5.5 w-5.5 transition-transform group-hover:rotate-3" />
+          <div className="w-[30px] h-[14px]">
+            <FixieDots />
+          </div>
         </button>
       )}
 
-      {/* Chat Window */}
+      {/* ── Chat Window ─────────────────────────────────────────────────── */}
       {isOpen && (
-        <div className="flex h-[480px] w-[330px] flex-col overflow-hidden rounded-2xl border border-gray-150/80 bg-white/95 shadow-xl backdrop-blur-md transition-all duration-300 dark:border-zinc-800 dark:bg-zinc-900 sm:w-[360px]">
+        <div
+          className="flex flex-col overflow-hidden rounded-2xl bg-white"
+          style={{
+            width: 348,
+            height: 492,
+            boxShadow: "0 24px 64px rgba(0,0,0,0.14), 0 4px 16px rgba(0,0,0,0.08)",
+            border: "1px solid rgba(0,0,0,0.07)",
+          }}
+        >
           {/* Header */}
-          <div className="flex items-center justify-between bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 text-white">
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/15">
-                <Bot className="h-4.5 w-4.5 text-sky-100" />
+          <div
+            className="flex shrink-0 items-center justify-between px-4 py-3"
+            style={{ background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)" }}
+          >
+            <div className="flex items-center gap-3">
+              {/* Header avatar — small pill with the •• mark */}
+              <div
+                className="flex items-center justify-center rounded-xl"
+                style={{
+                  width: 34,
+                  height: 34,
+                  background: "rgba(255,255,255,0.15)",
+                  backdropFilter: "blur(4px)",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                }}
+              >
+                <div className="w-[22px] h-[14px]">
+                  <svg viewBox="0 0 44 26" className="w-full h-full" fill="none">
+                    <style>{`
+                      @keyframes fixie-blink-h {
+                        0%, 88%, 100% { transform: scaleY(1); }
+                        92%            { transform: scaleY(0.08); }
+                      }
+                      .fdh { transform-origin: center; animation: fixie-blink-h 5s infinite ease-in-out; }
+                      .fdh2 { animation-delay: 0.08s; }
+                    `}</style>
+                    <circle cx="12" cy="13" r="6" fill="white" className="fdh" />
+                    <circle cx="32" cy="13" r="6" fill="white" className="fdh fdh2" />
+                  </svg>
+                </div>
               </div>
+
               <div>
-                <h3 className="flex items-center gap-1 font-semibold text-xs leading-none tracking-wide text-white">
-                  FixHub AI Assistant
-                  <Sparkles className="h-3 w-3 text-yellow-300" />
-                </h3>
-                <span className="text-[9px] text-sky-100/90 leading-none">Online</span>
+                <p className="text-sm font-semibold text-white leading-none tracking-wide">Fixie</p>
+                <p className="text-[10px] text-blue-100 mt-0.5 leading-none">AI Assistant · FixHub</p>
               </div>
             </div>
-            <div className="flex items-center gap-1">
+
+            <div className="flex items-center gap-0.5">
               <button
                 onClick={handleReset}
                 title="Reset Chat"
-                className="rounded-lg p-1 text-white/80 hover:bg-white/10 hover:text-white transition-colors"
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-white/70 hover:bg-white/15 hover:text-white transition-colors"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
               </button>
               <button
                 onClick={() => setIsOpen(false)}
-                className="rounded-lg p-1 text-white/80 hover:bg-white/10 hover:text-white transition-colors"
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-white/70 hover:bg-white/15 hover:text-white transition-colors"
               >
-                <X className="h-4.5 w-4.5" />
+                <X className="h-4 w-4" />
               </button>
             </div>
           </div>
 
-          {/* Messages Panel */}
-          <div className="flex-1 overflow-y-auto bg-slate-50/50 p-3.5 space-y-3 dark:bg-zinc-950/20">
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3" style={{ background: "#f8fafc" }}>
             {messages.map((msg, index) => {
               const isModel = msg.role === "model";
               return (
                 <div
                   key={index}
-                  className={`flex gap-2.5 ${isModel ? "justify-start" : "justify-end"}`}
+                  className={`flex gap-2 ${isModel ? "justify-start" : "justify-end"}`}
                 >
                   {isModel && (
-                    <div className="flex h-7.5 w-7.5 shrink-0 select-none items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-zinc-800 dark:text-indigo-400">
-                      <Bot className="h-4 w-4" />
+                    <div
+                      className="shrink-0 flex items-center justify-center rounded-full"
+                      style={{
+                        width: 28,
+                        height: 28,
+                        background: "white",
+                        border: "1.5px solid #dbeafe",
+                        boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+                      }}
+                    >
+                      <FixieAvatar error={msg.isError} />
                     </div>
                   )}
+
                   <div
-                    className={`max-w-[80%] rounded-xl px-3.5 py-2 text-xs leading-relaxed shadow-2xs ${
+                    className={`max-w-[78%] px-3.5 py-2.5 text-[12.5px] leading-relaxed ${
                       isModel
-                        ? "bg-white text-slate-800 border border-slate-100 dark:bg-zinc-800 dark:text-slate-100 dark:border-zinc-700/40 rounded-tl-xs"
-                        : "bg-indigo-600 text-white rounded-tr-xs"
+                        ? "bg-white text-slate-800 rounded-2xl rounded-tl-sm"
+                        : "text-white rounded-2xl rounded-tr-sm"
                     }`}
+                    style={
+                      isModel
+                        ? { border: "1px solid #e2e8f0", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }
+                        : { background: "linear-gradient(135deg, #2563eb, #1d4ed8)", boxShadow: "0 2px 8px rgba(37,99,235,0.25)" }
+                    }
                   >
                     <p className="whitespace-pre-line">{msg.text}</p>
                   </div>
+
                   {!isModel && (
-                    <div className="flex h-7.5 w-7.5 shrink-0 select-none items-center justify-center rounded-lg bg-indigo-600 text-white">
-                      <User className="h-3.5 w-3.5" />
+                    <div
+                      className="shrink-0 flex items-center justify-center rounded-full text-xs font-bold text-white"
+                      style={{
+                        width: 28,
+                        height: 28,
+                        background: "linear-gradient(135deg, #64748b, #475569)",
+                        boxShadow: "0 1px 4px rgba(0,0,0,0.12)",
+                      }}
+                    >
+                      U
                     </div>
                   )}
                 </div>
               );
             })}
 
+            {/* Thinking state */}
             {isLoading && (
-              <div className="flex gap-2.5 justify-start">
-                <div className="flex h-7.5 w-7.5 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-zinc-800 dark:text-indigo-400">
-                  <Bot className="h-4 w-4" />
+              <div className="flex gap-2 justify-start">
+                <div
+                  className="shrink-0 flex items-center justify-center rounded-full"
+                  style={{
+                    width: 28,
+                    height: 28,
+                    background: "white",
+                    border: "1.5px solid #dbeafe",
+                    boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+                  }}
+                >
+                  <FixieAvatar thinking />
                 </div>
-                <div className="max-w-[80%] rounded-xl rounded-tl-xs bg-white border border-slate-100 px-3.5 py-2.5 shadow-2xs dark:bg-zinc-800 dark:border-zinc-700/40">
-                  <div className="flex items-center gap-1.5">
-                    <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-indigo-500 [animation-delay:-0.3s]"></div>
-                    <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-indigo-500 [animation-delay:-0.15s]"></div>
-                    <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-indigo-500"></div>
-                  </div>
+                <div
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 bg-white rounded-2xl rounded-tl-sm"
+                  style={{ border: "1px solid #e2e8f0", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}
+                >
+                  <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-blue-500 [animation-delay:-0.3s]" />
+                  <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-blue-500 [animation-delay:-0.15s]" />
+                  <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-blue-500" />
                 </div>
               </div>
             )}
 
-            {error && (
-              <div className="rounded-lg border border-red-100 bg-red-50 p-2.5 text-[11px] text-red-600 dark:border-red-950/20 dark:bg-red-950/20 dark:text-red-400">
-                <p className="font-semibold">Error</p>
-                <p className="mt-0.5">{error}</p>
+            {/* Suggestion chips */}
+            {messages.length === 1 && !isLoading && (
+              <div className="pl-9 pr-2 pt-1 space-y-1.5">
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                  Suggestions
+                </p>
+                {[
+                  { emoji: "🔍", text: "Need something fixed today?" },
+                  { emoji: "🛠️", text: "Help me find the right service." },
+                ].map(({ emoji, text }) => (
+                  <button
+                    key={text}
+                    onClick={() => handleSuggestionClick(text)}
+                    className="w-full text-left text-[11.5px] text-blue-600 hover:text-blue-700 bg-white hover:bg-blue-50 rounded-xl px-3 py-2 transition-all duration-150 cursor-pointer"
+                    style={{ border: "1px solid #dbeafe", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+                  >
+                    {emoji} {text}
+                  </button>
+                ))}
               </div>
             )}
+
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input Panel */}
+          {/* Input */}
           <form
-            onSubmit={handleSend}
-            className="border-t border-gray-150/70 p-2.5 bg-white dark:border-zinc-850 dark:bg-zinc-900 flex gap-2"
+            onSubmit={handleFormSubmit}
+            className="shrink-0 flex gap-2 p-3 bg-white"
+            style={{ borderTop: "1px solid #f1f5f9" }}
           >
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Type your message..."
-              className="flex-1 rounded-lg border border-gray-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 outline-hidden transition-all focus:border-indigo-500 focus:bg-white focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500 dark:focus:border-indigo-500"
+              placeholder="Message Fixie..."
               disabled={isLoading}
+              className="flex-1 rounded-xl border text-[12.5px] text-slate-800 placeholder-slate-400 px-3.5 py-2 outline-none transition-all"
+              style={{
+                background: "#f8fafc",
+                border: "1px solid #e2e8f0",
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.border = "1px solid #2563eb";
+                e.currentTarget.style.boxShadow = "0 0 0 3px rgba(37,99,235,0.1)";
+                e.currentTarget.style.background = "white";
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.border = "1px solid #e2e8f0";
+                e.currentTarget.style.boxShadow = "none";
+                e.currentTarget.style.background = "#f8fafc";
+              }}
             />
             <button
               type="submit"
               disabled={!input.trim() || isLoading}
-              className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-white transition-all hover:bg-indigo-700 hover:scale-105 active:scale-95 disabled:scale-100 disabled:opacity-40"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:scale-100"
+              style={{ background: "linear-gradient(135deg, #2563eb, #1d4ed8)" }}
             >
               <Send className="h-3.5 w-3.5" />
             </button>
