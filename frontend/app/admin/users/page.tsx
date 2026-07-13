@@ -148,7 +148,7 @@ function UserModal({
       formData.append("lastName", lastName);
       formData.append("email", email);
       formData.append("username", username);
-      formData.append("phoneNumber", phoneNumber);
+      formData.append("phoneNumber", formatPhoneNumber(phoneNumber));
       formData.append("address", address);
       formData.append("role", role === "expert" ? "professional" : role);
       formData.append("status", status);
@@ -418,6 +418,20 @@ function UserModal({
       </div>
     </div>
   );
+}
+
+// Helper: ensure Nepali numbers start with +977
+function formatPhoneNumber(input: string): string {
+  const trimmed = input.trim();
+  // If it already starts with '+' assume it's international
+  if (trimmed.startsWith('+')) return trimmed;
+  // If it looks like a Nepali local number (10 digits) prepend +977
+  const digitsOnly = trimmed.replace(/\D/g, '');
+  if (digitsOnly.length === 10) {
+    return `+977${digitsOnly}`;
+  }
+  // otherwise return as‑is (validation will catch later)
+  return trimmed;
 }
 
 const getMockLastLogin = (userId: string) => {
