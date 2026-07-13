@@ -6,19 +6,19 @@ import { useAuth } from "../contexts/AuthContext";
 
 // ─── Service Category Icons ────────────────────────────────────────────────────
 const ElectricianIcon = () => (
-  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill="rgba(37,99,235,0.08)" />
   </svg>
 );
 
 const PlumberIcon = () => (
-  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
   </svg>
 );
 
 const PainterIcon = () => (
-  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <rect x="3" y="3" width="14" height="8" rx="2" fill="rgba(37,99,235,0.08)" />
     <path d="M5 11v4" />
     <rect x="3" y="15" width="4" height="5" rx="1" fill="rgba(37,99,235,0.08)" />
@@ -27,7 +27,7 @@ const PainterIcon = () => (
 );
 
 const CarpenterIcon = () => (
-  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <path d="M15 12l-8.5 8.5a2.12 2.12 0 0 1-3-3L12 9" />
     <path d="M17.64 15L22 10.64" />
     <path d="M20.91 11.7l-1.25-1.25c-.6-.6-.93-1.4-.93-2.25v-.75l-2.25-2.25H14l-.34.34-.75-.75-.34.34L9 6.5l.75.75L9 8l1.5 1.5 1.5-1.5 3 3z" />
@@ -35,7 +35,7 @@ const CarpenterIcon = () => (
 );
 
 const ACIcon = () => (
-  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <rect x="2" y="5" width="20" height="9" rx="2" fill="rgba(37,99,235,0.08)" />
     <line x1="2" y1="10" x2="22" y2="10" />
     <path d="M6 19c0-2 2-4 6-4s6 2 6 4" />
@@ -54,7 +54,7 @@ function ActivityIconContainer({ children }: { children: React.ReactNode }) {
 }
 
 const ACActivitySVG = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <rect x="2" y="5" width="20" height="9" rx="2" />
     <line x1="2" y1="10" x2="22" y2="10" />
     <path d="M6 19c0-2 2-4 6-4s6 2 6 4" />
@@ -62,7 +62,7 @@ const ACActivitySVG = () => (
 );
 
 const LightSVG = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="5" />
     <line x1="12" y1="1" x2="12" y2="3" />
     <line x1="12" y1="21" x2="12" y2="23" />
@@ -99,7 +99,7 @@ export default function DashboardPage() {
   const name = user?.firstName || "User";
 
   return (
-    <div className="max-w-3xl mx-auto space-y-5">
+    <div className="max-w-5xl space-y-5">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Hello, {name}!</h1>
         <p className="text-sm text-slate-500 mt-1">What can we help you maintain today?</p>

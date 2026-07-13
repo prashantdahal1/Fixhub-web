@@ -169,15 +169,20 @@ export default function ChatbotWidget() {
         <button
           onClick={() => setIsOpen(true)}
           aria-label="Chat with Fixie"
-          style={{
-            background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
-            boxShadow: "0 12px 36px rgba(37,99,235,0.38), 0 2px 8px rgba(37,99,235,0.18)",
-          }}
-          className="flex h-[58px] w-[58px] items-center justify-center rounded-full transition-transform duration-200 hover:scale-105 active:scale-95 cursor-pointer"
+          className="flex h-[46px] items-center gap-2 bg-white border border-slate-200 rounded-full pl-2 pr-4 py-1.5 hover:border-slate-300 hover:bg-slate-50 transition-all duration-200 shadow-[0_12px_24px_-6px_rgba(0,0,0,0.08),0_8px_16px_-8px_rgba(0,0,0,0.06)] hover:shadow-[0_16px_32px_-6px_rgba(0,0,0,0.12),0_12px_20px_-8px_rgba(0,0,0,0.08)] hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
         >
-          <div className="w-[30px] h-[14px]">
-            <FixieDots />
+          {/* Brand dot marker wrapper */}
+          <div 
+            className="flex h-8 w-8 items-center justify-center rounded-full shrink-0"
+            style={{
+              background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
+            }}
+          >
+            <div className="w-[18px] h-[8px] flex items-center justify-center">
+              <FixieDots />
+            </div>
           </div>
+          <span className="text-[12px] font-bold text-slate-800 tracking-tight select-none">Ask Fixie</span>
         </button>
       )}
 
