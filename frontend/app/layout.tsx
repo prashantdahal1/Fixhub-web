@@ -20,6 +20,7 @@ export const metadata: Metadata = {
 import { AuthProvider } from "./contexts/AuthContext";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import ChatbotWidget from "./components/ChatbotWidget";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AuthProvider>
           {children}
           <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} />
+          <ChatbotWidget />
         </AuthProvider>
       </body>
     </html>
