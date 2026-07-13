@@ -69,6 +69,20 @@ const ZapIcon = () => (
   </svg>
 );
 
+const UserIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
+  </svg>
+);
+
+const SettingsIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+  </svg>
+);
+
 // ─── Sample notifications ─────────────────────────────────────────────────────
 const SAMPLE_NOTIFICATIONS = [
   {
@@ -128,8 +142,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const [notifOpen, setNotifOpen]       = useState(false);
   const [emergOpen, setEmergOpen]       = useState(false);
+  const [profileOpen, setProfileOpen]   = useState(false);
   const [notifications, setNotifications] = useState(SAMPLE_NOTIFICATIONS);
   const notifRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -156,10 +172,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => document.removeEventListener("mousedown", handler);
   }, [notifOpen]);
 
+  // Close profile panel when clicking outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false);
+      }
+    };
+    if (profileOpen) document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [profileOpen]);
+
   // Close on Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { setNotifOpen(false); setEmergOpen(false); }
+      if (e.key === "Escape") { 
+        setNotifOpen(false); 
+        setEmergOpen(false); 
+        setProfileOpen(false);
+      }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
@@ -186,42 +217,84 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen bg-[#F9FAFB] font-sans flex">
 
       {/* ── SIDEBAR ────────────────────────────────────────────────────────── */}
-      <aside className="w-[240px] bg-white border-r border-slate-200 flex-shrink-0 flex flex-col sticky top-0 h-screen">
-
+      <aside className="w-[260px] bg-white border-r border-slate-100 flex-shrink-0 flex flex-col sticky top-0 h-screen">
         {/* Logo */}
-        <div className="h-[60px] flex items-center px-5 border-b border-slate-100 shrink-0">
-          <Image src="/images/fixhub.png" alt="FixHub" width={100} height={32} className="object-contain" priority />
+        <div className="h-[64px] flex items-center px-5 border-b border-slate-100 shrink-0">
+          <Image src="/images/fixhub.png" alt="FixHub" width={100} height={32} className="object-contain" priority style={{ width: "auto", height: "auto" }} />
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          {navItems.map(({ label, icon: Icon, href }) => {
-            const isActive = pathname === href;
-            return (
-              <Link
-                key={label}
-                href={href}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all group ${
-                  isActive
-                    ? "bg-[#EFF6FF] text-[#2563EB] font-semibold"
-                    : "text-slate-500 hover:text-slate-800 hover:bg-slate-50 font-medium"
-                }`}
-              >
-                <span className={isActive ? "text-[#2563EB]" : "text-slate-400 group-hover:text-slate-600 transition-colors"}>
-                  <Icon />
-                </span>
-                {label}
-              </Link>
-            );
-          })}
+        {/* Navigation Sections */}
+        <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto">
+          {/* Section: NAVIGATION */}
+          <div>
+            <span className="text-[10px] font-bold text-slate-400 tracking-wider mb-2 px-3 block uppercase">
+              Navigation
+            </span>
+            <div className="space-y-0.5">
+              {[
+                { label: "Dashboard", icon: HomeIcon, href: "/dashboard" },
+                { label: "Active Bookings", icon: BookingsIcon, href: "/dashboard/bookings" },
+                { label: "Service History", icon: HistoryIcon, href: "/dashboard/history" },
+              ].map(({ label, icon: Icon, href }) => {
+                const isActive = pathname === href;
+                return (
+                  <Link
+                    key={label}
+                    href={href}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all group ${
+                      isActive
+                        ? "bg-[#EFF6FF] text-[#2563EB] font-semibold"
+                        : "text-slate-500 hover:text-slate-850 hover:bg-slate-50 font-medium"
+                    }`}
+                  >
+                    <span className={isActive ? "text-[#2563EB]" : "text-slate-400 group-hover:text-slate-600 transition-colors"}>
+                      <Icon />
+                    </span>
+                    {label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Section: SUPPORT & HELP */}
+          <div>
+            <span className="text-[10px] font-bold text-slate-400 tracking-wider mb-2 px-3 block uppercase">
+              Support
+            </span>
+            <div className="space-y-0.5">
+              {[
+                { label: "Support", icon: SupportIcon, href: "/dashboard/support" },
+                { label: "My Profile", icon: UserIcon, href: "/dashboard/profile" },
+              ].map(({ label, icon: Icon, href }) => {
+                const isActive = pathname === href;
+                return (
+                  <Link
+                    key={label}
+                    href={href}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all group ${
+                      isActive
+                        ? "bg-[#EFF6FF] text-[#2563EB] font-semibold"
+                        : "text-slate-500 hover:text-slate-855 hover:bg-slate-50 font-medium"
+                    }`}
+                  >
+                    <span className={isActive ? "text-[#2563EB]" : "text-slate-400 group-hover:text-slate-600 transition-colors"}>
+                      <Icon />
+                    </span>
+                    {label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
         </nav>
 
-        {/* Bottom: User card + logout */}
-        <div className="border-t border-slate-100 px-3 py-4 shrink-0 space-y-1 bg-white mb-2">
+        {/* Bottom: User card */}
+        <div className="border-t border-slate-100 px-3 py-3.5 shrink-0 bg-white mb-1">
           <Link
             href="/dashboard/profile"
             className={`flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors group ${
-              pathname === "/dashboard/profile" ? "bg-[#EFF6FF] text-[#2563EB]" : "hover:bg-slate-50"
+              pathname === "/dashboard/profile" ? "bg-[#EFF6FF] text-[#2563EB] font-semibold" : "hover:bg-slate-50"
             }`}
           >
             {avatarUrl ? (
@@ -241,14 +314,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <ChevronRight />
             </span>
           </Link>
-
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm w-full text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all font-medium"
-          >
-            <LogoutIcon />
-            Sign out
-          </button>
         </div>
       </aside>
 
@@ -262,6 +327,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <p className="text-sm font-semibold text-slate-800">
               {pathname === "/dashboard/profile"
                 ? "My Profile"
+                : pathname === "/dashboard/notifications"
+                ? "Notifications"
                 : (navItems.find(n => n.href === pathname)?.label ?? "Dashboard")}
             </p>
           </div>
@@ -299,95 +366,81 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </span>
               )}
 
-              {/* ── Notification panel ── */}
               {notifOpen && (
                 <div
-                  className="absolute right-0 top-12 w-[360px] bg-white rounded-2xl z-[200] overflow-hidden"
-                  style={{ boxShadow: "0 20px 60px rgba(0,0,0,0.13), 0 4px 16px rgba(0,0,0,0.07)", border: "1px solid rgba(0,0,0,0.07)" }}
+                  className="absolute right-0 top-12 w-[380px] bg-white rounded-2xl z-[200] overflow-hidden border border-slate-100 shadow-2xl"
                 >
                   {/* Panel header */}
-                  <div className="flex items-center justify-between px-5 pt-4 pb-3">
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-[15px] font-bold text-slate-900">Notifications</span>
-                      {unreadCount > 0 && (
-                        <span className="bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
-                          {unreadCount}
-                        </span>
-                      )}
-                    </div>
-                    {unreadCount > 0 && (
-                      <button
-                        onClick={markAllRead}
-                        className="text-[11.5px] text-blue-600 hover:text-blue-700 font-semibold transition-colors"
-                      >
-                        Mark all read
-                      </button>
-                    )}
+                  <div className="flex items-center justify-between px-4.5 pt-4 pb-3 border-b border-slate-100">
+                    <span className="text-sm font-bold text-slate-850">Notifications</span>
+                    <button
+                      onClick={() => setNotifOpen(false)}
+                      className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200/80 transition-colors"
+                      aria-label="Close notifications"
+                    >
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
                   </div>
 
                   {/* List */}
-                  <div className="max-h-[320px] overflow-y-auto">
+                  <div className="max-h-[360px] overflow-y-auto divide-y divide-slate-100">
                     {notifications.length === 0 ? (
                       <div className="py-12 text-center px-5">
-                        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
+                        <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center mx-auto mb-3 text-slate-400">
                           <BellIcon />
                         </div>
-                        <p className="text-sm font-semibold text-slate-700">All caught up</p>
-                        <p className="text-xs text-slate-400 mt-1">No new notifications</p>
+                        <p className="text-xs font-bold text-slate-700">All caught up</p>
+                        <p className="text-[11px] text-slate-400 mt-1">No new notifications</p>
                       </div>
                     ) : (
-                      notifications.map((n, idx) => {
+                      notifications.map((n) => {
                         const iconBg: Record<string,string> = {
-                          booking: "bg-blue-100",
-                          confirm: "bg-emerald-100",
-                          done:    "bg-slate-100",
-                          payment: "bg-violet-100",
+                          booking: "bg-blue-50",
+                          confirm: "bg-emerald-50",
+                          done:    "bg-indigo-50",
+                          payment: "bg-red-50",
                         };
                         const iconFg: Record<string,string> = {
-                          booking: "text-blue-600",
-                          confirm: "text-emerald-600",
-                          done:    "text-slate-500",
-                          payment: "text-violet-600",
+                          booking: "text-blue-500",
+                          confirm: "text-emerald-500",
+                          done:    "text-indigo-500",
+                          payment: "text-red-500",
                         };
                         const icons: Record<string, React.ReactNode> = {
-                          booking: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>,
-                          confirm: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
-                          done:    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>,
-                          payment: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>,
+                          booking: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>,
+                          confirm: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
+                          done:    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>,
+                          payment: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>,
                         };
                         return (
                           <div
                             key={n.id}
-                            className={`relative flex gap-3 px-5 py-3.5 transition-colors hover:bg-slate-50 ${
-                              !n.read ? "bg-blue-50/30" : ""
-                            } ${idx < notifications.length - 1 ? "border-b border-slate-50" : ""}`}
+                            className={`relative flex gap-3 px-4.5 py-3.5 transition-colors hover:bg-slate-50/50 ${
+                              !n.read ? "bg-blue-50/10" : ""
+                            }`}
                           >
-                            {/* Unread accent */}
+                            {/* Unread circle dot */}
                             {!n.read && (
-                              <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-blue-500 rounded-r-full" />
+                              <span className="absolute left-2.5 top-[22px] w-1.5 h-1.5 bg-blue-500 rounded-full" />
                             )}
 
-                            {/* Icon avatar */}
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${iconBg[n.type]} ${iconFg[n.type]}`}>
+                            {/* Icon box */}
+                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${iconBg[n.type]} ${iconFg[n.type]}`}>
                               {icons[n.type]}
                             </div>
 
                             {/* Content */}
                             <div className="flex-1 min-w-0">
-                              <p className={`text-[12.5px] font-semibold leading-snug ${n.read ? "text-slate-700" : "text-slate-900"}`}>
-                                {n.title}
-                              </p>
-                              <p className="text-[11.5px] text-slate-500 mt-0.5 leading-relaxed">{n.body}</p>
-                              <p className="text-[10.5px] text-slate-400 mt-1.5 font-medium">{n.time}</p>
+                              <div className="flex items-baseline justify-between gap-2">
+                                <p className={`text-xs font-bold leading-none ${n.read ? "text-slate-700" : "text-slate-800"}`}>
+                                  {n.title}
+                                </p>
+                                <p className="text-[10px] text-slate-400 font-semibold shrink-0">{n.time}</p>
+                              </div>
+                              <p className="text-[11px] text-slate-500 mt-1 leading-normal truncate">{n.body}</p>
                             </div>
-
-                            {/* Dismiss */}
-                            <button
-                              onClick={() => dismissNotif(n.id)}
-                              className="shrink-0 w-5 h-5 flex items-center justify-center rounded-full text-slate-300 hover:text-slate-500 hover:bg-slate-100 transition-colors mt-0.5"
-                            >
-                              <XIcon />
-                            </button>
                           </div>
                         );
                       })
@@ -395,14 +448,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   </div>
 
                   {/* Footer */}
-                  <div className="border-t border-slate-100 px-5 py-3">
+                  <div className="border-t border-slate-100 text-center py-3 bg-white">
                     <Link
                       href="/dashboard/notifications"
                       onClick={() => setNotifOpen(false)}
-                      className="flex items-center justify-between text-[12px] font-semibold text-slate-500 hover:text-blue-600 transition-colors group"
+                      className="text-xs font-bold text-[#4F46E5] hover:text-[#3730A3] transition-colors"
                     >
-                      <span>View all notifications</span>
-                      <span className="text-slate-300 group-hover:text-blue-500 transition-colors">→</span>
+                      View All Notifications
                     </Link>
                   </div>
                 </div>
@@ -413,15 +465,54 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="w-px h-5 bg-slate-200" />
 
             {/* Avatar */}
-            <Link href="/dashboard/profile" className="flex-shrink-0 transition-opacity hover:opacity-85">
-              {avatarUrl ? (
-                <img src={avatarUrl} alt="Profile" className="w-8 h-8 rounded-full object-cover ring-2 ring-slate-100" />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-[#2563EB] flex items-center justify-center text-white text-[10px] font-bold ring-2 ring-blue-100">
-                  {initials}
+            <div className="relative flex-shrink-0" ref={profileRef}>
+              <button
+                onClick={() => setProfileOpen(o => !o)}
+                className="flex items-center focus:outline-none transition-opacity hover:opacity-85"
+                aria-label="User menu"
+              >
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="Profile" className="w-8 h-8 rounded-full object-cover ring-2 ring-slate-100" />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-[#2563EB] flex items-center justify-center text-white text-[10px] font-bold ring-2 ring-blue-100">
+                    {initials}
+                  </div>
+                )}
+              </button>
+
+              {profileOpen && (
+                <div
+                  className="absolute right-0 mt-2.5 w-[160px] bg-white rounded-2xl border border-slate-100 shadow-xl py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+                  style={{ boxShadow: "0 10px 30px -5px rgba(0, 0, 0, 0.08), 0 8px 16px -6px rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(0, 0, 0, 0.03)" }}
+                >
+                  <div className="px-1.5 space-y-0.5">
+                    <Link
+                      href="/dashboard/profile"
+                      onClick={() => setProfileOpen(false)}
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-500 hover:text-blue-600 hover:bg-slate-50 transition-colors"
+                    >
+                      <UserIcon />
+                      <span>View profile</span>
+                    </Link>
+                  </div>
+
+                  <div className="border-t border-slate-100/70 my-1.5" />
+
+                  <div className="px-1.5">
+                    <button
+                      onClick={() => {
+                        setProfileOpen(false);
+                        handleLogout();
+                      }}
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-500 hover:text-red-600 hover:bg-red-50/70 transition-colors w-full text-left"
+                    >
+                      <LogoutIcon />
+                      <span>Log out</span>
+                    </button>
+                  </div>
                 </div>
               )}
-            </Link>
+            </div>
           </div>
         </header>
 

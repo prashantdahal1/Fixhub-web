@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useAuth } from "../contexts/AuthContext";
 
 // ─── Service Category Icons ────────────────────────────────────────────────────
@@ -94,7 +95,6 @@ const recentActivity = [
 ];
 
 export default function DashboardPage() {
-  const [promoIdx, setPromoIdx] = useState(0);
   const { user } = useAuth();
   const name = user?.firstName || "User";
 
@@ -108,29 +108,31 @@ export default function DashboardPage() {
       <div className="rounded-2xl border border-gray-200 bg-white p-5 transition-shadow hover:shadow-sm">
         <div className="flex items-center justify-between mb-3">
           <span className="text-[15px] font-semibold text-slate-900">Offers &amp; Promos</span>
-          <button className="text-xs font-medium text-slate-500 hover:text-blue-600 transition-colors">View all</button>
+          <Link href="/dashboard/offers" className="text-xs font-semibold text-[#2563EB] hover:text-[#1D4ED8] transition-colors">View all</Link>
         </div>
-        <div className="relative rounded-xl overflow-hidden min-h-[100px] flex items-center"
-          style={{ background: "linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #3B82F6 100%)" }}
-        >
-          <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.12) 1px, transparent 1px)", backgroundSize: "18px 18px" }} />
-          <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-blue-300/20 blur-2xl pointer-events-none" />
-          <div className="absolute -bottom-10 right-16 w-28 h-28 rounded-full bg-white/10 blur-xl pointer-events-none" />
-          <div className="absolute right-6 top-1/2 -translate-y-1/2 opacity-10 pointer-events-none">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="white">
-              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-            </svg>
-          </div>
-          <div className="relative z-10 p-5 flex-1">
-            <span className="inline-block text-[10px] font-bold bg-white/20 text-white px-2 py-0.5 rounded-full mb-2 tracking-wide uppercase">{promos[promoIdx].badge}</span>
-            <p className="text-white font-black text-xl leading-tight">{promos[promoIdx].title}</p>
-            <p className="text-blue-100 text-sm mt-1 font-medium">{promos[promoIdx].sub}</p>
-          </div>
-        </div>
-        <div className="flex justify-center gap-1.5 mt-3">
-          {promos.map((_, i) => (
-            <button key={i} onClick={() => setPromoIdx(i)} className={`rounded-full transition-all duration-300 ${i === promoIdx ? "w-6 h-2 bg-blue-600" : "w-2 h-2 bg-slate-300 hover:bg-slate-400"}`} />
-          ))}
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {promos.map((p, idx) => {
+            const gradients = [
+              "linear-gradient(135deg, #1E3A8A 0%, #2563EB 100%)",
+              "linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)",
+              "linear-gradient(135deg, #065F46 0%, #10B981 100%)"
+            ];
+            return (
+              <div 
+                key={idx}
+                className="relative rounded-xl overflow-hidden min-h-[110px] flex items-center shadow-sm transition-transform hover:scale-[1.01] cursor-pointer"
+                style={{ background: gradients[idx] }}
+              >
+                <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px)", backgroundSize: "14px 14px" }} />
+                <div className="relative z-10 p-4">
+                  <span className="inline-block text-[9px] font-extrabold bg-white/25 text-white px-2 py-0.5 rounded-full mb-1.5 tracking-wider uppercase">{p.badge}</span>
+                  <p className="text-white font-extrabold text-sm leading-snug">{p.title}</p>
+                  <p className="text-blue-50 text-[11px] mt-0.5 font-medium leading-tight">{p.sub}</p>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
