@@ -33,6 +33,8 @@ interface UserRow {
   updatedAt: string;
   username?: string;
   phoneNumber?: string;
+  isVerified?: boolean;
+  verificationDocument?: string;
 }
 
 const roleBadgeStyles: Record<string, { bg: string; dot: string }> = {
@@ -742,6 +744,28 @@ export default function RegisteredUsersPage() {
                             >
                               <Pencil className="h-3.5 w-3.5" />
                             </button>
+                            {user.role === 'professional' && !user.isVerified && (
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+                                    const response = await fetch(`/api/v1/admin/verify-pro/${user._id}`, {
+                                      method: "PATCH",
+                                      headers: { Authorization: `Bearer ${token}` }
+                                    });
+                                    if (!response.ok) throw new Error("Failed to verify professional");
+                                    toast.success("Professional verified successfully");
+                                    fetchUsers();
+                                  } catch (error: any) {
+                                    toast.error(error.message);
+                                  }
+                                }}
+                                className="h-7 w-7 flex items-center justify-center rounded-md text-amber-500 hover:bg-white hover:text-emerald-600 hover:shadow-sm transition-all"
+                                title="Verify Professional"
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                              </button>
+                            )}
                             <button
                               onClick={() => handleDelete(user._id)}
                               className="h-7 w-7 flex items-center justify-center rounded-md text-slate-400 hover:bg-white hover:text-red-600 hover:shadow-sm transition-all"

@@ -17,7 +17,8 @@ export default function RegisterPage() {
     email: '',
     phone: '+977 ',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    verificationDocument: null as File | null
   });
   const [error, setError] = useState('');
   const router = useRouter();
@@ -35,6 +36,10 @@ export default function RegisterPage() {
       } else {
         setFormData({ ...formData, phone: value });
       }
+      setError('');
+    } else if (type === 'file') {
+      const target = e.target as HTMLInputElement;
+      setFormData({ ...formData, [name]: target.files ? target.files[0] : null });
       setError('');
     } else {
       setFormData({ ...formData, [name]: value });
@@ -71,11 +76,25 @@ export default function RegisterPage() {
       toast.error(errMsg);
       return;
     }
+    
+    if (userType === 'professional' && !formData.verificationDocument) {
+      setError('Industrial/Business License is required for professionals');
+      toast.error('Industrial/Business License is required for professionals');
+      return;
+    }
+
     try {
+      const submitData = new FormData();
+      Object.entries(result.data).forEach(([key, value]) => {
+        submitData.append(key, value as string);
+      });
+      if (userType === 'professional' && formData.verificationDocument) {
+        submitData.append('verificationDocument', formData.verificationDocument);
+      }
+
       const response = await fetch('/api/v1/auth/register', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(result.data),
+        body: submitData,
       });
       const data = await response.json();
       if (!response.ok) { 
@@ -275,6 +294,23 @@ export default function RegisterPage() {
                 </div>
               </div>
             </div>
+
+            {/* Professional License Upload */}
+            {userType === 'professional' && (
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                  Industrial/Business License
+                </label>
+                <input
+                  type="file"
+                  name="verificationDocument"
+                  onChange={handleChange}
+                  accept=".pdf, image/jpeg, image/png, image/webp"
+                  className="w-full px-4 py-2.5 text-sm text-slate-800 border border-slate-200 rounded-xl focus:outline-none hover:border-slate-300 transition-all file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  required={userType === 'professional'}
+                />
+              </div>
+            )}
 
             {/* Terms */}
             <div className="flex items-center gap-2.5 pt-2">
