@@ -23,7 +23,11 @@ export class UserController {
                 console.error("Zod Validation Failed:", JSON.stringify(userData.error.errors, null, 2));
                 return ApiResponseHelper.error(res, formatZodError(userData.error), 400);
             }
-            const user = await userService.createUser(userData.data);
+            const dataToSave = { ...userData.data } as any;
+            if (req.file) {
+                dataToSave.verificationDocument = `/uploads/documents/${req.file.filename}`;
+            }
+            const user = await userService.createUser(dataToSave);
             return ApiResponseHelper.success(res, user, "User created successfully");
         } catch (error: any) {
             console.error("User Creation Error:", error);
@@ -229,6 +233,28 @@ export class UserController {
             }
             await userService.deleteUser(id);
             return ApiResponseHelper.success(res, null, "User deleted successfully");
+        } catch (error: any) {
+            return ApiResponseHelper.error(res, error.message || "Internal Server Error", error.status || 500);
+        }
+    }
+
+    async getUnverifiedPros(req: Request, res: Response) {
+        try {
+            const pros = await userService.getUnverifiedProfessionals();
+            return ApiResponseHelper.success(res, pros, "Unverified professionals fetched successfully");
+        } catch (error: any) {
+            return ApiResponseHelper.error(res, error.message || "Internal Server Error", error.status || 500);
+        }
+    }
+
+    async verifyPro(req: Request, res: Response) {
+        try {
+            const id = req.params.id as string;
+            const user = await userService.verifyProfessional(id);
+            if (!user) {
+                return ApiResponseHelper.error(res, "Professional not found", 404);
+            }
+            return ApiResponseHelper.success(res, user, "Professional verified successfully");
         } catch (error: any) {
             return ApiResponseHelper.error(res, error.message || "Internal Server Error", error.status || 500);
         }

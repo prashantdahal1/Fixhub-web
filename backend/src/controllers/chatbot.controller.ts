@@ -74,7 +74,7 @@ export const handleChat = async (req: Request, res: Response, next: NextFunction
             : [];
 
         // Gemini requires that the first message in chat history must be from the 'user'.
-        while (formattedHistory.length > 0 && formattedHistory[0].role !== "user") {
+        while (formattedHistory.length > 0 && formattedHistory[0]?.role !== "user") {
             formattedHistory.shift();
         }
 

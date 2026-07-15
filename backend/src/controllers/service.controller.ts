@@ -45,7 +45,14 @@ export class ServiceController {
 
   async createService(req: Request, res: Response) {
     try {
-      const service = await serviceService.createService(req.body);
+      const data = { ...req.body };
+      if ((req as any).user) {
+        data.professionalId = (req as any).user.id;
+      }
+      if (req.file) {
+        data.imageUrl = `/uploads/documents/${req.file.filename}`;
+      }
+      const service = await serviceService.createService(data);
       return ApiResponseHelper.success(res, service, "Service created successfully", 201);
     } catch (error: any) {
       return ApiResponseHelper.error(res, error.message || "Internal Server Error", error.status || 500);
@@ -54,7 +61,11 @@ export class ServiceController {
 
   async updateService(req: Request, res: Response) {
     try {
-      const service = await serviceService.updateService(req.params.id, req.body);
+      const data = { ...req.body };
+      if (req.file) {
+        data.imageUrl = `/uploads/documents/${req.file.filename}`;
+      }
+      const service = await serviceService.updateService(req.params.id, data);
       return ApiResponseHelper.success(res, service, "Service updated successfully");
     } catch (error: any) {
       return ApiResponseHelper.error(res, error.message || "Internal Server Error", error.status || 500);

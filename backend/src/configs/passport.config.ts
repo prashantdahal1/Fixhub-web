@@ -15,12 +15,11 @@ passport.use(
         {
             clientID: GOOGLE_CLIENT_ID,
             clientSecret: GOOGLE_CLIENT_SECRET,
-            callbackURL: "/auth/google/callback", // Note: Ensure this matches exactly with Google Console
+            callbackURL: "/auth/google/callback",
         },
-        async (accessToken, refreshToken, profile, done) => {
+        async (accessToken: string, refreshToken: string, profile: any, done: any) => {
             try {
-                // Check if user already exists in our db
-                const email = profile.emails?.[0].value;
+                const email = profile.emails?.[0]?.value;
                 if (!email) {
                     return done(new Error("No email found from Google profile"), undefined);
                 }
@@ -28,7 +27,6 @@ passport.use(
                 let user = await UserModel.findOne({ email });
 
                 if (!user) {
-                    // Create new user if not exists
                     const dummyPassword = Math.random().toString(36).slice(-10) + "A1!";
                     const hashedPassword = await bcrypt.hash(dummyPassword, 10);
                     
@@ -39,8 +37,7 @@ passport.use(
                         username: `user_${profile.id}`,
                         password: hashedPassword,
                         role: "customer",
-                        profilePicture: profile.photos?.[0].value || "",
-                        status: "active"
+                        profilePicture: profile.photos?.[0]?.value || "",
                     });
                 }
 
@@ -53,12 +50,12 @@ passport.use(
 );
 
 // Serialize user into the sessions
-passport.serializeUser((user: any, done) => {
+passport.serializeUser((user: any, done: any) => {
     done(null, user._id);
 });
 
 // Deserialize user from the sessions
-passport.deserializeUser(async (id, done) => {
+passport.deserializeUser(async (id: any, done: any) => {
     try {
         const user = await UserModel.findById(id);
         done(null, user);
