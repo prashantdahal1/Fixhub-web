@@ -8,8 +8,11 @@ import { UserModel } from "../models/user.model.js";
 import { sendPasswordResetEmail } from "../utils/email.util.js";
 import type { IUser } from "../models/user.model.js";
 import rateLimit from "express-rate-limit";
+import type { Request, Response, NextFunction } from "express";
+import { UserService } from "../services/user.service.js";
 
 const router = Router();
+const userService = new UserService();
 
 const forgotPasswordLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -110,8 +113,8 @@ router.post("/reset-password", async (req, res) => {
         // Hash the new password and update
         const hashedPassword = await bcrypt.hash(newPassword, 10);
         user.password = hashedPassword;
-        user.resetPasswordToken = undefined;
-        user.resetPasswordExpires = undefined;
+        delete (user as any).resetPasswordToken;
+        delete (user as any).resetPasswordExpires;
         await user.save();
 
         res.status(200).json({ success: true, message: "Password reset successfully. You can now log in." });
@@ -122,4 +125,16 @@ router.post("/reset-password", async (req, res) => {
 });
 
 
+router.post('/login', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return ApiResponseHelper.error(res, 'Email and password are required', 400);
+    }
+    const { user, token } = await userService.loginUser({ email, password });
+    return ApiResponseHelper.success(res, { user, token }, 'Login successful');
+  } catch (error: any) {
+    return ApiResponseHelper.error(res, error.message || 'Login failed', error.status || 500);
+  }
+});
 export default router;

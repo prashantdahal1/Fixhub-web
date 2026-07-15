@@ -16,4 +16,7 @@ adminRouter.put('/users/:id', profileUpload.single('avatar'), userController.upd
 adminRouter.patch('/users/:id', profileUpload.single('avatar'), userController.updateUser.bind(userController));
 adminRouter.delete('/users/:id', userController.deleteUser.bind(userController));
 
+adminRouter.get('/unverified-pros', userController.getUnverifiedPros.bind(userController));
+adminRouter.patch('/verify-pro/:id', userController.verifyPro.bind(userController));
+
 export default adminRouter;
