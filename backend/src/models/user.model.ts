@@ -8,6 +8,11 @@ export interface IUser extends UserType, Document {
     address?: string;
     province?: string;
     city?: string;
+    status?: string;
+    resetPasswordToken?: string;
+    resetPasswordExpires?: Date;
+    isVerified: boolean;
+    verificationDocument?: string;
 }
 
 const UserMongoSchema: Schema = new Schema<IUser>(
@@ -26,6 +31,8 @@ const UserMongoSchema: Schema = new Schema<IUser>(
         status: { type: String, enum: ["active", "pending", "suspended"], default: "active" },
         resetPasswordToken: { type: String },
         resetPasswordExpires: { type: Date },
+        isVerified: { type: Boolean, default: false },
+        verificationDocument: { type: String, default: '' },
     },
     {
         timestamps: true

@@ -1,10 +1,10 @@
 import { ServiceModel, type IService, type ServiceCategory } from "../models/service.model.js";
 
 export interface ServiceQuery {
-  category?: ServiceCategory;
-  search?: string;
-  page?: number;
-  limit?: number;
+  category?: ServiceCategory | undefined;
+  search?: string | undefined;
+  page?: number | undefined;
+  limit?: number | undefined;
 }
 
 export interface IServiceRepository {

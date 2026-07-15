@@ -77,4 +77,12 @@ export class UserService {
         const hashedPassword = await bcrypt.hash(passwordData.newPassword, 10);
         await userRepository.update(id, { password: hashedPassword });
     }
+
+    async getUnverifiedProfessionals(): Promise<IUser[]> {
+        return await userRepository.getUnverifiedProfessionals();
+    }
+
+    async verifyProfessional(id: string): Promise<IUser | null> {
+        return await userRepository.update(id, { isVerified: true });
+    }
 }

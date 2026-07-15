@@ -14,6 +14,7 @@ export type ServiceCategory =
 
 export interface IService extends Document {
   _id: mongoose.Types.ObjectId;
+  professionalId: mongoose.Types.ObjectId;
   title: string;
   slug: string;
   category: ServiceCategory;
@@ -35,6 +36,7 @@ export interface IService extends Document {
 
 const ServiceSchema = new Schema<IService>(
   {
+    professionalId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     title: { type: String, required: true, trim: true },
     slug: { type: String, required: true, unique: true, lowercase: true },
     category: {

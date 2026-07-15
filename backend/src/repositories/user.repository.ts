@@ -9,6 +9,7 @@ export interface IUserRepository {
     getPaginatedUsers(page: number, limit: number, search?: string, role?: string, status?: string): Promise<{ data: IUser[], total: number }>;
     update(id: string, user: Partial<IUser>): Promise<IUser | null>;
     delete(id: string): Promise<boolean>;
+    getUnverifiedProfessionals(): Promise<IUser[]>;
 }
 
 export class UserMongoRepository implements IUserRepository {  
@@ -62,7 +63,10 @@ export class UserMongoRepository implements IUserRepository {
         return updated;
     }
     async delete(id: string): Promise<boolean> {
-        const deleted = await UserModel.findByIdAndDelete(id);
-        return !!deleted;
+        const result = await UserModel.findByIdAndDelete(id);
+        return !!result;
+    }
+    async getUnverifiedProfessionals(): Promise<IUser[]> {
+        return await UserModel.find({ role: 'professional', isVerified: false });
     }
 }
