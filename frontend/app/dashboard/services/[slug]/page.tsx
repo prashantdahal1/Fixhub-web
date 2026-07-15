@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { toast } from "react-toastify";
+import { apiFetch } from "../../../../lib/api/client";
+import { API } from "../../../../lib/api/endpoints";
 
 type PriceUnit = "flat" | "per_hour" | "per_sqft";
 type ServiceCategory =
@@ -35,11 +38,7 @@ const PRICE_UNIT_LABEL: Record<PriceUnit, string> = {
   per_sqft: "per sqft",
 };
 
-const MOCK_REVIEWS = [
-  { id: 1, name: "Rajan Shrestha", rating: 5, date: "Jun 2026", text: "Excellent work. The technician arrived on time and fixed the issue within an hour. Very professional." },
-  { id: 2, name: "Sunita Gurung", rating: 4, date: "May 2026", text: "Good service overall. Minor delay but the quality of work was great." },
-  { id: 3, name: "Bikash Karki", rating: 5, date: "May 2026", text: "FixHub Certified professionals really do deliver. Highly recommended." },
-];
+const MOCK_REVIEWS: never[] = [];
 
 function StarRating({ rating, size = 13 }: { rating: number; size?: number }) {
   return (
@@ -82,8 +81,17 @@ export default function ServiceDetailPage() {
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
   const [notes, setNotes] = useState("");
+  const [address, setAddress] = useState("");
   const [bookingSubmitted, setBookingSubmitted] = useState(false);
   const [bookingLoading, setBookingLoading] = useState(false);
+  const [bookingError, setBookingError] = useState("");
+  const [reviews, setReviews] = useState<Array<{
+    _id: string;
+    rating: number;
+    comment: string;
+    createdAt: string;
+    customerId?: { firstName?: string; lastName?: string } | string;
+  }>>([]);
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -95,6 +103,12 @@ export default function ServiceDetailPage() {
         const json = await res.json();
         if (json.success && json.data) {
           setService(json.data);
+          try {
+            const rev = await apiFetch<{ data: any[] }>(API.REVIEWS.BY_SERVICE(json.data._id));
+            setReviews(rev.data || []);
+          } catch {
+            setReviews([]);
+          }
         } else {
           setNotFound(true);
         }
@@ -109,11 +123,32 @@ export default function ServiceDetailPage() {
 
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedDate || !selectedTime) return;
+    if (!selectedDate || !selectedTime || !service) return;
+    if (!address.trim()) {
+      setBookingError("Address is required");
+      return;
+    }
     setBookingLoading(true);
-    await new Promise((r) => setTimeout(r, 1000));
-    setBookingLoading(false);
-    setBookingSubmitted(true);
+    setBookingError("");
+    try {
+      const scheduledAt = new Date(`${selectedDate}T${selectedTime}:00`);
+      await apiFetch(API.BOOKINGS.CREATE, {
+        method: "POST",
+        body: JSON.stringify({
+          serviceId: service._id,
+          scheduledAt: scheduledAt.toISOString(),
+          address: address.trim(),
+          notes: notes.trim() || undefined,
+        }),
+      });
+      setBookingSubmitted(true);
+      toast.success("Booking created — escrow held from your wallet");
+    } catch (err: any) {
+      setBookingError(err.message || "Booking failed");
+      toast.error(err.message || "Booking failed. Top up your wallet if needed.");
+    } finally {
+      setBookingLoading(false);
+    }
   };
 
   if (loading) return <div className="max-w-5xl"><DetailSkeleton /></div>;
@@ -236,23 +271,30 @@ export default function ServiceDetailPage() {
                 </div>
               </div>
               <div className="grid gap-4">
-                {MOCK_REVIEWS.map((review) => (
-                  <div key={review.id} className="p-5 bg-white border border-slate-100 shadow-sm rounded-2xl space-y-3">
+                {reviews.length === 0 ? (
+                  <p className="text-sm text-slate-400">No reviews yet.</p>
+                ) : reviews.map((review) => {
+                  const name = typeof review.customerId === "object" && review.customerId
+                    ? `${review.customerId.firstName || ""} ${review.customerId.lastName || ""}`.trim()
+                    : "Customer";
+                  return (
+                  <div key={review._id} className="p-5 bg-white border border-slate-100 shadow-sm rounded-2xl space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-100 to-blue-50 flex items-center justify-center text-xs font-bold text-blue-700">
-                          {review.name[0]}
+                          {(name || "C")[0]}
                         </div>
                         <div>
-                          <p className="text-xs font-bold text-slate-800">{review.name}</p>
-                          <p className="text-[10px] text-slate-400">{review.date}</p>
+                          <p className="text-xs font-bold text-slate-800">{name || "Customer"}</p>
+                          <p className="text-[10px] text-slate-400">{new Date(review.createdAt).toLocaleDateString()}</p>
                         </div>
                       </div>
                       <StarRating rating={review.rating} size={12} />
                     </div>
-                    <p className="text-[12px] text-slate-600 leading-relaxed">{review.text}</p>
+                    <p className="text-[12px] text-slate-600 leading-relaxed">{review.comment || "No comment."}</p>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </section>
           </div>
@@ -295,13 +337,25 @@ export default function ServiceDetailPage() {
                     className="w-full text-sm border-0 ring-1 ring-slate-200 rounded-xl px-4 py-3 text-slate-800 bg-slate-50/50 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all shadow-sm appearance-none"
                   >
                     <option value="">Choose a time slot</option>
-                    <option value="08:00 AM">08:00 AM</option>
-                    <option value="10:00 AM">10:00 AM</option>
-                    <option value="12:00 PM">12:00 PM</option>
-                    <option value="02:00 PM">02:00 PM</option>
-                    <option value="04:00 PM">04:00 PM</option>
-                    <option value="06:00 PM">06:00 PM</option>
+                    <option value="08:00">08:00 AM</option>
+                    <option value="10:00">10:00 AM</option>
+                    <option value="12:00">12:00 PM</option>
+                    <option value="14:00">02:00 PM</option>
+                    <option value="16:00">04:00 PM</option>
+                    <option value="18:00">06:00 PM</option>
                   </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Service Address</label>
+                  <input
+                    type="text"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    required
+                    placeholder="e.g. Baneshwor, Kathmandu"
+                    className="w-full text-sm border-0 ring-1 ring-slate-200 rounded-xl px-4 py-3 text-slate-800 bg-slate-50/50 hover:bg-slate-50 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all shadow-sm"
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -315,9 +369,13 @@ export default function ServiceDetailPage() {
                   />
                 </div>
 
+                {bookingError && (
+                  <p className="text-xs text-rose-600 font-medium">{bookingError}</p>
+                )}
+
                 <button
                   type="submit"
-                  disabled={bookingLoading || !selectedDate || !selectedTime}
+                  disabled={bookingLoading || !selectedDate || !selectedTime || !address.trim()}
                   className="w-full py-3.5 rounded-xl text-sm font-extrabold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_4px_14px_rgba(37,99,235,0.25)] hover:shadow-[0_6px_20px_rgba(37,99,235,0.35)]"
                   style={{ background: "linear-gradient(135deg, #2563eb, #1d4ed8)" }}
                 >
