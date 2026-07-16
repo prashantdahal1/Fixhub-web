@@ -61,6 +61,7 @@ const ServiceSchema = new Schema<IService>(
 );
 
 ServiceSchema.index({ category: 1, isActive: 1 });
+ServiceSchema.index({ professionalId: 1, isActive: 1 });
 ServiceSchema.index({ title: "text", description: "text", tags: "text" });
 
 export const ServiceModel = mongoose.model<IService>("Service", ServiceSchema);
