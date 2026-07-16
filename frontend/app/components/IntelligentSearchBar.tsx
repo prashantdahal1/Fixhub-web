@@ -433,7 +433,11 @@ export function IntelligentSearchBar() {
               {/* CTAs */}
               <div className="flex gap-2">
                 <button
-                  onClick={() => router.push("/bookings")}
+                  onClick={() => {
+                    const cat = flow.category.toLowerCase().replace(" ", "_");
+                    router.push(`/dashboard/services?category=${cat}`);
+                    reset();
+                  }}
                   className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-all duration-200 hover:shadow-lg hover:opacity-90 active:scale-[0.98]"
                   style={{
                     background: isUrgent
@@ -441,7 +445,7 @@ export function IntelligentSearchBar() {
                       : `linear-gradient(135deg, #1E3A8A, ${flow.color})`,
                   }}
                 >
-                  {isUrgent ? "🚨 Book Emergency" : "Book Now →"}
+                  {isUrgent ? "🚨 Book Emergency" : "Browse Services →"}
                 </button>
                 <button
                   onClick={reset}

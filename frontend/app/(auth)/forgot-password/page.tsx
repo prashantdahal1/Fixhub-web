@@ -3,22 +3,34 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
+import { toast } from 'react-toastify';
 
 export default function ForgotPasswordPage() {
-  const [formData, setFormData] = useState({
-    email: ''
-  });
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Reset Password Email:', formData);
+    setLoading(true);
+    try {
+      const res = await fetch('http://localhost:5000/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSent(true);
+        toast.success('Reset link sent! Check your email (or backend console for the preview link).');
+      } else {
+        toast.error(data.message || 'Something went wrong.');
+      }
+    } catch {
+      toast.error('Network error. Is the backend running?');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -49,6 +61,7 @@ export default function ForgotPasswordPage() {
                   src="/images/password.png"
                   alt="Password recovery illustration"
                   fill
+                  loading="eager"
                   sizes="(max-width: 768px) 290px, 300px"
                   className="object-contain filter drop-shadow-[0_25px_50px_rgba(0,0,0,0.4)]"
                 />
@@ -76,38 +89,71 @@ export default function ForgotPasswordPage() {
                 />
               </div>
 
-              {/* Headings */}
-              <h1 className="text-2xl font-bold text-[#0F172A] mb-2">Forgot Your Password?</h1>
-              <p className="text-slate-500 text-sm mb-4">No problem. Enter your email and we'll send you a reset link.</p>
-
-              <form onSubmit={handleSubmit} className="space-y-3">
-                {/* Email */}
-                <div>
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 block">Email Address</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    placeholder="youremail@gmail.com"
-                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38BDF8] focus:border-transparent placeholder:text-slate-400"
-                    required
-                  />
+              {sent ? (
+                /* Success State */
+                <div className="text-center py-4">
+                  <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-7 h-7 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <h1 className="text-xl font-bold text-[#0F172A] mb-2">Check Your Email!</h1>
+                  <p className="text-slate-500 text-sm mb-2">
+                    We've sent a reset link to <strong>{email}</strong>.
+                  </p>
+                  <p className="text-slate-400 text-xs mb-5">
+                    The link expires in 15 minutes. Check your backend console for a preview URL if using dev mode.
+                  </p>
+                  <Link href="/login" className="text-sm font-semibold text-[#2D6FFF] hover:underline">
+                    Back to Login
+                  </Link>
                 </div>
+              ) : (
+                <>
+                  {/* Headings */}
+                  <h1 className="text-2xl font-bold text-[#0F172A] mb-2">Forgot Your Password?</h1>
+                  <p className="text-slate-500 text-sm mb-4">No problem. Enter your email and we'll send you a reset link.</p>
 
-                {/* Submit Button */}
-                <button
-                  type="submit"
-                  className="w-full bg-[#2D6FFF] hover:bg-[#1E56DB] text-white font-semibold py-2.5 rounded-xl transition-colors text-sm"
-                >
-                  Send Reset Link
-                </button>
-              </form>
+                  <form onSubmit={handleSubmit} className="space-y-3">
+                    {/* Email */}
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 block">Email Address</label>
+                      <input
+                        type="email"
+                        name="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="youremail@gmail.com"
+                        className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38BDF8] focus:border-transparent placeholder:text-slate-400"
+                        required
+                        disabled={loading}
+                      />
+                    </div>
 
-              {/* Back to Login Link */}
-              <Link href="/login" className="text-sm font-semibold text-[#2D6FFF] hover:underline transition-all mt-4 block text-center">
-                Back to Login
-              </Link>
+                    {/* Submit Button */}
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full bg-[#2D6FFF] hover:bg-[#1E56DB] disabled:opacity-60 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm flex items-center justify-center gap-2"
+                    >
+                      {loading ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                          Sending...
+                        </>
+                      ) : 'Send Reset Link'}
+                    </button>
+                  </form>
+
+                  {/* Back to Login Link */}
+                  <Link href="/login" className="text-sm font-semibold text-[#2D6FFF] hover:underline transition-all mt-4 block text-center">
+                    Back to Login
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>

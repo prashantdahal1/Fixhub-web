@@ -20,6 +20,7 @@ export const authorizedMiddleware =
             } else if (req.cookies && req.cookies.auth_token) {
                 token = req.cookies.auth_token;
             }
+            console.log('Authorized Middleware - extracted token:', token);
 
             if (!token) {
                 throw new HttpException(401, 'Unauthorized JWT missing');

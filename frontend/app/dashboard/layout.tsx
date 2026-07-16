@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "../contexts/AuthContext";
+import { IntelligentSearchBar } from "../components/IntelligentSearchBar";
 
-// ─── Icons ─────────────────────────────────────────────────────────────────────
+// ─── Icons ───────────────────────────────────────────────────────────────────
 const HomeIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z" />
@@ -25,6 +26,14 @@ const HistoryIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="1 4 1 10 7 10" />
     <path d="M3.51 15a9 9 0 1 0 .49-4.95" />
+  </svg>
+);
+const ServicesIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="3" width="6" height="6" rx="1" />
+    <rect x="16" y="3" width="6" height="6" rx="1" />
+    <rect x="2" y="15" width="6" height="6" rx="1" />
+    <rect x="16" y="15" width="6" height="6" rx="1" />
   </svg>
 );
 const SupportIcon = () => (
@@ -48,33 +57,153 @@ const LogoutIcon = () => (
   </svg>
 );
 const ChevronRight = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="9 18 15 12 9 6" />
   </svg>
 );
+const XIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
+const PhoneIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.22h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.77a16 16 0 0 0 6.29 6.29l.95-.95a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+  </svg>
+);
+const ZapIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+  </svg>
+);
 
-// ─── Nav items ─────────────────────────────────────────────────────────────────
+const UserIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
+  </svg>
+);
+
+const SettingsIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+  </svg>
+);
+
+// ─── Sample notifications ─────────────────────────────────────────────────────
+const SAMPLE_NOTIFICATIONS = [
+  {
+    id: 1,
+    title: "Technician on the way",
+    body: "Ramesh K. is heading to your location. ETA: 25 min.",
+    time: "2 min ago",
+    type: "booking",
+    read: false,
+  },
+  {
+    id: 2,
+    title: "Booking confirmed",
+    body: "Your plumbing appointment for Fri, Jul 18 is confirmed.",
+    time: "1 hr ago",
+    type: "confirm",
+    read: false,
+  },
+  {
+    id: 3,
+    title: "Service completed",
+    body: "AC repair job #4821 has been marked complete. Rate your experience.",
+    time: "Yesterday",
+    type: "done",
+    read: true,
+  },
+  {
+    id: 4,
+    title: "Payment received",
+    body: "Rs. 2,500 payment for electrical work confirmed.",
+    time: "2 days ago",
+    type: "payment",
+    read: true,
+  },
+];
+
+const notifColor: Record<string, string> = {
+  booking: "bg-blue-500",
+  confirm: "bg-emerald-500",
+  done: "bg-slate-400",
+  payment: "bg-violet-500",
+};
+
+// ─── Nav items ────────────────────────────────────────────────────────────────
 const navItems = [
   { label: "Home",            icon: HomeIcon,     href: "/dashboard"          },
+  { label: "Services",        icon: ServicesIcon, href: "/dashboard/services" },
   { label: "Active Bookings", icon: BookingsIcon, href: "/dashboard/bookings" },
   { label: "Service History", icon: HistoryIcon,  href: "/dashboard/history"  },
   { label: "Support",         icon: SupportIcon,  href: "/dashboard/support"  },
 ];
 
-// ─── Layout ────────────────────────────────────────────────────────────────────
+// ─── Layout ───────────────────────────────────────────────────────────────────
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, setUser, loading } = useAuth();
 
-  const initials = `${user?.firstName?.charAt(0) || "U"}${user?.lastName?.charAt(0) || ""}`.toUpperCase();
-  const fullName = user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() : "User";
+  const [notifOpen, setNotifOpen]       = useState(false);
+  const [emergOpen, setEmergOpen]       = useState(false);
+  const [profileOpen, setProfileOpen]   = useState(false);
+  const [notifications, setNotifications] = useState(SAMPLE_NOTIFICATIONS);
+  const notifRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  const initials  = `${user?.firstName?.charAt(0) || "U"}${user?.lastName?.charAt(0) || ""}`.toUpperCase();
+  const fullName  = user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() : "User";
   const avatarUrl = user?.profilePicture;
 
   const handleLogout = async () => {
     try { await fetch("/api/v1/auth/logout", { method: "POST" }); } catch (_) {}
     finally { setUser(null); router.push("/"); }
   };
+
+  const markAllRead = () => setNotifications(n => n.map(x => ({ ...x, read: true })));
+  const dismissNotif = (id: number) => setNotifications(n => n.filter(x => x.id !== id));
+
+  // Close notification panel when clicking outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false);
+      }
+    };
+    if (notifOpen) document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [notifOpen]);
+
+  // Close profile panel when clicking outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false);
+      }
+    };
+    if (profileOpen) document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [profileOpen]);
+
+  // Close on Escape
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { 
+        setNotifOpen(false); 
+        setEmergOpen(false); 
+        setProfileOpen(false);
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, []);
 
   React.useEffect(() => {
     if (!loading && !user) router.push("/login");
@@ -96,44 +225,86 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen bg-[#F9FAFB] font-sans flex">
 
-      {/* ── SIDEBAR ─────────────────────────────────────────────────────────── */}
-      <aside className="w-[240px] bg-white border-r border-slate-200 flex-shrink-0 flex flex-col sticky top-0 h-screen">
-
+      {/* ── SIDEBAR ────────────────────────────────────────────────────────── */}
+      <aside className="w-[260px] bg-white border-r border-slate-100 flex-shrink-0 flex flex-col sticky top-0 h-screen">
         {/* Logo */}
-        <div className="h-[60px] flex items-center px-5 border-b border-slate-100 shrink-0">
-          <Image src="/images/fixhub.png" alt="FixHub" width={100} height={32} className="object-contain" priority />
+        <div className="h-[64px] flex items-center px-5 border-b border-slate-100 shrink-0">
+          <Image src="/images/fixhub.png" alt="FixHub" width={100} height={32} className="object-contain" priority style={{ width: "auto", height: "auto" }} />
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          {navItems.map(({ label, icon: Icon, href }) => {
-            const isActive = pathname === href;
-            return (
-              <Link
-                key={label}
-                href={href}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all group ${
-                  isActive
-                    ? "bg-[#EFF6FF] text-[#2563EB] font-semibold"
-                    : "text-slate-500 hover:text-slate-800 hover:bg-slate-50 font-medium"
-                }`}
-              >
-                <span className={isActive ? "text-[#2563EB]" : "text-slate-400 group-hover:text-slate-600 transition-colors"}>
-                  <Icon />
-                </span>
-                {label}
-              </Link>
-            );
-          })}
+        {/* Navigation Sections */}
+        <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto">
+          {/* Section: NAVIGATION */}
+          <div>
+            <span className="text-[10px] font-bold text-slate-400 tracking-wider mb-2 px-3 block uppercase">
+              Navigation
+            </span>
+            <div className="space-y-0.5">
+              {[
+                { label: "Dashboard", icon: HomeIcon, href: "/dashboard" },
+                { label: "Services", icon: ServicesIcon, href: "/dashboard/services" },
+                { label: "Active Bookings", icon: BookingsIcon, href: "/dashboard/bookings" },
+                { label: "Service History", icon: HistoryIcon, href: "/dashboard/history" },
+              ].map(({ label, icon: Icon, href }) => {
+                const isActive = pathname === href;
+                return (
+                  <Link
+                    key={label}
+                    href={href}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all group ${
+                      isActive
+                        ? "bg-[#EFF6FF] text-[#2563EB] font-semibold"
+                        : "text-slate-500 hover:text-slate-850 hover:bg-slate-50 font-medium"
+                    }`}
+                  >
+                    <span className={isActive ? "text-[#2563EB]" : "text-slate-400 group-hover:text-slate-600 transition-colors"}>
+                      <Icon />
+                    </span>
+                    {label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Section: SUPPORT & HELP */}
+          <div>
+            <span className="text-[10px] font-bold text-slate-400 tracking-wider mb-2 px-3 block uppercase">
+              Support
+            </span>
+            <div className="space-y-0.5">
+              {[
+                { label: "Support", icon: SupportIcon, href: "/dashboard/support" },
+                { label: "My Profile", icon: UserIcon, href: "/dashboard/profile" },
+              ].map(({ label, icon: Icon, href }) => {
+                const isActive = pathname === href;
+                return (
+                  <Link
+                    key={label}
+                    href={href}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all group ${
+                      isActive
+                        ? "bg-[#EFF6FF] text-[#2563EB] font-semibold"
+                        : "text-slate-500 hover:text-slate-855 hover:bg-slate-50 font-medium"
+                    }`}
+                  >
+                    <span className={isActive ? "text-[#2563EB]" : "text-slate-400 group-hover:text-slate-600 transition-colors"}>
+                      <Icon />
+                    </span>
+                    {label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
         </nav>
 
-        {/* Bottom: User Card Pinned (Approach A & B merge) */}
-        <div className="border-t border-slate-100 px-3 py-4 shrink-0 space-y-1 bg-white mb-2">
-          {/* User profile navigation card */}
+        {/* Bottom: User card */}
+        <div className="border-t border-slate-100 px-3 py-3.5 shrink-0 bg-white mb-1">
           <Link
             href="/dashboard/profile"
             className={`flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors group ${
-              pathname === "/dashboard/profile" ? "bg-[#EFF6FF] text-[#2563EB]" : "hover:bg-slate-50"
+              pathname === "/dashboard/profile" ? "bg-[#EFF6FF] text-[#2563EB] font-semibold" : "hover:bg-slate-50"
             }`}
           >
             {avatarUrl ? (
@@ -153,60 +324,195 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <ChevronRight />
             </span>
           </Link>
-
-          {/* Logout */}
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm w-full text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all font-medium"
-          >
-            <LogoutIcon />
-            Sign out
-          </button>
         </div>
       </aside>
 
-      {/* ── MAIN AREA ───────────────────────────────────────────────────────── */}
+      {/* ── MAIN AREA ─────────────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0">
 
         {/* Top bar */}
-        <header className="h-[60px] bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0 sticky top-0 z-30">
-          {/* Page title derived from pathname */}
-          <div>
-            <p className="text-sm font-semibold text-slate-800">
-              {pathname === "/dashboard/profile" ? "My Profile" : (navItems.find(n => n.href === pathname)?.label ?? "Dashboard")}
-            </p>
+        <header className="h-[60px] bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0 sticky top-0 z-40">
+
+          {/* Search bar — centre of header */}
+          <div className="flex-1 max-w-sm mx-6">
+            <IntelligentSearchBar />
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Emergency */}
-            <button className="hidden sm:flex items-center gap-1.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-              </svg>
+            {/* Emergency button */}
+            <button
+              onClick={() => setEmergOpen(true)}
+              className="hidden sm:flex items-center gap-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors"
+            >
+              <ZapIcon />
               Emergency
             </button>
 
             {/* Bell */}
-            <div className="relative">
-              <button className="w-9 h-9 rounded-lg border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-colors">
+            <div className="relative" ref={notifRef}>
+              <button
+                onClick={() => setNotifOpen(o => !o)}
+                className={`w-9 h-9 rounded-lg border flex items-center justify-center transition-colors ${
+                  notifOpen
+                    ? "bg-blue-50 border-blue-200 text-blue-600"
+                    : "border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                }`}
+              >
                 <BellIcon />
               </button>
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-red-500 ring-1 ring-white" />
-            </div>
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white">
+                  {unreadCount}
+                </span>
+              )}
 
-            {/* Separator */}
-            <div className="w-px h-5 bg-slate-200" />
+              {notifOpen && (
+                <div
+                  className="absolute right-0 top-12 w-[380px] bg-white rounded-2xl z-[200] overflow-hidden border border-slate-100 shadow-2xl"
+                >
+                  {/* Panel header */}
+                  <div className="flex items-center justify-between px-4.5 pt-4 pb-3 border-b border-slate-100">
+                    <span className="text-sm font-bold text-slate-850">Notifications</span>
+                    <button
+                      onClick={() => setNotifOpen(false)}
+                      className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200/80 transition-colors"
+                      aria-label="Close notifications"
+                    >
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                  </div>
 
-            {/* Top Right Avatar Link to Profile */}
-            <Link href="/dashboard/profile" className="flex-shrink-0 transition-opacity hover:opacity-85">
-              {avatarUrl ? (
-                <img src={avatarUrl} alt="Profile" className="w-8 h-8 rounded-full object-cover ring-2 ring-slate-100" />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-[#2563EB] flex items-center justify-center text-white text-[10px] font-bold ring-2 ring-blue-100">
-                  {initials}
+                  {/* List */}
+                  <div className="max-h-[360px] overflow-y-auto divide-y divide-slate-100">
+                    {notifications.length === 0 ? (
+                      <div className="py-12 text-center px-5">
+                        <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center mx-auto mb-3 text-slate-400">
+                          <BellIcon />
+                        </div>
+                        <p className="text-xs font-bold text-slate-700">All caught up</p>
+                        <p className="text-[11px] text-slate-400 mt-1">No new notifications</p>
+                      </div>
+                    ) : (
+                      notifications.map((n) => {
+                        const iconBg: Record<string,string> = {
+                          booking: "bg-blue-50",
+                          confirm: "bg-emerald-50",
+                          done:    "bg-indigo-50",
+                          payment: "bg-red-50",
+                        };
+                        const iconFg: Record<string,string> = {
+                          booking: "text-blue-500",
+                          confirm: "text-emerald-500",
+                          done:    "text-indigo-500",
+                          payment: "text-red-500",
+                        };
+                        const icons: Record<string, React.ReactNode> = {
+                          booking: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>,
+                          confirm: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
+                          done:    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>,
+                          payment: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>,
+                        };
+                        return (
+                          <div
+                            key={n.id}
+                            className={`relative flex gap-3 px-4.5 py-3.5 transition-colors hover:bg-slate-50/50 ${
+                              !n.read ? "bg-blue-50/10" : ""
+                            }`}
+                          >
+                            {/* Unread circle dot */}
+                            {!n.read && (
+                              <span className="absolute left-2.5 top-[22px] w-1.5 h-1.5 bg-blue-500 rounded-full" />
+                            )}
+
+                            {/* Icon box */}
+                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${iconBg[n.type]} ${iconFg[n.type]}`}>
+                              {icons[n.type]}
+                            </div>
+
+                            {/* Content */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-baseline justify-between gap-2">
+                                <p className={`text-xs font-bold leading-none ${n.read ? "text-slate-700" : "text-slate-800"}`}>
+                                  {n.title}
+                                </p>
+                                <p className="text-[10px] text-slate-400 font-semibold shrink-0">{n.time}</p>
+                              </div>
+                              <p className="text-[11px] text-slate-500 mt-1 leading-normal truncate">{n.body}</p>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* Footer */}
+                  <div className="border-t border-slate-100 text-center py-3 bg-white">
+                    <Link
+                      href="/dashboard/notifications"
+                      onClick={() => setNotifOpen(false)}
+                      className="text-xs font-bold text-[#4F46E5] hover:text-[#3730A3] transition-colors"
+                    >
+                      View All Notifications
+                    </Link>
+                  </div>
                 </div>
               )}
-            </Link>
+
+            </div>
+
+            <div className="w-px h-5 bg-slate-200" />
+
+            {/* Avatar */}
+            <div className="relative flex-shrink-0" ref={profileRef}>
+              <button
+                onClick={() => setProfileOpen(o => !o)}
+                className="flex items-center focus:outline-none transition-opacity hover:opacity-85"
+                aria-label="User menu"
+              >
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="Profile" className="w-8 h-8 rounded-full object-cover ring-2 ring-slate-100" />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-[#2563EB] flex items-center justify-center text-white text-[10px] font-bold ring-2 ring-blue-100">
+                    {initials}
+                  </div>
+                )}
+              </button>
+
+              {profileOpen && (
+                <div
+                  className="absolute right-0 mt-2.5 w-[160px] bg-white rounded-2xl border border-slate-100 shadow-xl py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+                  style={{ boxShadow: "0 10px 30px -5px rgba(0, 0, 0, 0.08), 0 8px 16px -6px rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(0, 0, 0, 0.03)" }}
+                >
+                  <div className="px-1.5 space-y-0.5">
+                    <Link
+                      href="/dashboard/profile"
+                      onClick={() => setProfileOpen(false)}
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-500 hover:text-blue-600 hover:bg-slate-50 transition-colors"
+                    >
+                      <UserIcon />
+                      <span>View profile</span>
+                    </Link>
+                  </div>
+
+                  <div className="border-t border-slate-100/70 my-1.5" />
+
+                  <div className="px-1.5">
+                    <button
+                      onClick={() => {
+                        setProfileOpen(false);
+                        handleLogout();
+                      }}
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-500 hover:text-red-600 hover:bg-red-50/70 transition-colors w-full text-left"
+                    >
+                      <LogoutIcon />
+                      <span>Log out</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
@@ -215,6 +521,82 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {children}
         </main>
       </div>
+
+      {/* ── EMERGENCY MODAL ───────────────────────────────────────────────── */}
+      {emergOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)" }}
+          onClick={() => setEmergOpen(false)}
+        >
+          <div
+            className="bg-white rounded-2xl w-full max-w-[380px] mx-4 overflow-hidden"
+            style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.2)" }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal header — red strip */}
+            <div className="bg-red-500 px-5 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                  <ZapIcon />
+                </div>
+                <div>
+                  <p className="text-white font-bold text-sm leading-none">Emergency Service</p>
+                  <p className="text-red-100 text-[11px] mt-0.5">Get help within minutes</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setEmergOpen(false)}
+                className="text-white/70 hover:text-white transition-colors"
+              >
+                <XIcon />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="px-5 py-5 space-y-3">
+              <p className="text-xs text-slate-500 leading-relaxed">
+                For urgent situations — gas leaks, electrical faults, flooding, or no power.
+                A technician will be dispatched to your address immediately.
+              </p>
+
+              {/* Call option */}
+              <a
+                href="tel:+977-1-5555555"
+                className="flex items-center gap-3 w-full bg-red-50 hover:bg-red-100 border border-red-200 rounded-xl px-4 py-3.5 transition-colors group"
+              >
+                <div className="w-9 h-9 rounded-full bg-red-500 flex items-center justify-center text-white shrink-0 group-hover:bg-red-600 transition-colors">
+                  <PhoneIcon />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">Call Emergency Line</p>
+                  <p className="text-[11.5px] text-slate-500">+977-1-5555555 · Available 24/7</p>
+                </div>
+              </a>
+
+              {/* Book emergency tech */}
+              <button
+                onClick={() => { setEmergOpen(false); router.push("/dashboard/bookings"); }}
+                className="flex items-center gap-3 w-full bg-slate-800 hover:bg-slate-900 rounded-xl px-4 py-3.5 transition-colors group"
+              >
+                <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0">
+                  <ZapIcon />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-semibold text-white">Book Emergency Tech</p>
+                  <p className="text-[11.5px] text-slate-400">Fastest available pro near you</p>
+                </div>
+              </button>
+            </div>
+
+            <div className="border-t border-slate-100 px-5 py-3">
+              <p className="text-[10.5px] text-slate-400 text-center">
+                Emergency bookings are prioritised and may carry a call-out fee.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

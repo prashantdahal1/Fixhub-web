@@ -22,6 +22,7 @@ export default function Navbar({ showLinks = true }: NavbarProps) {
             width={100}
             height={32}
             className="object-contain"
+            style={{ width: "auto", height: "auto" }}
           />
         </Link>
 

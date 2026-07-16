@@ -17,6 +17,8 @@ import ticketRoutes from "./routes/ticket.routes.js";
 import session from "express-session";
 import passport from "./configs/passport.config.js";
 import authRoutes from "./routes/auth.route.js";
+import chatbotRouter from "./routes/chatbot.route.js";
+import serviceRouter from "./routes/service.route.js";
 
 const app: Application = express();
 app.use(corsMiddleware);
@@ -41,6 +43,8 @@ app.use("/api/v1/auth", userRoutes);
 app.use("/api/v1/auth", profileRouter);
 app.use("/api/v1/admin", adminRoutes);
 app.use("/api/v1/tickets", ticketRoutes);
+app.use("/api/v1/chat", chatbotRouter);
+app.use("/api/v1/services", serviceRouter);
 app.use("/auth", authRoutes);
 
 app.use(
