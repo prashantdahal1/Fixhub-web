@@ -38,8 +38,6 @@ const PRICE_UNIT_LABEL: Record<PriceUnit, string> = {
   per_sqft: "per sqft",
 };
 
-const MOCK_REVIEWS: never[] = [];
-
 function StarRating({ rating, size = 13 }: { rating: number; size?: number }) {
   return (
     <div className="flex items-center gap-0.5">
