@@ -3,6 +3,8 @@ import cookieParser from "cookie-parser";
 import { HttpException } from './exceptions/http-exception.js';
 import { ApiResponseHelper } from './utils/apihelper.util.js';
 import { corsMiddleware } from './middlewares/cors.middleware.js';
+import { SESSION_SECRET } from './configs/constant.js';
+import { logger } from './utils/logger.js';
 import morgan from "morgan";
 import path from "path";
 import { fileURLToPath } from 'url';
@@ -19,6 +21,9 @@ import passport from "./configs/passport.config.js";
 import authRoutes from "./routes/auth.route.js";
 import chatbotRouter from "./routes/chatbot.route.js";
 import serviceRouter from "./routes/service.route.js";
+import bookingRouter from "./routes/booking.route.js";
+import walletRouter from "./routes/wallet.route.js";
+import reviewRouter from "./routes/review.route.js";
 
 const app: Application = express();
 app.use(corsMiddleware);
@@ -32,7 +37,7 @@ app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
 app.use(morgan("combined"));
 
 app.use(session({
-    secret: process.env.JWT_SECRET || 'secret',
+    secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
 }));
@@ -45,17 +50,20 @@ app.use("/api/v1/admin", adminRoutes);
 app.use("/api/v1/tickets", ticketRoutes);
 app.use("/api/v1/chat", chatbotRouter);
 app.use("/api/v1/services", serviceRouter);
+app.use("/api/v1/bookings", bookingRouter);
+app.use("/api/v1/wallet", walletRouter);
+app.use("/api/v1/reviews", reviewRouter);
 app.use("/auth", authRoutes);
 
 app.use(
     (req: Request, res: Response) => {
-        return res.status(404).json({ message: "API not found" });
+        return ApiResponseHelper.error(res, "API not found", 404);
     }
 )
 
 app.use(
     (err: Error, req: Request, res: Response, next: NextFunction) => {
-        console.error("Error:", err);
+        logger.error(err);
         if (err instanceof HttpException) {
             return ApiResponseHelper.error(
                 res, err.message, err.status
