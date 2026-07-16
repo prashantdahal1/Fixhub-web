@@ -29,4 +29,7 @@ const TicketSchema: Schema = new Schema<ITicket>(
     }
 );
 
+TicketSchema.index({ bookingId: 1 });
+TicketSchema.index({ status: 1 });
+
 export const TicketModel = mongoose.model<ITicket>("Ticket", TicketSchema);

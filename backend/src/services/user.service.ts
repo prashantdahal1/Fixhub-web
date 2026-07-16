@@ -34,10 +34,26 @@ export class UserService {
         if (!user) {
             throw new HttpException(400, "Invalid email");
         }
-        const isPasswordValid = await bcrypt.compare(
-            loginData.password,
-            user.password
-        );
+        if (!loginData.password) {
+            throw new HttpException(400, "Password is required");
+        }
+        if (!user.password) {
+            // Account created without a persisted password (e.g. old admin UI path)
+            throw new HttpException(
+                400,
+                "This account has no password set. Please use Forgot Password or ask an admin to reset it."
+            );
+        }
+        let isPasswordValid: boolean;
+        try {
+            isPasswordValid = await bcrypt.compare(
+                loginData.password,
+                user.password
+            );
+        } catch (err) {
+            console.error("bcrypt.compare failed:", err);
+            throw new HttpException(400, "Invalid password format");
+        }
         if (!isPasswordValid) {
             throw new HttpException(400, "Invalid password");
         }

@@ -20,10 +20,13 @@ const forgotPasswordLimiter = rateLimit({
     message: { success: false, message: "Too many password reset attempts, please try again later." },
 });
 
-// /auth/google: Redirect user to Google
+// /auth/google: Redirect user to Google (always show account picker)
 router.get(
     "/google",
-    passport.authenticate("google", { scope: ["profile", "email"] })
+    passport.authenticate("google", {
+        scope: ["profile", "email"],
+        prompt: "select_account",
+    })
 );
 
 // /auth/google/callback: Callback endpoint for Google
