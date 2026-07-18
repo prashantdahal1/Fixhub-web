@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../../contexts/AuthContext";
 import CustomerDashboard from "./components/CustomerDashboard";
 import ProDashboard from "./components/ProDashboard";
 
