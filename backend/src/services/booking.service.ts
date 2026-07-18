@@ -5,6 +5,7 @@ import { walletService } from "./wallet.service.js";
 import { resolveNextStatus } from "./booking-state.js";
 import type { CreateBookingDTO } from "../dtos/marketplace.dto.js";
 import type { IUser } from "../models/user.model.js";
+import { createNotification } from "../utils/notification.util.js";
 
 export class BookingService {
   async createBooking(customer: IUser, data: CreateBookingDTO): Promise<IBooking> {
@@ -22,7 +23,7 @@ export class BookingService {
       throw new HttpException(400, "scheduledAt must be in the future");
     }
 
-    // Create booking first (pending), then hold escrow; roll back on hold failure
+    // Create booking in confirmed state, then hold escrow; roll back on hold failure
     let booking: IBooking;
     try {
       booking = await BookingModel.create({
@@ -33,29 +34,16 @@ export class BookingService {
         address: data.address,
         notes: data.notes || "",
         amount: service.basePrice,
-        status: "pending",
+        status: "confirmed",
         escrowStatus: "none",
       });
     } catch (err: any) {
       if (err?.code === 11000) {
         throw new HttpException(
           409,
-          "This professional is already booked at that time. Choose another slot."
+          "This time slot is already booked. Please choose a different slot."
         );
       }
-      throw err;
-    }
-
-    try {
-      await walletService.hold(
-        customer._id.toString(),
-        service.basePrice,
-        booking._id.toString()
-      );
-      booking.escrowStatus = "held";
-      await booking.save();
-    } catch (err) {
-      await BookingModel.findByIdAndDelete(booking._id);
       throw err;
     }
 
@@ -139,6 +127,53 @@ export class BookingService {
       await updated.save();
     }
 
+    // Trigger Notifications
+    try {
+      const service = await ServiceModel.findById(updated.serviceId);
+      const serviceTitle = service?.title || "Service";
+
+      if (nextStatus === "in_progress") {
+        await createNotification(
+          updated.customerId,
+          "Technician on the way",
+          `Work has started on your booking for "${serviceTitle}".`,
+          "booking"
+        );
+      } else if (nextStatus === "completed") {
+        await createNotification(
+          updated.customerId,
+          "Service completed",
+          `Your service for "${serviceTitle}" has been marked complete. Rate your experience!`,
+          "done"
+        );
+        if (updated.professionalId) {
+          await createNotification(
+            updated.professionalId,
+            "Payment received",
+            `Payment of Rs. ${updated.amount} for "${serviceTitle}" was released to your wallet.`,
+            "payment"
+          );
+        }
+      } else if (nextStatus === "cancelled") {
+        await createNotification(
+          updated.customerId,
+          "Booking cancelled",
+          `Your booking for "${serviceTitle}" was cancelled and Rs. ${updated.amount} was refunded.`,
+          "done"
+        );
+        if (updated.professionalId) {
+          await createNotification(
+            updated.professionalId,
+            "Booking cancelled",
+            `Booking for "${serviceTitle}" has been cancelled by the customer.`,
+            "done"
+          );
+        }
+      }
+    } catch (notifErr) {
+      console.error("Failed to send booking status notification:", notifErr);
+    }
+
     return updated;
   }
 
@@ -161,7 +196,7 @@ export class BookingService {
 
     if (user.role === "admin") return;
 
-    if (action === "confirm" || action === "start" || action === "complete") {
+    if (action === "start" || action === "complete") {
       if (!isPro) {
         throw new HttpException(403, "Only the assigned professional can perform this action");
       }

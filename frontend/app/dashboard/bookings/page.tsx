@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../../contexts/AuthContext';
 import { apiFetch } from '../../../lib/api/client';
 import { API } from '../../../lib/api/endpoints';
 
-type BookingStatus = 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
-type BookingAction = 'confirm' | 'start' | 'complete' | 'cancel';
+type BookingStatus = 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
+type BookingAction = 'start' | 'complete' | 'cancel';
 
 interface BookingDoc {
   _id: string;
@@ -23,14 +23,13 @@ interface BookingDoc {
 }
 
 const STATUS_STYLE: Record<BookingStatus, string> = {
-  pending: 'bg-amber-50 border-amber-200 text-amber-800',
   confirmed: 'bg-blue-50 border-blue-200 text-blue-800',
   in_progress: 'bg-indigo-50 border-indigo-200 text-indigo-800',
   completed: 'bg-emerald-50 border-emerald-200 text-emerald-800',
   cancelled: 'bg-slate-100 border-slate-200 text-slate-600',
 };
 
-const STEPS: BookingStatus[] = ['pending', 'confirmed', 'in_progress', 'completed'];
+const STEPS: BookingStatus[] = ['confirmed', 'in_progress', 'completed'];
 
 function personName(p: BookingDoc['customerId']) {
   if (!p || typeof p === 'string') return 'Unknown';
@@ -49,12 +48,27 @@ export default function BookingsPage() {
   const [selected, setSelected] = useState<BookingDoc | null>(null);
   const [acting, setActing] = useState(false);
   const [wallet, setWallet] = useState<{ balance: number; held: number } | null>(null);
-  const [topUpAmount, setTopUpAmount] = useState('1000');
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [reviewDone, setReviewDone] = useState<Record<string, boolean>>({});
 
   const isPro = user?.role === 'professional';
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const paymentStatus = params.get('payment');
+      const reason = params.get('reason');
+
+      if (paymentStatus === 'success') {
+        toast.success('Booking payment completed successfully! Escrow is now held.');
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } else if (paymentStatus === 'failed') {
+        toast.error(`Payment failed${reason ? `: ${reason.replace('_', ' ')}` : ''}`);
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -95,21 +109,6 @@ export default function BookingsPage() {
     }
   };
 
-  const topUp = async () => {
-    const amount = Number(topUpAmount);
-    if (!amount || amount <= 0) return;
-    try {
-      const res = await apiFetch<{ data: { balance: number; held: number } }>(API.WALLET.TOPUP, {
-        method: 'POST',
-        body: JSON.stringify({ amount }),
-      });
-      setWallet(res.data);
-      toast.success(`Wallet topped up by NPR ${amount}`);
-    } catch (err: any) {
-      toast.error(err.message || 'Top-up failed');
-    }
-  };
-
   const submitReview = async (booking: BookingDoc) => {
     try {
       await apiFetch(API.REVIEWS.CREATE, {
@@ -129,12 +128,11 @@ export default function BookingsPage() {
 
   const actionsFor = (b: BookingDoc): BookingAction[] => {
     if (isPro) {
-      if (b.status === 'pending') return ['confirm', 'cancel'];
       if (b.status === 'confirmed') return ['start', 'cancel'];
       if (b.status === 'in_progress') return ['complete', 'cancel'];
       return [];
     }
-    if (b.status === 'pending' || b.status === 'confirmed') return ['cancel'];
+    if (b.status === 'confirmed') return ['cancel'];
     return [];
   };
 
@@ -152,34 +150,18 @@ export default function BookingsPage() {
           </h1>
           <p className="text-sm text-slate-500 mt-1">
             {isPro
-              ? 'Confirm, start, and complete jobs. Escrow releases on completion.'
+              ? 'Start and complete jobs. Escrow releases on completion.'
               : 'Track status, cancel before work starts, and review completed jobs.'}
           </p>
         </div>
-        {wallet && (
+        {isPro && wallet && (
           <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm">
             <p className="font-semibold text-slate-800">
-              Wallet: NPR {wallet.balance.toLocaleString()}
+              Wallet Balance: NPR {wallet.balance.toLocaleString()}
               <span className="text-slate-400 font-normal ml-2">
                 (held {wallet.held.toLocaleString()})
               </span>
             </p>
-            {!isPro && (
-              <div className="mt-2 flex gap-2">
-                <input
-                  type="number"
-                  value={topUpAmount}
-                  onChange={(e) => setTopUpAmount(e.target.value)}
-                  className="w-28 rounded-lg border border-slate-200 px-2 py-1 text-xs"
-                />
-                <button
-                  onClick={topUp}
-                  className="rounded-lg bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700"
-                >
-                  Top up
-                </button>
-              </div>
-            )}
           </div>
         )}
       </div>
