@@ -24,7 +24,7 @@ import {
   Phone,
   Mail,
 } from "lucide-react";
-import Navbar from "./components/navbar";
+import Navbar from "../components/navbar";
 
 const services = [
   { icon: Droplets, title: "Plumbing", desc: "Leak fixes, pipe installation, drain cleaning", color: "bg-blue-50 text-blue-600" },
