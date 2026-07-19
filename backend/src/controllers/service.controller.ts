@@ -27,7 +27,7 @@ export class ServiceController {
 
   async getServiceById(req: Request, res: Response) {
     try {
-      const service = await serviceService.getServiceById(req.params.id);
+      const service = await serviceService.getServiceById(req.params.id as string);
       return ApiResponseHelper.success(res, service, "Service fetched successfully");
     } catch (error: any) {
       return ApiResponseHelper.error(res, error.message || "Internal Server Error", error.status || 500);
@@ -36,7 +36,7 @@ export class ServiceController {
 
   async getServiceBySlug(req: Request, res: Response) {
     try {
-      const service = await serviceService.getServiceBySlug(req.params.slug);
+      const service = await serviceService.getServiceBySlug(req.params.slug as string);
       return ApiResponseHelper.success(res, service, "Service fetched successfully");
     } catch (error: any) {
       return ApiResponseHelper.error(res, error.message || "Internal Server Error", error.status || 500);
@@ -65,7 +65,7 @@ export class ServiceController {
       if (req.file) {
         data.imageUrl = `/uploads/documents/${req.file.filename}`;
       }
-      const service = await serviceService.updateService(req.params.id, data);
+      const service = await serviceService.updateService(req.params.id as string, data);
       return ApiResponseHelper.success(res, service, "Service updated successfully");
     } catch (error: any) {
       return ApiResponseHelper.error(res, error.message || "Internal Server Error", error.status || 500);
@@ -74,7 +74,7 @@ export class ServiceController {
 
   async deleteService(req: Request, res: Response) {
     try {
-      await serviceService.deleteService(req.params.id);
+      await serviceService.deleteService(req.params.id as string);
       return ApiResponseHelper.success(res, null, "Service deleted successfully");
     } catch (error: any) {
       return ApiResponseHelper.error(res, error.message || "Internal Server Error", error.status || 500);

@@ -38,6 +38,25 @@ const PRICE_UNIT_LABEL: Record<PriceUnit, string> = {
   per_sqft: "per sqft",
 };
 
+interface Expert {
+  name: string;
+  rating: number;
+  badge: string;
+}
+
+const EXPERTS_POOL: Record<ServiceCategory, Expert> = {
+  electrician: { name: "Rambehadur Tamang", rating: 4.9, badge: "Master Certified" },
+  plumber: { name: "Harendra Prasad", rating: 4.8, badge: "Senior Plumber" },
+  ac_repair: { name: "Nischal Basnet", rating: 4.9, badge: "AC Specialist" },
+  painter: { name: "Bikram Thapa", rating: 4.7, badge: "Expert Finisher" },
+  carpenter: { name: "Sabin Shrestha", rating: 4.8, badge: "Master Woodworker" },
+  cleaner: { name: "Rita Devi", rating: 4.9, badge: "Top Hygiene Pro" },
+  geyser: { name: "Ramesh Adhikari", rating: 4.8, badge: "Heating Tech" },
+  appliance_repair: { name: "Santosh Giri", rating: 4.7, badge: "Senior Tech" },
+  pest_control: { name: "Rohan Gurung", rating: 4.9, badge: "Bio-Shield Pro" },
+  other: { name: "Prem Bahadur", rating: 4.8, badge: "Verified Pro" },
+};
+
 function StarRating({ rating, size = 13 }: { rating: number; size?: number }) {
   return (
     <div className="flex items-center gap-0.5">
@@ -76,13 +95,34 @@ export default function ServiceDetailPage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
+  // Booking Flow Controls
+  const [isBookingMode, setIsBookingMode] = useState(false);
+  const [bookingStep, setBookingStep] = useState(1); // 1 = Select Date/Time, 2 = Finalize Order
+
+  // Form Inputs
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
-  const [notes, setNotes] = useState("");
   const [address, setAddress] = useState("");
+  const [notes, setNotes] = useState("");
+  const [paymentProvider, setPaymentProvider] = useState<"esewa" | "khalti">("esewa");
   const [bookingSubmitted, setBookingSubmitted] = useState(false);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingError, setBookingError] = useState("");
+
+  // Saved Addresses (persisted in localStorage)
+  const [savedAddresses, setSavedAddresses] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      return JSON.parse(localStorage.getItem("savedAddresses") || "[]");
+    } catch {
+      return [];
+    }
+  });
+
+  // Calendar State
+  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+
   const [reviews, setReviews] = useState<Array<{
     _id: string;
     rating: number;
@@ -91,7 +131,26 @@ export default function ServiceDetailPage() {
     customerId?: { firstName?: string; lastName?: string } | string;
   }>>([]);
 
-  const today = new Date().toISOString().split("T")[0];
+  const MONTH_NAMES = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  const TIME_SLOTS = [
+    "08:00 AM", "09:30 AM", "11:00 AM", "01:30 PM",
+    "02:00 PM", "03:30 PM", "05:00 PM", "06:30 PM"
+  ];
+
+  const TIME_WINDOWS: Record<string, string> = {
+    "08:00 AM": "08:00 AM - 09:30 AM",
+    "09:30 AM": "09:30 AM - 11:00 AM",
+    "11:00 AM": "11:00 AM - 12:30 PM",
+    "01:30 PM": "01:30 PM - 03:00 PM",
+    "02:00 PM": "02:00 PM - 03:30 PM",
+    "03:30 PM": "03:30 PM - 05:00 PM",
+    "05:00 PM": "05:00 PM - 06:30 PM",
+    "06:30 PM": "06:30 PM - 08:00 PM",
+  };
 
   useEffect(() => {
     async function load() {
@@ -119,31 +178,153 @@ export default function ServiceDetailPage() {
     load();
   }, [slug]);
 
-  const handleBooking = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Calendar Helpers
+  const handlePrevMonth = () => {
+    if (currentMonth === 0) {
+      setCurrentMonth(11);
+      setCurrentYear(prev => prev - 1);
+    } else {
+      setCurrentMonth(prev => prev - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (currentMonth === 11) {
+      setCurrentMonth(0);
+      setCurrentYear(prev => prev + 1);
+    } else {
+      setCurrentMonth(prev => prev + 1);
+    }
+  };
+
+  const getDaysInMonth = (year: number, month: number) => {
+    return new Date(year, month + 1, 0).getDate();
+  };
+
+  const getFirstDayOfMonth = (year: number, month: number) => {
+    const day = new Date(year, month, 1).getDay();
+    return day === 0 ? 6 : day - 1; // Mon = 0, Sun = 6
+  };
+
+  const renderCalendarDays = () => {
+    const daysInMonth = getDaysInMonth(currentYear, currentMonth);
+    const firstDayIndex = getFirstDayOfMonth(currentYear, currentMonth);
+    const daysGrid = [];
+
+    for (let i = 0; i < firstDayIndex; i++) {
+      daysGrid.push(<div key={`empty-${i}`} className="h-10" />);
+    }
+
+    const todayStr = new Date().toISOString().split("T")[0];
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      const isSelected = selectedDate === dateStr;
+      const isPast = dateStr < todayStr;
+
+      daysGrid.push(
+        <button
+          key={`day-${day}`}
+          type="button"
+          disabled={isPast}
+          onClick={() => setSelectedDate(dateStr)}
+          className={`h-10 w-10 flex items-center justify-center rounded-xl text-xs font-semibold transition-all ${
+            isPast
+              ? "text-slate-200 cursor-not-allowed"
+              : isSelected
+                ? "bg-blue-600 text-white shadow-[0_4px_12px_rgba(37,99,235,0.3)] ring-2 ring-blue-600 ring-offset-2 scale-105"
+                : "text-slate-700 hover:bg-slate-100"
+          }`}
+        >
+          {day}
+        </button>
+      );
+    }
+
+    return daysGrid;
+  };
+
+  const getFormattedDate = (dateStr: string) => {
+    if (!dateStr) return "";
+    return new Date(dateStr).toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
+  const mapTimeTo24h = (time12h: string) => {
+    if (time12h === "08:00 AM") return "08:00";
+    if (time12h === "09:30 AM") return "09:30";
+    if (time12h === "11:00 AM") return "11:00";
+    if (time12h === "01:30 PM") return "13:30";
+    if (time12h === "02:00 PM") return "14:00";
+    if (time12h === "03:30 PM") return "15:30";
+    if (time12h === "05:00 PM") return "17:00";
+    if (time12h === "06:30 PM") return "18:30";
+    return "12:00";
+  };
+
+  const handleBooking = async () => {
     if (!selectedDate || !selectedTime || !service) return;
     if (!address.trim()) {
       setBookingError("Address is required");
       return;
     }
     setBookingLoading(true);
-    setBookingError("");
+    setBookingError(""); // always clear previous errors on a fresh attempt
     try {
-      const scheduledAt = new Date(`${selectedDate}T${selectedTime}:00`);
-      await apiFetch(API.BOOKINGS.CREATE, {
+      const time24 = mapTimeTo24h(selectedTime);
+      const scheduledAt = new Date(`${selectedDate}T${time24}:00`);
+
+      const payload = {
+        serviceId: service._id,
+        scheduledAt: scheduledAt.toISOString(),
+        address: address.trim(),
+        notes: notes.trim() || undefined,
+        paymentProvider,
+      };
+
+      const res = await apiFetch<{
+        data: {
+          payment: {
+            provider: 'esewa' | 'khalti';
+            paymentUrl: string;
+            formData?: Record<string, string>;
+          };
+        };
+      }>(API.BOOKINGS.CREATE, {
         method: "POST",
-        body: JSON.stringify({
-          serviceId: service._id,
-          scheduledAt: scheduledAt.toISOString(),
-          address: address.trim(),
-          notes: notes.trim() || undefined,
-        }),
+        body: JSON.stringify(payload),
       });
-      setBookingSubmitted(true);
-      toast.success("Booking created — escrow held from your wallet");
+
+      const { provider, paymentUrl, formData } = res.data.payment;
+
+      if (provider === 'esewa' && formData) {
+        // eSewa requires a POST form redirect
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = paymentUrl;
+        Object.entries(formData).forEach(([key, val]) => {
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = key;
+          input.value = val;
+          form.appendChild(input);
+        });
+        document.body.appendChild(form);
+        form.submit();
+        return; // page will navigate away
+      } else if (provider === 'khalti' && paymentUrl) {
+        window.location.href = paymentUrl;
+        return; // page will navigate away
+      } else {
+        throw new Error("Invalid payment response from server");
+      }
     } catch (err: any) {
       setBookingError(err.message || "Booking failed");
-      toast.error(err.message || "Booking failed. Top up your wallet if needed.");
+      toast.error(err.message || "Booking failed.");
     } finally {
       setBookingLoading(false);
     }
@@ -162,335 +343,708 @@ export default function ServiceDetailPage() {
     );
   }
 
-  const fallbackGradients: Record<ServiceCategory, string> = {
-    electrician: "linear-gradient(135deg,#1e3a8a,#2563eb)",
-    plumber: "linear-gradient(135deg,#164e63,#0891b2)",
-    ac_repair: "linear-gradient(135deg,#134e4a,#0d9488)",
-    painter: "linear-gradient(135deg,#4c1d95,#7c3aed)",
-    carpenter: "linear-gradient(135deg,#78350f,#d97706)",
-    cleaner: "linear-gradient(135deg,#065f46,#10b981)",
-    geyser: "linear-gradient(135deg,#7f1d1d,#ef4444)",
-    appliance_repair: "linear-gradient(135deg,#1e3a8a,#3b82f6)",
-    pest_control: "linear-gradient(135deg,#365314,#65a30d)",
-    other: "linear-gradient(135deg,#374151,#6b7280)",
-  };
+  // Invoice Breakdown Calculations based on service.basePrice
+  const totalAmount = service.basePrice;
+  const subtotal = Math.round((totalAmount / 1.13) * 100) / 100;
+  const surcharge = Math.min(150, Math.round(subtotal * 0.08 * 100) / 100);
+  const componentParts = Math.round(subtotal * 0.22 * 100) / 100;
+  const baseServiceFee = Math.round((subtotal - surcharge - componentParts) * 100) / 100;
+  const tax = Math.round((subtotal * 0.13) * 100) / 100;
 
-  return (
-    <div className="max-w-5xl space-y-6">
-      <button
-        onClick={() => router.back()}
-        className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><polyline points="15 18 9 12 15 6" /></svg>
-        Back to Services
-      </button>
+  const activeExpert = EXPERTS_POOL[service.category] || EXPERTS_POOL["other"];
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-        {/* ── LEFT COLUMN ─────────────────────────────────────────── */}
-        <div className="lg:col-span-2 space-y-8">
-          <div
-            className="h-[320px] rounded-3xl flex items-end p-8 relative overflow-hidden shadow-sm"
-            style={{
-              background: service.imageUrl
-                ? `url(${service.imageUrl}) center/cover no-repeat`
-                : fallbackGradients[service.category],
-            }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/30 to-transparent" />
-            <div className="relative z-10 space-y-2">
-              <div className="flex items-center gap-2 mb-2">
-                {service.isCertified && (
-                  <span className="inline-flex items-center gap-1.5 bg-emerald-500/90 backdrop-blur-md text-[11px] font-bold text-white px-3 py-1 rounded-full shadow-sm">
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-                      <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0 1 12 2.944a11.955 11.955 0 0 1-8.618 3.04A12.02 12.02 0 0 0 3 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
-                    </svg>
-                    FixHub Certified
+  // Render Service Detail Page (Standard Mode)
+  if (!isBookingMode) {
+    const fallbackGradients: Record<ServiceCategory, string> = {
+      electrician: "linear-gradient(135deg,#1e3a8a,#2563eb)",
+      plumber: "linear-gradient(135deg,#164e63,#0891b2)",
+      ac_repair: "linear-gradient(135deg,#134e4a,#0d9488)",
+      painter: "linear-gradient(135deg,#4c1d95,#7c3aed)",
+      carpenter: "linear-gradient(135deg,#78350f,#d97706)",
+      cleaner: "linear-gradient(135deg,#065f46,#10b981)",
+      geyser: "linear-gradient(135deg,#7f1d1d,#ef4444)",
+      appliance_repair: "linear-gradient(135deg,#1e3a8a,#3b82f6)",
+      pest_control: "linear-gradient(135deg,#365314,#65a30d)",
+      other: "linear-gradient(135deg,#374151,#6b7280)",
+    };
+
+    return (
+      <div className="max-w-5xl space-y-6">
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><polyline points="15 18 9 12 15 6" /></svg>
+          Back to Services
+        </button>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+          {/* ── LEFT COLUMN ─────────────────────────────────────────── */}
+          <div className="lg:col-span-2 space-y-8">
+            <div
+              className="h-[320px] rounded-3xl flex items-end p-8 relative overflow-hidden shadow-sm"
+              style={{
+                background: service.imageUrl
+                  ? `url(${service.imageUrl}) center/cover no-repeat`
+                  : fallbackGradients[service.category],
+              }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/30 to-transparent" />
+              <div className="relative z-10 space-y-2">
+                <div className="flex items-center gap-2 mb-2">
+                  {service.isCertified && (
+                    <span className="inline-flex items-center gap-1.5 bg-emerald-500/90 backdrop-blur-md text-[11px] font-bold text-white px-3 py-1 rounded-full shadow-sm">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                        <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0 1 12 2.944a11.955 11.955 0 0 1-8.618 3.04A12.02 12.02 0 0 0 3 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                      </svg>
+                      FixHub Certified
+                    </span>
+                  )}
+                  <span className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-md text-[11px] font-bold text-white px-3 py-1 rounded-full shadow-sm uppercase tracking-wider">
+                    {service.category.replace("_", " ")}
                   </span>
+                </div>
+                <h1 className="text-3xl font-extrabold text-white leading-tight tracking-tight">{service.title}</h1>
+                <div className="flex items-center gap-2.5">
+                  <StarRating rating={service.rating} size={14} />
+                  <span className="text-sm font-medium text-white/90">{service.rating.toFixed(1)}</span>
+                  <span className="text-sm text-white/60">({service.reviewCount} reviews)</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-8 px-2">
+              <section className="space-y-3">
+                <h2 className="text-lg font-bold text-slate-900 tracking-tight">About This Service</h2>
+                <p className="text-[13px] text-slate-600 leading-relaxed whitespace-pre-line">
+                  {service.description || service.shortDescription}
+                </p>
+                {service.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {service.tags.map((tag) => (
+                      <span key={tag} className="text-[11px] font-semibold bg-slate-100 text-slate-600 px-3 py-1 rounded-full">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
                 )}
-                <span className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-md text-[11px] font-bold text-white px-3 py-1 rounded-full shadow-sm uppercase tracking-wider">
-                  {service.category.replace("_", " ")}
-                </span>
-              </div>
-              <h1 className="text-3xl font-extrabold text-white leading-tight tracking-tight">{service.title}</h1>
-              <div className="flex items-center gap-2.5">
-                <StarRating rating={service.rating} size={14} />
-                <span className="text-sm font-medium text-white/90">{service.rating.toFixed(1)}</span>
-                <span className="text-sm text-white/60">({service.reviewCount} reviews)</span>
-              </div>
+              </section>
+
+              <div className="w-full h-px bg-slate-100" />
+
+              {service.specifications.length > 0 && (
+                <>
+                  <section className="space-y-4">
+                    <h2 className="text-lg font-bold text-slate-900 tracking-tight">Service Highlights</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {service.specifications.map((spec, i) => (
+                        <div key={i} className="flex flex-col p-4 bg-slate-50/50 rounded-2xl border border-slate-100/50">
+                          <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1">{spec.label}</span>
+                          <span className="text-sm text-slate-800 font-semibold">{spec.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                  <div className="w-full h-px bg-slate-100" />
+                </>
+              )}
+
+              <section className="space-y-5">
+                <div className="flex items-end justify-between">
+                  <h2 className="text-lg font-bold text-slate-900 tracking-tight">Customer Reviews</h2>
+                  <div className="flex items-center gap-1.5">
+                    <StarRating rating={service.rating} size={14} />
+                    <span className="text-sm font-bold text-slate-900">{service.rating.toFixed(1)}</span>
+                    <span className="text-sm text-slate-400">/ 5</span>
+                  </div>
+                </div>
+                <div className="grid gap-4">
+                  {reviews.length === 0 ? (
+                    <p className="text-sm text-slate-400">No reviews yet.</p>
+                  ) : reviews.map((review) => {
+                    const name = typeof review.customerId === "object" && review.customerId
+                      ? `${review.customerId.firstName || ""} ${review.customerId.lastName || ""}`.trim()
+                      : "Customer";
+                    return (
+                    <div key={review._id} className="p-5 bg-white border border-slate-100 shadow-sm rounded-2xl space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-100 to-blue-50 flex items-center justify-center text-xs font-bold text-blue-700">
+                            {(name || "C")[0]}
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-slate-800">{name || "Customer"}</p>
+                            <p className="text-[10px] text-slate-400">{new Date(review.createdAt).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                        <StarRating rating={review.rating} size={12} />
+                      </div>
+                      <p className="text-[12px] text-slate-600 leading-relaxed">{review.comment || "No comment."}</p>
+                    </div>
+                    );
+                  })}
+                </div>
+              </section>
             </div>
           </div>
 
-          <div className="space-y-8 px-2">
-            {/* About Section */}
-            <section className="space-y-3">
-              <h2 className="text-lg font-bold text-slate-900 tracking-tight">About This Service</h2>
-              <p className="text-[13px] text-slate-600 leading-relaxed whitespace-pre-line">
-                {service.description || service.shortDescription}
-              </p>
-              {service.tags.length > 0 && (
-                <div className="flex flex-wrap gap-2 pt-2">
-                  {service.tags.map((tag) => (
-                    <span key={tag} className="text-[11px] font-semibold bg-slate-100 text-slate-600 px-3 py-1 rounded-full">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </section>
-
-            <div className="w-full h-px bg-slate-100" />
-
-            {/* Specifications Section */}
-            {service.specifications.length > 0 && (
-              <>
-                <section className="space-y-4">
-                  <h2 className="text-lg font-bold text-slate-900 tracking-tight">Service Highlights</h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {service.specifications.map((spec, i) => (
-                      <div key={i} className="flex flex-col p-4 bg-slate-50/50 rounded-2xl border border-slate-100/50">
-                        <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1">{spec.label}</span>
-                        <span className="text-sm text-slate-800 font-semibold">{spec.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-                <div className="w-full h-px bg-slate-100" />
-              </>
-            )}
-
-            {/* Reviews Section */}
-            <section className="space-y-5">
-              <div className="flex items-end justify-between">
-                <h2 className="text-lg font-bold text-slate-900 tracking-tight">Customer Reviews</h2>
-                <div className="flex items-center gap-1.5">
-                  <StarRating rating={service.rating} size={14} />
-                  <span className="text-sm font-bold text-slate-900">{service.rating.toFixed(1)}</span>
-                  <span className="text-sm text-slate-400">/ 5</span>
+          {/* ── RIGHT COLUMN: QUICK BOOK CARD ─────────────────── */}
+          <div className="lg:sticky lg:top-[88px]">
+            <div className="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100/60 overflow-hidden">
+              <div className="p-6 border-b border-slate-50 bg-slate-50/30">
+                <p className="text-[11px] text-slate-500 uppercase tracking-widest font-bold mb-1">Starting from</p>
+                <p className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                  रू {service.basePrice.toLocaleString()}
+                  <span className="text-sm font-medium text-slate-400 ml-1.5">{PRICE_UNIT_LABEL[service.priceUnit]}</span>
+                </p>
+                <div className="flex items-center gap-2 mt-3 bg-white px-3 py-2 rounded-xl border border-slate-100 text-[11px] font-semibold text-slate-600">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  Estimated duration: {service.estimatedDuration}
                 </div>
               </div>
-              <div className="grid gap-4">
-                {reviews.length === 0 ? (
-                  <p className="text-sm text-slate-400">No reviews yet.</p>
-                ) : reviews.map((review) => {
-                  const name = typeof review.customerId === "object" && review.customerId
-                    ? `${review.customerId.firstName || ""} ${review.customerId.lastName || ""}`.trim()
-                    : "Customer";
+
+              <div className="p-6 space-y-4">
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Schedule your professional service with Nepali leading marketplace. Quick checkout with credit cards, eSewa or Khalti instantly.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setIsBookingMode(true)}
+                  className="w-full py-3.5 rounded-xl text-sm font-extrabold text-white transition-all flex items-center justify-center gap-2 shadow-[0_4px_14px_rgba(37,99,235,0.25)] hover:shadow-[0_6px_20px_rgba(37,99,235,0.35)]"
+                  style={{ background: "linear-gradient(135deg, #2563eb, #1d4ed8)" }}
+                >
+                  Book This Service
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-3 bg-[#EFF6FF] border border-blue-100 rounded-xl p-3.5 flex gap-2.5 items-center">
+              <div className="w-7 h-7 rounded-full bg-white border border-blue-200 flex items-center justify-center text-blue-600 shrink-0">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0 1 12 2.944a11.955 11.955 0 0 1-8.618 3.04A12.02 12.02 0 0 0 3 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+              </div>
+              <p className="text-[10.5px] text-slate-600 leading-relaxed">
+                <span className="font-bold text-slate-800">100% Satisfaction Guaranteed.</span> All professionals are background-verified and FixHub Certified.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── WIZARD MODE: STEP 1 (Select Date / Appointment Confirmation) ──
+  if (bookingStep === 1) {
+    return (
+      <div className="max-w-5xl space-y-6">
+        {/* Navigation Breadcrumb / Go Back */}
+        <div className="flex justify-between items-center">
+          <div className="flex flex-col">
+            <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">
+              Service Order &gt; Select Date
+            </span>
+            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight mt-1">Select Date</h1>
+          </div>
+          <button
+            onClick={() => setIsBookingMode(false)}
+            className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
+          >
+            Cancel Booking
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+          {/* Calendar Picker Block */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <h3 className="font-bold text-slate-800 text-lg">
+                    {MONTH_NAMES[currentMonth]} {currentYear}
+                  </h3>
+                  <p className="text-xs text-slate-400">Select an available date for your inspection</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handlePrevMonth}
+                    type="button"
+                    className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 transition-colors"
+                  >
+                    &lt;
+                  </button>
+                  <button
+                    onClick={handleNextMonth}
+                    type="button"
+                    className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 transition-colors"
+                  >
+                    &gt;
+                  </button>
+                </div>
+              </div>
+
+              {/* Day Labels */}
+              <div className="grid grid-cols-7 text-center text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-2">
+                <div>Mon</div>
+                <div>Tue</div>
+                <div>Wed</div>
+                <div>Thu</div>
+                <div>Fri</div>
+                <div>Sat</div>
+                <div>Sun</div>
+              </div>
+
+              {/* Calendar Grid */}
+              <div className="grid grid-cols-7 gap-y-3 justify-items-center">
+                {renderCalendarDays()}
+              </div>
+            </div>
+
+            {/* Time Slot Picker */}
+            <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-4">
+              <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wider">Available Time Slots</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {TIME_SLOTS.map((slot) => {
+                  const isSelected = selectedTime === slot;
                   return (
-                  <div key={review._id} className="p-5 bg-white border border-slate-100 shadow-sm rounded-2xl space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-100 to-blue-50 flex items-center justify-center text-xs font-bold text-blue-700">
-                          {(name || "C")[0]}
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-slate-800">{name || "Customer"}</p>
-                          <p className="text-[10px] text-slate-400">{new Date(review.createdAt).toLocaleDateString()}</p>
-                        </div>
-                      </div>
-                      <StarRating rating={review.rating} size={12} />
-                    </div>
-                    <p className="text-[12px] text-slate-600 leading-relaxed">{review.comment || "No comment."}</p>
-                  </div>
+                    <button
+                      key={slot}
+                      type="button"
+                      onClick={() => setSelectedTime(slot)}
+                      className={`py-3 rounded-xl border text-xs font-bold transition-all ${
+                        isSelected
+                          ? "border-blue-600 bg-blue-600 text-white shadow-[0_4px_12px_rgba(37,99,235,0.25)]"
+                          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      {slot}
+                    </button>
                   );
                 })}
               </div>
-            </section>
+            </div>
+
+            {/* Inputs: Address & Notes */}
+            <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-4">
+              <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wider">Service Logistics</h3>
+              
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Service Address</label>
+                <select
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  className="w-full text-sm border-0 ring-1 ring-slate-200 rounded-xl px-4 py-3 text-slate-800 bg-slate-50/50 hover:bg-slate-50 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all shadow-sm"
+                >
+                  <option value="">Select saved address</option>
+                  {savedAddresses.map((addr, idx) => (
+                    <option key={idx} value={addr}>{addr}</option>
+                  ))}
+                  <option value="__addnew__">+ Add New Address</option>
+                </select>
+                {address === "__addnew__" && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder="Enter new address"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          const newAddr = e.currentTarget.value.trim();
+                          if (newAddr) {
+                            const updated = [...savedAddresses, newAddr];
+                            setSavedAddresses(updated);
+                            localStorage.setItem("savedAddresses", JSON.stringify(updated));
+                            setAddress(newAddr);
+                          }
+                        }
+                      }}
+                      className="flex-1 text-sm border-0 ring-1 ring-slate-200 rounded-xl px-4 py-2 text-slate-800 bg-slate-50/50 hover:bg-slate-50 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all shadow-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const input = document.querySelector('input[placeholder="Enter new address"]') as HTMLInputElement;
+                        const newAddr = input?.value.trim();
+                        if (newAddr) {
+                          const updated = [...savedAddresses, newAddr];
+                          setSavedAddresses(updated);
+                          localStorage.setItem("savedAddresses", JSON.stringify(updated));
+                          setAddress(newAddr);
+                        }
+                      }}
+                      className="px-3 py-2 bg-blue-600 text-white rounded-xl text-xs font-semibold hover:bg-blue-700 transition"
+                    >Add</button>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Additional Notes</label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={2}
+                  placeholder="Describe your issue or any special requirements..."
+                  className="w-full text-sm border-0 ring-1 ring-slate-200 rounded-xl px-4 py-3 text-slate-800 bg-slate-50/50 hover:bg-slate-50 placeholder:text-slate-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all shadow-sm"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Right Summary column */}
+          <div>
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-md overflow-hidden">
+              <div className="relative h-44 overflow-hidden">
+                <img
+                  src={service.imageUrl || "/images/placeholder.jpg"}
+                  alt={service.title}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = "none";
+                  }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex flex-col justify-end p-5 text-white">
+                  <span className="text-[9px] font-bold tracking-widest uppercase text-emerald-400">PREMIUM SERVICE</span>
+                  <h4 className="font-extrabold text-base leading-tight mt-1">{service.title}</h4>
+                </div>
+              </div>
+
+              <div className="p-6 space-y-6">
+                {/* Assigned Expert */}
+                <div className="bg-slate-50 rounded-2xl p-4 flex items-center gap-3 border border-slate-100">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 font-extrabold flex items-center justify-center text-sm shadow-inner uppercase">
+                    {activeExpert.name.split(" ").map(n => n[0]).join("")}
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">ASSIGNED EXPERT</p>
+                    <p className="text-xs font-bold text-slate-800">{activeExpert.name}</p>
+                    <p className="text-[10px] text-amber-500 font-bold flex items-center gap-1">
+                      ⭐ {activeExpert.rating} <span className="text-slate-400 font-medium">({activeExpert.badge})</span>
+                    </p>
+                  </div>
+                </div>
+
+                {/* Booking details summary */}
+                <div className="space-y-3 text-xs border-b border-slate-100 pb-5">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400 font-semibold">Date</span>
+                    <span className="text-slate-700 font-bold">
+                      {selectedDate ? getFormattedDate(selectedDate) : "Not selected"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400 font-semibold">Time Window</span>
+                    <span className="text-slate-700 font-bold">
+                      {selectedTime ? TIME_WINDOWS[selectedTime] : "Not selected"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400 font-semibold">Service Base</span>
+                    <span className="text-slate-700 font-bold">रू {totalAmount.toLocaleString()}</span>
+                  </div>
+                </div>
+
+                {/* Total */}
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-bold text-slate-900">Total</span>
+                  <span className="text-xl font-extrabold text-blue-600">रू {totalAmount.toLocaleString()}</span>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={!selectedDate || !selectedTime || !address.trim()}
+                  onClick={() => setBookingStep(2)}
+                  className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-[0_4px_12px_rgba(37,99,235,0.25)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 group"
+                >
+                  CONFIRM APPOINTMENT
+                  <svg className="group-hover:translate-x-1 transition-transform" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+
+                <p className="text-[10px] text-slate-400 text-center font-medium">
+                  24h Cancellation Policy Applies
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── WIZARD MODE: STEP 2 (Finalize Order & Payment Method) ──
+  return (
+    <div className="max-w-5xl space-y-6">
+      <div className="flex justify-between items-center">
+        <div className="flex flex-col">
+          <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">
+            Service Order &gt; Secure Checkout
+          </span>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight mt-1">Select Payment Method</h1>
+        </div>
+        <button
+          onClick={() => setBookingStep(1)}
+          className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
+        >
+          &larr; Back to Calendar
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+        {/* Main Payment Column */}
+        <div className="lg:col-span-2 space-y-5">
+          {/* Service summary strip */}
+          <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center gap-4">
+            <div className="w-14 h-10 rounded-lg overflow-hidden shrink-0">
+              <img
+                src={service.imageUrl || "/images/placeholder.jpg"}
+                alt={service.title}
+                className="w-full h-full object-cover"
+                onError={(e) => { (e.target as HTMLElement).style.display = "none"; }}
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-slate-800 text-sm truncate">{service.title}</p>
+              <p className="text-[10px] text-slate-400">#{service._id.slice(-6).toUpperCase()} · {selectedDate ? new Date(selectedDate).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : ""} · {selectedTime}</p>
+            </div>
+            <span className="font-extrabold text-slate-900 text-sm shrink-0">रू {totalAmount.toLocaleString()}</span>
+          </div>
+
+          {/* Payment Method Cards */}
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="grid grid-cols-2 border-b border-slate-100">
+              {/* eSewa */}
+              <button
+                type="button"
+                onClick={() => setPaymentProvider("esewa")}
+                className={`flex flex-col items-center gap-2 py-6 px-4 transition-all relative ${
+                  paymentProvider === "esewa"
+                    ? "bg-white"
+                    : "bg-slate-50 opacity-70 hover:opacity-90"
+                }`}
+              >
+                {paymentProvider === "esewa" && (
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-500" />
+                )}
+                <div className="w-20 h-10 flex items-center justify-center">
+                  <img src="/images/eSewa.png" alt="eSewa" className="h-8 object-contain" />
+                </div>
+                <div className="text-center">
+                  <p className="font-bold text-slate-800 text-xs">eSewa</p>
+                  <p className="text-[10px] text-slate-400">eSewa Mobile Wallet</p>
+                </div>
+              </button>
+
+              {/* Khalti */}
+              <button
+                type="button"
+                onClick={() => setPaymentProvider("khalti")}
+                className={`flex flex-col items-center gap-2 py-6 px-4 transition-all relative border-l border-slate-100 ${
+                  paymentProvider === "khalti"
+                    ? "bg-white"
+                    : "bg-slate-50 opacity-70 hover:opacity-90"
+                }`}
+              >
+                {paymentProvider === "khalti" && (
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-600" />
+                )}
+                <div className="w-20 h-10 flex items-center justify-center">
+                  <img src="/images/khalti.png" alt="Khalti by IME" className="h-8 object-contain" />
+                </div>
+                <div className="text-center">
+                  <p className="font-bold text-slate-800 text-xs">Khalti by IME</p>
+                  <p className="text-[10px] text-slate-400">Mobile Wallet</p>
+                </div>
+              </button>
+            </div>
+
+            {/* Instructions panel */}
+            <div className="p-6 space-y-4">
+              {paymentProvider === "esewa" && (
+                <>
+                  <p className="text-sm text-slate-700 leading-relaxed">
+                    &quot;You will be redirected to eSewa to complete your payment:
+                  </p>
+                  <ol className="space-y-2 text-sm text-slate-600">
+                    <li>1. Login to your eSewa account using your eSewa ID and password.</li>
+                    <li>2. Ensure your eSewa account has sufficient balance.</li>
+                    <li>3. Confirm the payment on the eSewa portal.&quot;</li>
+                  </ol>
+                  <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-100">
+                    <p className="text-[11px] font-bold text-emerald-700 mb-1">🧪 Test Credentials (sandbox)</p>
+                    <p className="text-[11px] text-emerald-600">eSewa ID: <span className="font-mono font-bold">9806800001</span></p>
+                    <p className="text-[11px] text-emerald-600">Password: <span className="font-mono font-bold">Nepal@123</span></p>
+                    <p className="text-[11px] text-emerald-600">OTP: <span className="font-mono font-bold">123456</span></p>
+                  </div>
+                </>
+              )}
+              {paymentProvider === "khalti" && (
+                <>
+                  <p className="text-sm text-slate-700 leading-relaxed">
+                    &quot;You will be redirected to your Khalti account to complete the payment:
+                  </p>
+                  <ol className="space-y-2 text-sm text-slate-600">
+                    <li>1. Login using your Khalti ID and Password/MPIN.</li>
+                    <li>2. Enter OTP sent to your mobile number.</li>
+                    <li>3. Confirm the transaction to complete booking.&quot;</li>
+                  </ol>
+                  <div className="bg-purple-50 rounded-xl p-3 border border-purple-100">
+                    <p className="text-[11px] font-bold text-purple-700 mb-1">🧪 Test Credentials (sandbox)</p>
+                    <p className="text-[11px] text-purple-600">Mobile: <span className="font-mono font-bold">9800000001</span></p>
+                    <p className="text-[11px] text-purple-600">MPIN: <span className="font-mono font-bold">1111</span></p>
+                    <p className="text-[11px] text-purple-600">OTP: <span className="font-mono font-bold">987654</span></p>
+                  </div>
+                </>
+              )}
+
+              {bookingError && (
+                <div className="bg-rose-50 border border-rose-100 rounded-xl p-3 space-y-2">
+                  <p className="text-xs text-rose-600 font-semibold">
+                    ⚠️ {bookingError}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBookingError("");
+                      setBookingStep(1);
+                      setSelectedDate("");
+                      setSelectedTime("");
+                    }}
+                    className="text-[11px] font-bold text-rose-500 hover:text-rose-700 underline underline-offset-2"
+                  >
+                    ← Pick a different date &amp; time to try again
+                  </button>
+                </div>
+              )}
+
+              <button
+                type="button"
+                disabled={bookingLoading}
+                onClick={handleBooking}
+                className={`w-full py-4 rounded-xl text-sm font-extrabold text-white transition-all flex items-center justify-center gap-2 shadow-lg ${
+                  paymentProvider === "esewa"
+                    ? "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-200 disabled:bg-emerald-300"
+                    : "bg-[#5C2D91] hover:bg-[#4a2275] shadow-purple-200 disabled:bg-purple-300"
+                }`}
+              >
+                {bookingLoading ? (
+                  <>
+                    <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                    Redirecting...
+                  </>
+                ) : (
+                  "Pay Now"
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* ── RIGHT COLUMN: STICKY BOOKING BOX ─────────────────── */}
-        <div className="lg:sticky lg:top-[88px]">
-          <div className="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100/60 overflow-hidden">
-            <div className="p-6 border-b border-slate-50 bg-slate-50/30">
-              <p className="text-[11px] text-slate-500 uppercase tracking-widest font-bold mb-1">Starting from</p>
-              <p className="text-3xl font-extrabold text-slate-900 tracking-tight">
-                Rs {service.basePrice.toLocaleString()}
-                <span className="text-sm font-medium text-slate-400 ml-1.5">{PRICE_UNIT_LABEL[service.priceUnit]}</span>
-              </p>
-              <div className="flex items-center gap-2 mt-3 bg-white px-3 py-2 rounded-xl border border-slate-100 text-[11px] font-semibold text-slate-600">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                Estimated duration: {service.estimatedDuration}
+        {/* Right side invoices and checkout summary */}
+        <div className="space-y-6">
+          {/* Invoice Summary Card */}
+          <div className="rounded-3xl p-6 shadow-xl text-white space-y-6 bg-gradient-to-br from-blue-600 to-blue-800">
+            <h3 className="font-extrabold text-base tracking-tight">Invoice Summary</h3>
+
+            <div className="space-y-3.5 text-xs border-b border-white/20 pb-5">
+              <div className="flex justify-between items-center opacity-90">
+                <span>Base Service Fee</span>
+                <span className="font-bold">रू {baseServiceFee.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center opacity-90">
+                <span>Component Parts</span>
+                <span className="font-bold">रू {componentParts.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center opacity-90">
+                <span>Asset Management Surcharge</span>
+                <span className="font-bold">रू {surcharge.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center opacity-90">
+                <span>Tax (VAT 13%)</span>
+                <span className="font-bold">रू {tax.toFixed(2)}</span>
               </div>
             </div>
 
-            <form onSubmit={handleBooking} className="p-6 space-y-5">
-                <div className="space-y-2">
-                  <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Select Date</label>
-                  <input
-                    type="date"
-                    min={today}
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    required
-                    className="w-full text-sm border-0 ring-1 ring-slate-200 rounded-xl px-4 py-3 text-slate-800 bg-slate-50/50 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all shadow-sm"
-                  />
-                </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-bold">TOTAL AMOUNT DUE</span>
+              <span className="text-xl font-black">रू {totalAmount.toFixed(2)}</span>
+            </div>
 
-                <div className="space-y-2">
-                  <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Preferred Time</label>
-                  <select
-                    value={selectedTime}
-                    onChange={(e) => setSelectedTime(e.target.value)}
-                    required
-                    className="w-full text-sm border-0 ring-1 ring-slate-200 rounded-xl px-4 py-3 text-slate-800 bg-slate-50/50 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all shadow-sm appearance-none"
-                  >
-                    <option value="">Choose a time slot</option>
-                    <option value="08:00">08:00 AM</option>
-                    <option value="10:00">10:00 AM</option>
-                    <option value="12:00">12:00 PM</option>
-                    <option value="14:00">02:00 PM</option>
-                    <option value="16:00">04:00 PM</option>
-                    <option value="18:00">06:00 PM</option>
-                  </select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Service Address</label>
-                  <input
-                    type="text"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    required
-                    placeholder="e.g. Baneshwor, Kathmandu"
-                    className="w-full text-sm border-0 ring-1 ring-slate-200 rounded-xl px-4 py-3 text-slate-800 bg-slate-50/50 hover:bg-slate-50 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all shadow-sm"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Additional Notes</label>
-                  <textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    rows={3}
-                    placeholder="Describe your issue or any special requirements..."
-                    className="w-full text-sm border-0 ring-1 ring-slate-200 rounded-xl px-4 py-3 text-slate-800 bg-slate-50/50 hover:bg-slate-50 placeholder:text-slate-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all shadow-sm"
-                  />
-                </div>
-
-                {bookingError && (
-                  <p className="text-xs text-rose-600 font-medium">{bookingError}</p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={bookingLoading || !selectedDate || !selectedTime || !address.trim()}
-                  className="w-full py-3.5 rounded-xl text-sm font-extrabold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_4px_14px_rgba(37,99,235,0.25)] hover:shadow-[0_6px_20px_rgba(37,99,235,0.35)]"
-                  style={{ background: "linear-gradient(135deg, #2563eb, #1d4ed8)" }}
-                >
-                  {bookingLoading ? (
-                    <>
-                      <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-                      Confirming...
-                    </>
-                  ) : (
-                    "Book This Service"
-                  )}
-                </button>
-
-                <p className="text-[11px] text-slate-400 text-center font-medium">
-                  Free cancellation up to 2 hours before.
-                </p>
-              </form>
+            <div className="flex items-center justify-center gap-4 text-[9px] font-bold text-white/70 pt-1">
+              <span className="flex items-center gap-1">🔒 SSL SECURED</span>
+              <span className="flex items-center gap-1">✅ PCI-DSS COMPLIANT</span>
+            </div>
           </div>
 
-          <div className="mt-3 bg-[#EFF6FF] border border-blue-100 rounded-xl p-3.5 flex gap-2.5 items-center">
-            <div className="w-7 h-7 rounded-full bg-white border border-blue-200 flex items-center justify-center text-blue-600 shrink-0">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0 1 12 2.944a11.955 11.955 0 0 1-8.618 3.04A12.02 12.02 0 0 0 3 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          {/* Digital Receipt mock card */}
+          <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm space-y-4">
+            <div className="flex justify-between items-center">
+              <h4 className="text-[10px] font-extrabold text-slate-400 tracking-wider uppercase">DIGITAL RECEIPT</h4>
+              <button type="button" className="text-slate-400 hover:text-slate-600">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              </button>
             </div>
-            <p className="text-[10.5px] text-slate-600 leading-relaxed">
-              <span className="font-bold text-slate-800">100% Satisfaction Guaranteed.</span> All professionals are background-verified and FixHub Certified.
-            </p>
+
+            <div className="flex items-center gap-2.5 py-2">
+              <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+              </div>
+              <div>
+                <span className="font-extrabold text-slate-800 text-sm tracking-tight flex items-center gap-1">
+                  Fix<span className="text-blue-600">Hub</span>
+                </span>
+                <p className="text-[9px] text-slate-400 mt-0.5">
+                  Auto-generated PDF will be sent to primary email upon successful transaction
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Premium Booking Confirmation Modal */}
+      {/* Premium Success Modal */}
       {bookingSubmitted && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center animate-in fade-in duration-300"
           style={{ background: "rgba(15,23,42,0.6)", backdropFilter: "blur(8px)" }}
-          onClick={() => setBookingSubmitted(false)}
         >
-          <div
-            className="bg-white rounded-3xl w-full max-w-[420px] mx-4 overflow-hidden shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-4 duration-500"
-            onClick={e => e.stopPropagation()}
-          >
-            {/* Header with gradient pattern */}
-            <div className="relative pt-8 pb-6 px-6 text-center border-b border-slate-100 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-emerald-50 to-white">
-              <div className="absolute top-4 right-4">
-                <button
-                  onClick={() => setBookingSubmitted(false)}
-                  className="w-8 h-8 rounded-full bg-slate-100/50 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                </button>
+          <div className="bg-white rounded-3xl w-full max-w-[420px] mx-4 overflow-hidden shadow-2xl">
+            <div className="relative pt-8 pb-6 px-6 text-center border-b border-slate-100 bg-emerald-50/20">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-500 to-emerald-400 text-white flex items-center justify-center mx-auto mb-4 shadow-[0_8px_16px_-6px_rgba(16,185,129,0.5)]">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>
               </div>
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-500 to-emerald-400 text-white flex items-center justify-center mx-auto mb-4 shadow-[0_8px_16px_-6px_rgba(16,185,129,0.5)] transform -rotate-3 hover:rotate-0 transition-transform">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-              </div>
-              <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">Booking Confirmed!</h3>
-              <p className="text-[13px] text-slate-500 mt-1.5 font-medium">Your request has been successfully processed.</p>
+              <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">Payment Confirmed!</h3>
+              <p className="text-[13px] text-slate-500 mt-1.5 font-medium">Your service booking and payment are successfully finalized.</p>
             </div>
 
-            {/* Booking Details Card */}
-            <div className="px-6 py-6 bg-slate-50/50">
-              <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm space-y-3">
-                <div className="flex items-start justify-between pb-3 border-b border-slate-50">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                    </div>
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Service</p>
-                      <p className="text-sm font-bold text-slate-800 leading-tight">{service.title}</p>
-                    </div>
-                  </div>
+            <div className="px-6 py-6 bg-slate-50/50 space-y-3">
+              <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm space-y-2 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-bold">SERVICE</span>
+                  <span className="text-slate-800 font-bold">{service.title}</span>
                 </div>
-
-                <div className="flex gap-4 pt-1">
-                  <div className="flex-1">
-                    <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-0.5">Date</p>
-                    <p className="text-[13px] font-semibold text-slate-700">
-                      {selectedDate ? new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : ""}
-                    </p>
-                  </div>
-                  <div className="w-px bg-slate-100" />
-                  <div className="flex-1">
-                    <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-0.5">Time</p>
-                    <p className="text-[13px] font-semibold text-slate-700">{selectedTime}</p>
-                  </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-bold">DATE</span>
+                  <span className="text-slate-800 font-bold">{getFormattedDate(selectedDate)}</span>
                 </div>
-              </div>
-
-              <div className="flex items-center gap-2 mt-4 bg-emerald-50/80 border border-emerald-100 rounded-xl p-3">
-                <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-bold">TIME</span>
+                  <span className="text-slate-800 font-bold">{selectedTime}</span>
                 </div>
-                <p className="text-[11px] text-emerald-800 font-medium leading-tight">
-                  <span className="font-bold">Verified Professional</span> will be assigned shortly.
-                </p>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-bold">EXPERT</span>
+                  <span className="text-slate-800 font-bold">{activeExpert.name}</span>
+                </div>
+                <div className="flex justify-between border-t border-slate-100 pt-2 font-bold">
+                  <span className="text-slate-600">AMOUNT PAID</span>
+                  <span className="text-blue-600">रू {totalAmount.toLocaleString()}</span>
+                </div>
               </div>
             </div>
 
-            {/* Actions */}
             <div className="px-6 pb-6 pt-2 bg-white flex flex-col gap-2.5">
               <button
                 onClick={() => router.push("/dashboard/bookings")}
-                className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-[13px] font-bold rounded-xl transition-all shadow-[0_4px_12px_rgba(37,99,235,0.25)] hover:shadow-[0_6px_16px_rgba(37,99,235,0.35)] flex items-center justify-center gap-2 group"
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-[0_4px_12px_rgba(37,99,235,0.25)] flex items-center justify-center gap-2 group"
               >
                 Track Booking Status
-                <svg className="group-hover:translate-x-1 transition-transform" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-              </button>
-              <button
-                onClick={() => {
-                  setBookingSubmitted(false);
-                  setSelectedDate("");
-                  setSelectedTime("");
-                  setNotes("");
-                }}
-                className="w-full py-3 bg-transparent hover:bg-slate-50 text-slate-500 hover:text-slate-700 text-[13px] font-bold rounded-xl transition-colors"
-              >
-                Book Another Service
+                <svg className="group-hover:translate-x-1 transition-transform" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
               </button>
             </div>
           </div>

@@ -10,11 +10,12 @@ export const CreateBookingDTO = z.object({
   scheduledAt: z.coerce.date(),
   address: z.string().trim().min(3),
   notes: z.string().trim().optional(),
+  paymentProvider: z.enum(["esewa", "khalti"]),
 });
 export type CreateBookingDTO = z.infer<typeof CreateBookingDTO>;
 
 export const UpdateBookingStatusDTO = z.object({
-  action: z.enum(["confirm", "start", "complete", "cancel"]),
+  action: z.enum(["start", "complete", "cancel"]),
 });
 export type UpdateBookingStatusDTO = z.infer<typeof UpdateBookingStatusDTO>;
 
