@@ -2,10 +2,6 @@ import type { BookingAction, BookingStatus } from "../models/booking.model.js";
 
 /** Pure state-machine map — exported for unit tests. */
 export const BOOKING_TRANSITIONS: Record<BookingStatus, Partial<Record<BookingAction, BookingStatus>>> = {
-  pending: {
-    confirm: "confirmed",
-    cancel: "cancelled",
-  },
   confirmed: {
     start: "in_progress",
     cancel: "cancelled",

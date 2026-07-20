@@ -6,7 +6,7 @@ dotenv.config();
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/fixhub';
 
-const servicesToSeed = [
+const servicesToSeed: any[] = [
   {
     title: "Electrical Wiring & Repair",
     slug: "electrical-wiring-repair",
