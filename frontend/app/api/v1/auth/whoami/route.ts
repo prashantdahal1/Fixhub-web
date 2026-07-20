@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { backendApiUrl } from '@/lib/backend-url';
 
 // Proxy whoami to the Express backend.
 // The Express backend reads the 'token' JWT cookie from the request.
@@ -9,7 +10,7 @@ export async function GET(request: NextRequest) {
     const cookieHeader = request.headers.get('cookie') || '';
     const authHeader = request.headers.get('authorization') || '';
 
-    const backendResponse = await fetch('http://localhost:5000/api/v1/auth/whoami', {
+    const backendResponse = await fetch(backendApiUrl('/api/v1/auth/whoami'), {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -22,6 +23,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(data, { status: backendResponse.status });
   } catch (e) {
     console.error('Whoami proxy error:', e);
-    return NextResponse.json({ message: 'Backend unreachable' }, { status: 503 });
+    return NextResponse.json({ message: 'Backend unreachable. Check that the Express server is running and BACKEND_URL is correct.' }, { status: 503 });
   }
 }

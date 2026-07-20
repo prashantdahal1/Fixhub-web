@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { backendApiUrl } from '@/lib/backend-url';
 
 // This route proxies login to the Express backend (port 5000).
 // The Express backend handles auth and sets the 'token' JWT cookie itself.
@@ -7,7 +8,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    const backendResponse = await fetch('http://localhost:5000/api/v1/auth/login', {
+    const backendResponse = await fetch(backendApiUrl('/api/v1/auth/login'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -28,6 +29,6 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (e) {
     console.error('Login proxy error:', e);
-    return NextResponse.json({ message: 'Backend unreachable. Is the Express server running on port 5000?' }, { status: 503 });
+    return NextResponse.json({ message: 'Backend unreachable. Check that the Express server is running and BACKEND_URL is correct.' }, { status: 503 });
   }
 }
