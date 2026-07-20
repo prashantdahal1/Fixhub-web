@@ -1,6 +1,7 @@
 import { type Request, type Response, type NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { SECRET_KEY } from '../configs/constant.js';
+import type { IUser } from '../models/user.model.js';
 
 export const jwtAuth = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -13,7 +14,7 @@ export const jwtAuth = async (req: Request, res: Response, next: NextFunction) =
       return res.status(401).json({ message: 'Unauthorized' });
     }
     const payload = jwt.verify(token, SECRET_KEY);
-    req.user = payload as Record<string, any>;
+    req.user = payload as unknown as IUser;
     next();
   } catch {
     res.status(401).json({ message: 'Unauthorized' });

@@ -148,18 +148,7 @@ function ServiceCardSkeleton() {
   );
 }
 
-// ─── Mock data shown when API has no data yet ─────────────────────────────────
-const MOCK_SERVICES: Service[] = [
-  { _id: "1", title: "Electrical Wiring & Repair", slug: "electrical-wiring-repair", category: "electrician", shortDescription: "Full home wiring, circuit fixes, socket installation and load management by certified electricians.", basePrice: 800, priceUnit: "flat", rating: 4.8, reviewCount: 124, imageUrl: "", isCertified: true, estimatedDuration: "1–3 hours" },
-  { _id: "2", title: "Plumbing Leak Fix", slug: "plumbing-leak-fix", category: "plumber", shortDescription: "Pipe leak detection and repair, tap replacement, drain cleaning and bathroom fixture installation.", basePrice: 600, priceUnit: "flat", rating: 4.6, reviewCount: 89, imageUrl: "", isCertified: true, estimatedDuration: "1–2 hours" },
-  { _id: "3", title: "AC Service & Deep Clean", slug: "ac-service-deep-clean", category: "ac_repair", shortDescription: "Full AC tune-up including filter wash, coil cleaning, gas refill check and cooling performance test.", basePrice: 1200, priceUnit: "flat", rating: 4.9, reviewCount: 210, imageUrl: "", isCertified: true, estimatedDuration: "2–3 hours" },
-  { _id: "4", title: "Interior Wall Painting", slug: "interior-wall-painting", category: "painter", shortDescription: "Professional interior painting with premium finish. Includes wall prep, primer, and 2 coats of paint.", basePrice: 18, priceUnit: "per_sqft", rating: 4.7, reviewCount: 67, imageUrl: "", isCertified: true, estimatedDuration: "1–2 days" },
-  { _id: "5", title: "Carpenter & Furniture Repair", slug: "carpenter-furniture-repair", category: "carpenter", shortDescription: "Door fixing, cabinet repair, custom shelf installation and furniture assembly by skilled carpenters.", basePrice: 700, priceUnit: "flat", rating: 4.5, reviewCount: 43, imageUrl: "", isCertified: false, estimatedDuration: "2–4 hours" },
-  { _id: "6", title: "Geyser Installation & Repair", slug: "geyser-installation-repair", category: "geyser", shortDescription: "Safe geyser installation, thermostat replacement, element swap and full safety inspection.", basePrice: 1000, priceUnit: "flat", rating: 4.8, reviewCount: 156, imageUrl: "", isCertified: true, estimatedDuration: "1–2 hours" },
-  { _id: "7", title: "Home Deep Cleaning", slug: "home-deep-cleaning", category: "cleaner", shortDescription: "Full home deep clean covering kitchen, bathrooms, floors, windows and upholstery using safe chemicals.", basePrice: 25, priceUnit: "per_sqft", rating: 4.6, reviewCount: 98, imageUrl: "", isCertified: true, estimatedDuration: "4–6 hours" },
-  { _id: "8", title: "Pest Control Treatment", slug: "pest-control-treatment", category: "pest_control", shortDescription: "General pest control for cockroaches, ants, mosquitoes and bedbugs. Safe for children and pets.", basePrice: 1500, priceUnit: "flat", rating: 4.4, reviewCount: 52, imageUrl: "", isCertified: true, estimatedDuration: "2–3 hours" },
-  { _id: "9", title: "Appliance Repair", slug: "appliance-repair", category: "appliance_repair", shortDescription: "Repair for washing machines, refrigerators, microwaves, dishwashers and other home appliances.", basePrice: 500, priceUnit: "flat", rating: 4.3, reviewCount: 77, imageUrl: "", isCertified: false, estimatedDuration: "1–2 hours" },
-];
+
 
 export default function ServicesPage() {
   const searchParams = useSearchParams();

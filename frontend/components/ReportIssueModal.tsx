@@ -1,39 +1,52 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export const ReportIssueModal = ({ isOpen, onClose, onSubmit, bookingContext }) => {
+interface BookingContext {
+  id: string;
+  serviceName: string;
+  date: string;
+}
+
+interface ReportIssueModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (data: { category: string; details: string; attachments: File[]; bookingContext: BookingContext | null }) => void;
+  bookingContext?: BookingContext | null;
+}
+
+export const ReportIssueModal = ({ isOpen, onClose, onSubmit, bookingContext }: ReportIssueModalProps) => {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [details, setDetails] = useState('');
-  const [files, setFiles] = useState([]);
+  const [files, setFiles] = useState<File[]>([]);
   
-  const fileInputRef = useRef(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const categories = ['Late Delivery', 'Missing Items', 'Wrong Item', 'Quality Issue', 'Other'];
 
-  const handleDragOver = (e) => {
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
   };
 
-  const handleDrop = (e) => {
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       setFiles((prev) => [...prev, ...Array.from(e.dataTransfer.files)]);
     }
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setFiles((prev) => [...prev, ...Array.from(e.target.files)]);
+      setFiles((prev) => [...prev, ...Array.from(e.target.files!)]);
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     onSubmit({
       category: selectedCategory,
       details,
       attachments: files,
-      bookingContext
+      bookingContext: bookingContext ?? null
     });
   };
 

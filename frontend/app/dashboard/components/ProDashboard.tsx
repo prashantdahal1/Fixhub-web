@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { toast } from "react-toastify";
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../../../contexts/AuthContext";
 import CreateServiceForm from "./CreateServiceForm";
 import { apiFetch } from "../../../lib/api/client";
 import { API } from "../../../lib/api/endpoints";
@@ -71,7 +71,7 @@ export default function ProDashboard() {
     );
   }
 
-  const pending = bookings.filter((b) => b.status === "pending");
+  const activeRequests = bookings.filter((b) => b.status === "confirmed");
 
   return (
     <div className="max-w-5xl space-y-5">
@@ -104,11 +104,11 @@ export default function ProDashboard() {
         </div>
         {loadingJobs ? (
           <p className="text-sm text-slate-500">Loading…</p>
-        ) : pending.length === 0 ? (
-          <p className="text-sm text-slate-500">No pending job requests right now.</p>
+        ) : activeRequests.length === 0 ? (
+          <p className="text-sm text-slate-500">No confirmed job requests right now.</p>
         ) : (
           <div className="space-y-3">
-            {pending.slice(0, 5).map((b) => {
+            {activeRequests.slice(0, 5).map((b) => {
               const title = typeof b.serviceId === "object" ? b.serviceId?.title : "Service";
               const customer =
                 typeof b.customerId === "object"
@@ -123,12 +123,6 @@ export default function ProDashboard() {
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    <button
-                      onClick={() => act(b._id, "confirm")}
-                      className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white"
-                    >
-                      Confirm
-                    </button>
                     <button
                       onClick={() => act(b._id, "cancel")}
                       className="rounded-lg bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700"

@@ -17,10 +17,10 @@ export const metadata: Metadata = {
   description: "Book trusted local professionals for home repairs and maintenance.",
 };
 
-import { AuthProvider } from "./contexts/AuthContext";
+import { AuthProvider } from "../contexts/AuthContext";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import ChatbotWidget from "./components/ChatbotWidget";
+import ChatbotWidget from "../components/ChatbotWidget";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

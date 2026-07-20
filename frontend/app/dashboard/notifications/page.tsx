@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { 
   Bell, 
@@ -13,80 +13,89 @@ import {
   X,
   ArrowRight
 } from "lucide-react";
+import { useAuth } from "../../../contexts/AuthContext";
 
 interface Notification {
-  id: number;
+  _id: string;
   title: string;
   body: string;
-  time: string;
-  date: string;
+  createdAt: string;
   type: "booking" | "confirm" | "done" | "payment";
   read: boolean;
 }
 
-const INITIAL_NOTIFICATIONS: Notification[] = [
-  {
-    id: 1,
-    title: "Technician on the way",
-    body: "Ramesh K. is heading to your location for AC Deep Clean & Performance Service. Contact: +977 9851012345.",
-    time: "2 min ago",
-    date: "July 13, 2026",
-    type: "booking",
-    read: false,
-  },
-  {
-    id: 2,
-    title: "Booking confirmed",
-    body: "Your plumbing appointment for Fri, Jul 18 is confirmed. Suman Maharjan has been assigned to your service request.",
-    time: "1 hr ago",
-    date: "July 13, 2026",
-    type: "confirm",
-    read: false,
-  },
-  {
-    id: 3,
-    title: "Service completed",
-    body: "AC repair job #4821 has been marked complete. Please take a moment to rate your technician experience.",
-    time: "Yesterday",
-    date: "July 12, 2026",
-    type: "done",
-    read: true,
-  },
-  {
-    id: 4,
-    title: "Payment received",
-    body: "Rs. 2,500 payment for electrical work confirmed. Invoice #INV-8827-26 has been generated and sent to your email.",
-    time: "2 days ago",
-    date: "July 11, 2026",
-    type: "payment",
-    read: true,
-  },
-];
+function formatRelativeTime(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins} min ago`;
+  if (diffHours < 24) return `${diffHours} hr${diffHours > 1 ? "s" : ""} ago`;
+  if (diffDays === 1) return "Yesterday";
+  return date.toLocaleDateString();
+}
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState<Notification[]>(INITIAL_NOTIFICATIONS);
+  const { user } = useAuth();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [activeTab, setActiveTab] = useState<"all" | "unread" | "booking" | "payment">("all");
   const [searchQuery, setSearchQuery] = useState("");
 
+  const fetchNotifications = async () => {
+    try {
+      const res = await fetch("/api/v1/notifications");
+      const json = await res.json();
+      if (json.success) {
+        setNotifications(json.data);
+      }
+    } catch (err) {
+      console.error("Error fetching notifications:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchNotifications();
+      const interval = setInterval(fetchNotifications, 10000); // poll every 10s
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+
   // Handler to mark single notification as read
-  const markAsRead = (id: number) => {
+  const markAsRead = async (id: string) => {
     setNotifications(prev =>
-      prev.map(n => (n.id === id ? { ...n, read: true } : n))
+      prev.map(n => (n._id === id ? { ...n, read: true } : n))
     );
+    try {
+      await fetch(`/api/v1/notifications/${id}/read`, { method: "PATCH" });
+    } catch (_) {}
   };
 
   // Handler to delete single notification
-  const deleteNotification = (id: number) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
+  const deleteNotification = async (id: string) => {
+    setNotifications(prev => prev.filter(n => n._id !== id));
+    try {
+      await fetch(`/api/v1/notifications/${id}`, { method: "DELETE" });
+    } catch (_) {}
   };
 
   // Bulk actions
-  const markAllRead = () => {
+  const markAllRead = async () => {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    try {
+      await fetch("/api/v1/notifications/read-all", { method: "PATCH" });
+    } catch (_) {}
   };
 
-  const clearAll = () => {
+  const clearAll = async () => {
     setNotifications([]);
+    try {
+      await fetch("/api/v1/notifications/clear-all", { method: "DELETE" });
+    } catch (_) {}
   };
 
   // Filter & Search Logic
@@ -119,70 +128,70 @@ export default function NotificationsPage() {
         <div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight">Notifications</h1>
           <p className="text-xs text-slate-500 mt-1">
-            Manage your service alerts, booking status updates, and transaction receipts.
+            Stay updated with your service bookings, support ticket replies, and account updates.
           </p>
         </div>
 
-        {/* Bulk Action Buttons */}
         {notifications.length > 0 && (
           <div className="flex items-center gap-2">
             <button
               onClick={markAllRead}
-              disabled={unreadCount === 0}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-all"
             >
-              <CheckCheck size={14} />
+              <CheckCheck size={13} />
               Mark all read
             </button>
             <button
               onClick={clearAll}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-red-50 hover:bg-red-100 text-red-600 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 hover:text-red-700 hover:bg-red-50/50 border border-transparent rounded-lg transition-all"
             >
-              <Trash2 size={14} />
+              <Trash2 size={13} />
               Clear all
             </button>
           </div>
         )}
       </div>
 
-      {/* Control panel: Tabs & Search */}
-      <div className="bg-white rounded-xl border border-slate-200 p-3.5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
-        {/* Tabs */}
-        <div className="flex flex-wrap gap-1.5">
-          {(["all", "unread", "booking", "payment"] as const).map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${
-                activeTab === tab
-                  ? "bg-[#EFF6FF] text-[#2563EB]"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
-              }`}
-            >
-              {tab === "booking" ? "bookings" : tab === "payment" ? "payments" : tab}
-              {tab === "unread" && unreadCount > 0 && (
-                <span className="ml-1.5 bg-red-500 text-white text-[9px] px-1 py-0.5 rounded-full font-bold">
-                  {unreadCount}
-                </span>
-              )}
-            </button>
-          ))}
+      {/* Tabs and search filters */}
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between bg-white border border-slate-200 p-2.5 rounded-2xl">
+        <div className="flex flex-wrap items-center gap-1">
+          {(["all", "unread", "booking", "payment"] as const).map((tab) => {
+            const label = tab.charAt(0).toUpperCase() + tab.slice(1);
+            const count = tab === "unread" ? unreadCount : undefined;
+            return (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
+                  activeTab === tab
+                    ? "bg-[#EFF6FF] text-[#2563EB] border-blue-200"
+                    : "bg-white text-slate-500 border-transparent hover:text-slate-700"
+                }`}
+              >
+                {label}
+                {count !== undefined && count > 0 && (
+                  <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] bg-blue-500 text-white font-bold leading-none">
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Search */}
-        <div className="relative w-full md:w-64">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
           <input
             type="text"
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search notifications..."
-            className="w-full pl-9 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:bg-white focus:border-blue-500 transition-all text-slate-700"
+            className="w-full sm:w-60 pl-8.5 pr-8 py-1.5 text-xs border border-slate-200 rounded-xl bg-white text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery("")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-650"
             >
               <X size={12} />
             </button>
@@ -205,13 +214,13 @@ export default function NotificationsPage() {
         ) : (
           <div className="divide-y divide-slate-100">
             {filteredNotifications.map(n => {
-              const style = iconStyles[n.type];
+              const style = iconStyles[n.type] || iconStyles.booking;
               const Icon = style.icon;
 
               return (
                 <div
-                  key={n.id}
-                  onClick={() => !n.read && markAsRead(n.id)}
+                  key={n._id}
+                  onClick={() => !n.read && markAsRead(n._id)}
                   className={`flex gap-4 p-5 hover:bg-slate-50/50 transition-all cursor-pointer relative group ${
                     !n.read ? "bg-blue-50/10" : ""
                   }`}
@@ -237,7 +246,9 @@ export default function NotificationsPage() {
                           <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block" />
                         )}
                       </div>
-                      <span className="text-[10px] text-slate-400 font-semibold">{n.date} &bull; {n.time}</span>
+                      <span className="text-[10px] text-slate-400 font-semibold">
+                        {new Date(n.createdAt).toLocaleDateString()} &bull; {formatRelativeTime(n.createdAt)}
+                      </span>
                     </div>
 
                     <p className="text-xs text-slate-500 leading-relaxed max-w-2xl">
@@ -263,7 +274,7 @@ export default function NotificationsPage() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        deleteNotification(n.id);
+                        deleteNotification(n._id);
                       }}
                       className="p-1.5 rounded-md hover:bg-red-50 text-slate-300 hover:text-red-600 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
                       title="Delete notification"

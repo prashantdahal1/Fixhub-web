@@ -17,6 +17,7 @@ export const API = {
     WALLET: {
         GET: "/api/v1/wallet",
         TOPUP: "/api/v1/wallet/topup",
+        INITIATE_PAYMENT: "/api/v1/wallet/initiate-payment",
     },
     REVIEWS: {
         CREATE: "/api/v1/reviews",

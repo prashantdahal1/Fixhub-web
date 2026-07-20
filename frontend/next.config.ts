@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { BACKEND_URL } from "./lib/backend-url";
 
 const nextConfig: NextConfig = {
   turbopack: {
@@ -8,11 +9,11 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/api/:path*",
-        destination: "http://localhost:5000/api/:path*",
+        destination: `${BACKEND_URL}/api/:path*`,
       },
       {
         source: "/uploads/:path*",
-        destination: "http://localhost:5000/uploads/:path*",
+        destination: `${BACKEND_URL}/uploads/:path*`,
       },
     ];
   },

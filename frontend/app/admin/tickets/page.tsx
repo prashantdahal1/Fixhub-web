@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { axiosInstance } from "../../../../lib/api/axios-instance";
-import { API } from "../../../../lib/api/endpoints";
+import axiosInstance from "../../../lib/api/axios-instance";
+import { API } from "../../../lib/api/endpoints";
 import { Search, Filter, Loader2, AlertCircle, CheckCircle2, Clock } from "lucide-react";
 
 interface Ticket {

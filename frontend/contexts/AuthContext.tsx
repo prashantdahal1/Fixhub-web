@@ -14,6 +14,8 @@ interface User {
   country?: string;
   cityState?: string;
   username?: string;
+  isVerified?: boolean;
+  addresses?: string[];
 }
 
 interface AuthContextType {

@@ -1,7 +1,6 @@
 import mongoose, { Schema, Document } from "mongoose";
 
 export type BookingStatus =
-  | "pending"
   | "confirmed"
   | "in_progress"
   | "completed"
@@ -9,7 +8,7 @@ export type BookingStatus =
 
 export type EscrowStatus = "none" | "held" | "released" | "refunded";
 
-export type BookingAction = "confirm" | "start" | "complete" | "cancel";
+export type BookingAction = "start" | "complete" | "cancel";
 
 export interface IBooking extends Document {
   _id: mongoose.Types.ObjectId;
@@ -37,8 +36,8 @@ const BookingSchema = new Schema<IBooking>(
     amount: { type: Number, required: true, min: 0 },
     status: {
       type: String,
-      enum: ["pending", "confirmed", "in_progress", "completed", "cancelled"],
-      default: "pending",
+      enum: ["confirmed", "in_progress", "completed", "cancelled"],
+      default: "confirmed",
     },
     escrowStatus: {
       type: String,
@@ -59,7 +58,7 @@ BookingSchema.index(
   {
     unique: true,
     partialFilterExpression: {
-      status: { $in: ["pending", "confirmed", "in_progress"] },
+      status: { $in: ["confirmed", "in_progress"] },
     },
   }
 );

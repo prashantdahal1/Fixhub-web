@@ -7,14 +7,42 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const isProduction = process.env.NODE_ENV === 'production';
+
+function requireEnv(name: string, fallback?: string): string {
+  const value = process.env[name] || fallback;
+  if (!value) {
+    throw new Error(
+      `Missing required environment variable: ${name}. See backend/.env.example`
+    );
+  }
+  if (isProduction && fallback && value === fallback) {
+    throw new Error(
+      `Refusing to start: ${name} must be set explicitly in production`
+    );
+  }
+  return value;
+}
+
 export const PORT: number = Number(process.env.PORT) || 5000;
 export const DUMMY: string = process.env.DUMMY || 'Dummy Export';
-export const MONGODB_URL: string =
-  process.env.MONGO_URI ||
-  process.env.MONGODB_URL ||
-  'mongodb://127.0.0.1:27017/fixhub';
-export const SECRET_KEY: string =
-  process.env.SECRET_KEY || 'merosecretkey';
+export const NODE_ENV: string = process.env.NODE_ENV || 'development';
+
+export const MONGODB_URL: string = requireEnv(
+  'MONGO_URI',
+  process.env.MONGODB_URL || (isProduction ? undefined : 'mongodb://127.0.0.1:27017/fixhub')
+);
+
+export const SECRET_KEY: string = requireEnv(
+  'SECRET_KEY',
+  isProduction ? undefined : 'dev-only-secret-change-me'
+);
+
+export const SESSION_SECRET: string = requireEnv(
+  'SESSION_SECRET',
+  process.env.SECRET_KEY || (isProduction ? undefined : 'dev-only-session-secret')
+);
+
 export const ALLOWED_ORIGINS: string[] = [
   'http://localhost:3000',
   'http://localhost:5000',

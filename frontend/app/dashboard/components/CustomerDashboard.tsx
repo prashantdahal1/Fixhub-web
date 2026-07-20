@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../../../contexts/AuthContext";
 
 // ─── Service Category Icons ────────────────────────────────────────────────────
 const ElectricianIcon = () => (

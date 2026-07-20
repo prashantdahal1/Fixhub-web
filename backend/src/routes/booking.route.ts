@@ -8,6 +8,11 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 const router = Router();
 const controller = new BookingController();
 
+// Public callback verification endpoints
+router.get("/verify/esewa", asyncHandler(controller.verifyEsewa));
+router.get("/verify/khalti", asyncHandler(controller.verifyKhalti));
+router.get("/cancel/esewa", asyncHandler(controller.cancelEsewa));
+
 router.use(authorizedMiddleware);
 
 router.post("/", validateBody(CreateBookingDTO), asyncHandler(controller.create));
