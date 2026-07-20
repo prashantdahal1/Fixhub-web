@@ -4,8 +4,8 @@ import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { useAuth } from "../contexts/AuthContext";
-import { IntelligentSearchBar } from "../components/IntelligentSearchBar";
+import { useAuth } from "../../contexts/AuthContext";
+import { IntelligentSearchBar } from "../../components/IntelligentSearchBar";
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 const HomeIcon = () => (
@@ -91,41 +91,29 @@ const SettingsIcon = () => (
   </svg>
 );
 
-// ─── Sample notifications ─────────────────────────────────────────────────────
-const SAMPLE_NOTIFICATIONS = [
-  {
-    id: 1,
-    title: "Technician on the way",
-    body: "Ramesh K. is heading to your location. ETA: 25 min.",
-    time: "2 min ago",
-    type: "booking",
-    read: false,
-  },
-  {
-    id: 2,
-    title: "Booking confirmed",
-    body: "Your plumbing appointment for Fri, Jul 18 is confirmed.",
-    time: "1 hr ago",
-    type: "confirm",
-    read: false,
-  },
-  {
-    id: 3,
-    title: "Service completed",
-    body: "AC repair job #4821 has been marked complete. Rate your experience.",
-    time: "Yesterday",
-    type: "done",
-    read: true,
-  },
-  {
-    id: 4,
-    title: "Payment received",
-    body: "Rs. 2,500 payment for electrical work confirmed.",
-    time: "2 days ago",
-    type: "payment",
-    read: true,
-  },
-];
+interface DBNotification {
+  _id: string;
+  title: string;
+  body: string;
+  type: "booking" | "confirm" | "done" | "payment";
+  read: boolean;
+  createdAt: string;
+}
+
+function formatRelativeTime(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins} min ago`;
+  if (diffHours < 24) return `${diffHours} hr${diffHours > 1 ? "s" : ""} ago`;
+  if (diffDays === 1) return "Yesterday";
+  return date.toLocaleDateString();
+}
 
 const notifColor: Record<string, string> = {
   booking: "bg-blue-500",
@@ -152,9 +140,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [notifOpen, setNotifOpen]       = useState(false);
   const [emergOpen, setEmergOpen]       = useState(false);
   const [profileOpen, setProfileOpen]   = useState(false);
-  const [notifications, setNotifications] = useState(SAMPLE_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<DBNotification[]>([]);
   const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await fetch("/api/v1/notifications");
+      const json = await res.json();
+      if (json.success) {
+        setNotifications(json.data);
+      }
+    } catch (err) {
+      console.error("Error fetching notifications:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchNotifications();
+      const interval = setInterval(fetchNotifications, 10000); // Poll every 10 seconds for real-time updates
+      return () => clearInterval(interval);
+    }
+  }, [user]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -167,8 +175,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     finally { setUser(null); router.push("/"); }
   };
 
-  const markAllRead = () => setNotifications(n => n.map(x => ({ ...x, read: true })));
-  const dismissNotif = (id: number) => setNotifications(n => n.filter(x => x.id !== id));
+  const markAllRead = async () => {
+    setNotifications(n => n.map(x => ({ ...x, read: true })));
+    try {
+      await fetch("/api/v1/notifications/read-all", { method: "PATCH" });
+    } catch (_) {}
+  };
+
+  const dismissNotif = async (id: string) => {
+    setNotifications(n => n.filter(x => x._id !== id));
+    try {
+      await fetch(`/api/v1/notifications/${id}`, { method: "DELETE" });
+    } catch (_) {}
+  };
 
   // Close notification panel when clicking outside
   useEffect(() => {
@@ -416,7 +435,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         };
                         return (
                           <div
-                            key={n.id}
+                            key={n._id}
                             className={`relative flex gap-3 px-4.5 py-3.5 transition-colors hover:bg-slate-50/50 ${
                               !n.read ? "bg-blue-50/10" : ""
                             }`}
@@ -437,7 +456,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 <p className={`text-xs font-bold leading-none ${n.read ? "text-slate-700" : "text-slate-800"}`}>
                                   {n.title}
                                 </p>
-                                <p className="text-[10px] text-slate-400 font-semibold shrink-0">{n.time}</p>
+                                <p className="text-[10px] text-slate-400 font-semibold shrink-0">{formatRelativeTime(n.createdAt)}</p>
                               </div>
                               <p className="text-[11px] text-slate-500 mt-1 leading-normal truncate">{n.body}</p>
                             </div>

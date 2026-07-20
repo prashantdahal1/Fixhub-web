@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, ChangeEvent } from 'react';
 import { Pencil, Mail, Phone, MapPin, Briefcase, User, Globe, Camera } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../../contexts/AuthContext';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
 
