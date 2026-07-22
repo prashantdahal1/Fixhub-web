@@ -9,6 +9,7 @@ const controller = new NotificationController();
 router.use(authorizedMiddleware);
 
 router.get("/", asyncHandler(controller.getAll));
+router.get("/stream", asyncHandler(controller.stream));
 router.patch("/read-all", asyncHandler(controller.markAllRead));
 router.patch("/:id/read", asyncHandler(controller.markRead));
 router.delete("/clear-all", asyncHandler(controller.deleteAll));

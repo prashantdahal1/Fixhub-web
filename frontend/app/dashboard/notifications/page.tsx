@@ -14,15 +14,9 @@ import {
   ArrowRight
 } from "lucide-react";
 import { useAuth } from "../../../contexts/AuthContext";
+import { fetchNotifications, upsertNotification, type NotificationItem } from "../../../lib/api/notifications";
 
-interface Notification {
-  _id: string;
-  title: string;
-  body: string;
-  createdAt: string;
-  type: "booking" | "confirm" | "done" | "payment";
-  read: boolean;
-}
+type Notification = NotificationItem;
 
 function formatRelativeTime(dateString: string): string {
   const date = new Date(dateString);
@@ -45,24 +39,37 @@ export default function NotificationsPage() {
   const [activeTab, setActiveTab] = useState<"all" | "unread" | "booking" | "payment">("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const fetchNotifications = async () => {
-    try {
-      const res = await fetch("/api/v1/notifications");
-      const json = await res.json();
-      if (json.success) {
-        setNotifications(json.data);
-      }
-    } catch (err) {
-      console.error("Error fetching notifications:", err);
-    }
-  };
-
   useEffect(() => {
-    if (user) {
-      fetchNotifications();
-      const interval = setInterval(fetchNotifications, 10000); // poll every 10s
-      return () => clearInterval(interval);
+    if (!user) return;
+
+    let eventSource: EventSource | null = null;
+    let fallbackInterval: ReturnType<typeof setInterval> | null = null;
+    const refresh = () => {
+      fetchNotifications()
+        .then(setNotifications)
+        .catch((err) => console.error("Error fetching notifications:", err));
+    };
+
+    refresh();
+
+    if ("EventSource" in window) {
+      eventSource = new EventSource("/api/v1/notifications/stream", { withCredentials: true });
+      eventSource.addEventListener("notification", (event) => {
+        const notification = JSON.parse((event as MessageEvent).data) as Notification;
+        setNotifications((items) => upsertNotification(items, notification));
+      });
+      eventSource.onerror = () => {
+        eventSource?.close();
+        if (!fallbackInterval) fallbackInterval = setInterval(refresh, 10000);
+      };
+    } else {
+      fallbackInterval = setInterval(refresh, 10000);
     }
+
+    return () => {
+      eventSource?.close();
+      if (fallbackInterval) clearInterval(fallbackInterval);
+    };
   }, [user]);
 
   // Handler to mark single notification as read
