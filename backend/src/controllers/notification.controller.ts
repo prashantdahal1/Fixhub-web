@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { NotificationModel } from "../models/notification.model.js";
 import { ApiResponseHelper } from "../utils/apihelper.util.js";
 import { HttpException } from "../exceptions/http-exception.js";
+import { notificationEvents } from "../utils/notification.util.js";
 
 export class NotificationController {
   getAll = async (req: Request, res: Response) => {
@@ -10,6 +11,36 @@ export class NotificationController {
       .sort({ createdAt: -1 })
       .limit(100);
     return ApiResponseHelper.success(res, notifications, "Notifications retrieved successfully");
+  };
+
+  stream = async (req: Request, res: Response) => {
+    const user = (req as any).user;
+    const userId = user._id.toString();
+
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache, no-transform");
+    res.setHeader("Connection", "keep-alive");
+    res.flushHeaders?.();
+
+    res.write("event: connected\n");
+    res.write(`data: ${JSON.stringify({ ok: true })}\n\n`);
+
+    const sendNotification = (notification: unknown) => {
+      res.write("event: notification\n");
+      res.write(`data: ${JSON.stringify(notification)}\n\n`);
+    };
+
+    const heartbeat = setInterval(() => {
+      res.write(": keep-alive\n\n");
+    }, 25000);
+
+    notificationEvents.on(userId, sendNotification);
+
+    req.on("close", () => {
+      clearInterval(heartbeat);
+      notificationEvents.off(userId, sendNotification);
+      res.end();
+    });
   };
 
   markRead = async (req: Request, res: Response) => {

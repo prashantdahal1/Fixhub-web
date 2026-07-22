@@ -1,5 +1,8 @@
 import { NotificationModel } from "../models/notification.model.js";
 import type mongoose from "mongoose";
+import { EventEmitter } from "events";
+
+export const notificationEvents = new EventEmitter();
 
 export async function createNotification(
   userId: mongoose.Types.ObjectId | string,
@@ -8,13 +11,14 @@ export async function createNotification(
   type: "booking" | "confirm" | "done" | "payment"
 ) {
   try {
-    await NotificationModel.create({
+    const notification = await NotificationModel.create({
       userId,
       title,
       body,
       type,
       read: false,
     });
+    notificationEvents.emit(userId.toString(), notification.toObject());
   } catch (error) {
     console.error("Failed to create notification:", error);
   }
