@@ -18,6 +18,4 @@ const WalletSchema = new Schema<IWallet>(
   { timestamps: true }
 );
 
-WalletSchema.index({ userId: 1 });
-
 export const WalletModel = mongoose.model<IWallet>("Wallet", WalletSchema);
