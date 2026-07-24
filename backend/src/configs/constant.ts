@@ -10,7 +10,7 @@ const __dirname = path.dirname(__filename);
 const isProduction = process.env.NODE_ENV === 'production';
 
 function requireEnv(name: string, fallback?: string): string {
-  const value = process.env[name] || fallback;
+  const value = (process.env[name] || fallback)?.toString().trim();
   if (!value) {
     throw new Error(
       `Missing required environment variable: ${name}. See backend/.env.example`
@@ -50,5 +50,11 @@ export const ALLOWED_ORIGINS: string[] = [
   'http://localhost:8080',
   'https://fixhub.web.app',
   'http://192.168.1.9:5000',
+  'http://192.168.1.11:5000',
+  'http://192.168.1.11:3000',
+  // Flutter mobile apps don't send Origin headers, but kept for completeness
 ];
 export const UPLOAD_DIR: string = path.resolve(__dirname, '../../uploads');
+
+export const GOOGLE_CLIENT_ID: string = process.env.GOOGLE_CLIENT_ID || '';
+export const GOOGLE_CLIENT_SECRET: string = process.env.GOOGLE_CLIENT_SECRET || '';
