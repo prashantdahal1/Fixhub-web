@@ -11,6 +11,7 @@ import rateLimit from "express-rate-limit";
 import type { Request, Response, NextFunction } from "express";
 import { UserService } from "../services/user.service.js";
 import { ApiResponseHelper } from "../utils/apihelper.util.js";
+import { verifyGoogleIdToken } from "../utils/google.util.js";
 
 const router = Router();
 const userService = new UserService();
@@ -48,6 +49,54 @@ router.get(
         res.redirect(`http://localhost:3000/?token=${token}`);
     }
 );
+
+router.post("/google", async (req: Request, res: Response) => {
+  try {
+    const { idToken } = req.body;
+    if (!idToken || typeof idToken !== "string") {
+      return ApiResponseHelper.error(res, "Google ID token is required", 400);
+    }
+
+    let payload;
+    try {
+      payload = await verifyGoogleIdToken(idToken);
+    } catch (verifyError: any) {
+      console.error("Google verify token failed:", verifyError?.message || verifyError);
+      return ApiResponseHelper.error(res, verifyError?.message || "Invalid Google ID token", 401);
+    }
+
+    const email = payload.email?.toString();
+    const firstName = payload.given_name?.toString() || payload.name?.toString()?.split(" ")[0] || "";
+    const lastName = payload.family_name?.toString() || payload.name?.toString()?.split(" ").slice(1).join(" ") || "";
+    const profilePicture = payload.picture?.toString() || "";
+
+    if (!email) {
+      return ApiResponseHelper.error(res, "Unable to read email from Google token", 400);
+    }
+
+    const role = typeof req.body.role === 'string' && req.body.role.trim().toLowerCase() === 'professional'
+      ? 'professional'
+      : 'customer';
+
+    const { user, token } = await userService.loginOrCreateUserWithGoogle({
+      email,
+      firstName,
+      lastName,
+      profilePicture,
+      role,
+    });
+
+    const safeUser = { ...user.toObject() } as any;
+    delete safeUser.password;
+    delete safeUser.resetPasswordToken;
+    delete safeUser.resetPasswordExpires;
+
+    return ApiResponseHelper.success(res, { user: safeUser, token }, "Google login successful");
+  } catch (error: any) {
+    console.error("Google login error:", error);
+    return ApiResponseHelper.error(res, error.message || "Google login failed", 500);
+  }
+});
 
 // POST /auth/forgot-password — Generate token and send reset email
 router.post("/forgot-password", forgotPasswordLimiter, async (req, res) => {

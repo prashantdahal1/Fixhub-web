@@ -2,14 +2,19 @@ import { UserController } from '../../controllers/user.controller.js';
 import { Router } from 'express';
 import { authMiddleware } from '../../middlewares/auth.middleware.js';
 import { profileUpload } from '../../middlewares/profileUpload.middleware.js';
+import { UserService } from '../../services/user.service.js';
+import { ApiResponseHelper } from '../../utils/apihelper.util.js';
+import { verifyGoogleIdToken } from '../../utils/google.util.js';
 
 import { documentUpload } from '../../middlewares/documentUpload.middleware.js';
 
 const userRouter = Router();
 const userController = new UserController();
+const userService = new UserService();
 
 userRouter.post("/register", documentUpload.single('verificationDocument'), userController.createUser.bind(userController));
 userRouter.post("/login", userController.loginUser.bind(userController));
+userRouter.post("/upload", authMiddleware, profileUpload.single('avatar'), userController.updateProfile.bind(userController));
 userRouter.post("/logout", (req, res) => {
   res.clearCookie('token', { httpOnly: true, sameSite: 'strict', secure: false });
   res.status(200).json({ success: true, message: 'Logged out successfully' });
