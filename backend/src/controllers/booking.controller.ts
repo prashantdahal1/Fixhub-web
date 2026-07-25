@@ -9,13 +9,8 @@ import { PaymentIntentModel } from "../models/payment-intent.model.js";
 import { ServiceModel } from "../models/service.model.js";
 import { HttpException } from "../exceptions/http-exception.js";
 import { createNotification } from "../utils/notification.util.js";
-
-const ESEWA_TEST_SECRET_KEY = "8gBm/:&EnhH.1/q";
-const ESEWA_TEST_PRODUCT_CODE = "INTENT";
-
-function isKhaltiSandboxEnabled() {
-  return process.env.KHALTI_SANDBOX === "true" || (!process.env.KHALTI_SECRET_KEY && process.env.NODE_ENV !== "production");
-}
+import { broadcastRealtimeEvent } from "../utils/realtime.util.js";
+import { getEsewaConfig, getKhaltiConfig, isKhaltiLocalMockEnabled } from "../utils/payment-gateway.util.js";
 
 export class BookingController {
   /**
@@ -30,7 +25,7 @@ export class BookingController {
       scheduledAt: string;
       address: string;
       notes?: string;
-      paymentProvider: "esewa" | "khalti";
+      paymentProvider: "esewa" | "khalti" | "cod";
     };
 
     if (user.role !== "customer" && user.role !== "admin") {
@@ -66,8 +61,7 @@ export class BookingController {
     // ── eSewa ──────────────────────────────────────────────────────────────
     if (paymentProvider === "esewa") {
       const transaction_uuid = `esewa_${intentId}_${Date.now()}`;
-      const product_code = process.env.ESEWA_PRODUCT_CODE || ESEWA_TEST_PRODUCT_CODE;
-      const secret_key = process.env.ESEWA_SECRET_KEY || ESEWA_TEST_SECRET_KEY;
+      const { productCode: product_code, secretKey: secret_key, paymentUrl } = getEsewaConfig();
       const total_amount = amount.toFixed(2);
 
       const signatureString = `total_amount=${total_amount},transaction_uuid=${transaction_uuid},product_code=${product_code}`;
@@ -79,9 +73,7 @@ export class BookingController {
       return ApiResponseHelper.success(res, {
         payment: {
           provider: "esewa",
-          paymentUrl: process.env.NODE_ENV === "production"
-            ? "https://epay.esewa.com.np/api/epay/main/v2/form"
-            : "https://rc-epay.esewa.com.np/api/epay/main/v2/form",
+          paymentUrl,
           formData: {
             amount: total_amount,
             tax_amount: "0",
@@ -99,59 +91,137 @@ export class BookingController {
       }, "Payment initiated. Complete payment to confirm booking.", 201);
     }
 
+    // ── Cash on Delivery (COD) ─────────────────────────────────────────────
+    if (paymentProvider === "cod") {
+      if (!service.professionalId) {
+        throw new HttpException(400, "This service does not have an assigned professional.");
+      }
+
+      await PaymentIntentModel.findByIdAndDelete(intentId); // intent not needed for COD
+
+      // COD costs an extra 10 NPR
+      const codAmount = amount + 10;
+
+      // Create booking directly
+      const booking = await BookingModel.create({
+        customerId: user._id,
+        professionalId: service.professionalId,
+        serviceId: service._id,
+        scheduledAt: scheduledDate,
+        address: address.trim(),
+        notes: notes?.trim() || "",
+        amount: codAmount,
+        status: "confirmed",
+        escrowStatus: "none",
+      });
+
+      // Send notifications
+      const serviceTitle = service?.title || "Service";
+      await createNotification(
+        user._id,
+        "Booking Confirmed",
+        `Your COD appointment for "${serviceTitle}" on ${scheduledDate.toLocaleDateString()} is confirmed.`,
+        "confirm"
+      );
+      await createNotification(
+        service.professionalId,
+        "New Booking Assigned",
+        `You have a new COD booking request for "${serviceTitle}" scheduled at ${scheduledDate.toLocaleDateString()}.`,
+        "booking"
+      );
+
+      broadcastRealtimeEvent("booking_created", {
+        id: booking._id.toString(),
+        customerId: booking.customerId.toString(),
+        professionalId: booking.professionalId.toString(),
+        serviceId: booking.serviceId.toString(),
+        status: booking.status,
+        scheduledAt: booking.scheduledAt.toISOString(),
+      });
+
+      return ApiResponseHelper.success(res, {
+        payment: {
+          provider: "cod",
+          redirectUrl: `${frontendUrl}/dashboard/bookings?payment=success&method=cod`,
+        },
+      }, "Booking confirmed successfully with Cash on Delivery.", 201);
+    }
+
     // ── Khalti ─────────────────────────────────────────────────────────────
     if (paymentProvider === "khalti") {
       const purchase_order_id = `khalti_${intentId}_${Date.now()}`;
-      const khaltiSandbox = isKhaltiSandboxEnabled();
 
-      if (khaltiSandbox) {
+      if (isKhaltiLocalMockEnabled()) {
         const sandboxPaymentUrl = `${frontendUrl}/payments/khalti-sandbox?intentId=${encodeURIComponent(intentId)}&purchaseOrderId=${encodeURIComponent(purchase_order_id)}&amount=${Math.round(amount * 100)}`;
         return ApiResponseHelper.success(res, {
           payment: { provider: "khalti", paymentUrl: sandboxPaymentUrl },
         }, "Khalti sandbox payment initiated. Complete the sandbox flow to confirm booking.", 201);
       }
 
-      const khaltiKey = process.env.KHALTI_SECRET_KEY;
+      const { secretKey: khaltiKey, initiateUrl } = getKhaltiConfig();
       if (!khaltiKey) {
+        if (process.env.NODE_ENV !== "production") {
+          const sandboxPaymentUrl = `${frontendUrl}/payments/khalti-sandbox?intentId=${encodeURIComponent(intentId)}&purchaseOrderId=${encodeURIComponent(purchase_order_id)}&amount=${Math.round(amount * 100)}`;
+          return ApiResponseHelper.success(res, {
+            payment: { provider: "khalti", paymentUrl: sandboxPaymentUrl },
+          }, "Khalti sandbox payment initiated. Complete the sandbox flow to confirm booking.", 201);
+        }
         return res.status(400).json({
           message: "KHALTI_SECRET_KEY is required to initiate Khalti payments.",
         });
       }
 
-      // Live Khalti API
-      const response = await fetch("https://a.khalti.com/api/v2/epayment/initiate/", {
-        method: "POST",
-        headers: {
-          "Authorization": `Key ${khaltiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          return_url: `${backendUrl}/api/v1/bookings/verify/khalti`,
-          website_url: frontendUrl,
-          amount: Math.round(amount * 100), // paisa
-          purchase_order_id,
-          purchase_order_name: `Fixhub Service Booking`,
-          customer_info: {
-            name: user.name || "Fixhub User",
-            email: user.email || "user@fixhub.com",
-            phone: user.phone || "9800000000",
+      try {
+        const response = await fetch(initiateUrl, {
+          method: "POST",
+          headers: {
+            "Authorization": `Key ${khaltiKey}`,
+            "Content-Type": "application/json",
           },
-        }),
-      });
+          body: JSON.stringify({
+            return_url: `${backendUrl}/api/v1/bookings/verify/khalti`,
+            website_url: frontendUrl,
+            amount: Math.round(amount * 100), // paisa
+            purchase_order_id,
+            purchase_order_name: `Fixhub Service Booking`,
+            customer_info: {
+              name: user.name || "Fixhub User",
+              email: user.email || "user@fixhub.com",
+              phone: user.phone || "9800000000",
+            },
+          }),
+        });
 
-      const khaltiData = await response.json() as any;
-      if (!response.ok || !khaltiData.payment_url) {
-        // Delete the intent since payment failed to initiate
+        const khaltiData = await response.json() as any;
+        if (!response.ok || !khaltiData.payment_url) {
+          if (process.env.NODE_ENV !== "production") {
+            const sandboxPaymentUrl = `${frontendUrl}/payments/khalti-sandbox?intentId=${encodeURIComponent(intentId)}&purchaseOrderId=${encodeURIComponent(purchase_order_id)}&amount=${Math.round(amount * 100)}`;
+            return ApiResponseHelper.success(res, {
+              payment: { provider: "khalti", paymentUrl: sandboxPaymentUrl },
+            }, "Khalti sandbox payment initiated. Complete the sandbox flow to confirm booking.", 201);
+          }
+          await PaymentIntentModel.findByIdAndDelete(intentId);
+          return res.status(400).json({
+            message: khaltiData?.detail || khaltiData?.message || "Failed to initiate Khalti payment. Please try again.",
+            details: khaltiData,
+          });
+        }
+
+        return ApiResponseHelper.success(res, {
+          payment: { provider: "khalti", paymentUrl: khaltiData.payment_url },
+        }, "Khalti payment initiated. Complete payment to confirm booking.", 201);
+      } catch (err: any) {
+        if (process.env.NODE_ENV !== "production") {
+          const sandboxPaymentUrl = `${frontendUrl}/payments/khalti-sandbox?intentId=${encodeURIComponent(intentId)}&purchaseOrderId=${encodeURIComponent(purchase_order_id)}&amount=${Math.round(amount * 100)}`;
+          return ApiResponseHelper.success(res, {
+            payment: { provider: "khalti", paymentUrl: sandboxPaymentUrl },
+          }, "Khalti sandbox payment initiated. Complete the sandbox flow to confirm booking.", 201);
+        }
         await PaymentIntentModel.findByIdAndDelete(intentId);
         return res.status(400).json({
-          message: "Failed to initiate Khalti payment. Please try again.",
-          details: khaltiData,
+          message: err.message || "Failed to initiate Khalti payment.",
         });
       }
-
-      return ApiResponseHelper.success(res, {
-        payment: { provider: "khalti", paymentUrl: khaltiData.payment_url },
-      }, "Khalti payment initiated. Complete payment to confirm booking.", 201);
     }
 
     throw new HttpException(400, "Invalid payment provider");
@@ -200,8 +270,11 @@ export class BookingController {
       }
 
       // Verify signature
-      const secret_key = process.env.ESEWA_SECRET_KEY || ESEWA_TEST_SECRET_KEY;
-      const signatureString = `total_amount=${total_amount},transaction_uuid=${transaction_uuid},product_code=${product_code}`;
+      const { secretKey: secret_key } = getEsewaConfig();
+      const signatureString = (decoded.signed_field_names as string)
+        .split(",")
+        .map((field) => `${field}=${decoded[field] || ""}`)
+        .join(",");
       const expectedSignature = crypto.createHmac("sha256", secret_key).update(signatureString).digest("base64");
 
       if (signature !== expectedSignature) {
@@ -291,20 +364,19 @@ export class BookingController {
     }
 
     try {
-      const khaltiSandbox = isKhaltiSandboxEnabled();
       let gatewayTxId: string;
       let orderId: string;
 
-      if (khaltiSandbox && typeof pidx === "string" && pidx.startsWith("mock_khalti_")) {
+      if (typeof pidx === "string" && pidx.startsWith("mock_khalti_")) {
         gatewayTxId = (transaction_id as string) || `mock_tx_${Date.now()}`;
         orderId = purchase_order_id as string;
       } else {
-        const khaltiKey = process.env.KHALTI_SECRET_KEY;
+        const { secretKey: khaltiKey, lookupUrl } = getKhaltiConfig();
         if (!khaltiKey) {
           return res.redirect(`${frontendUrl}/dashboard/bookings?payment=failed&reason=missing_khalti_secret`);
         }
 
-        const response = await fetch("https://a.khalti.com/api/v2/epayment/lookup/", {
+        const response = await fetch(lookupUrl, {
           method: "POST",
           headers: {
             "Authorization": `Key ${khaltiKey}`,

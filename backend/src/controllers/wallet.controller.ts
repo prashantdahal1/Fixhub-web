@@ -3,9 +3,7 @@ import crypto from "crypto";
 import { walletService } from "../services/wallet.service.js";
 import { ApiResponseHelper } from "../utils/apihelper.util.js";
 import type { TopUpWalletDTO } from "../dtos/marketplace.dto.js";
-
-const ESEWA_TEST_SECRET_KEY = "8gBm/:&EnhH.1/q";
-const ESEWA_TEST_PRODUCT_CODE = "INTENT";
+import { getEsewaConfig, getKhaltiConfig, isKhaltiLocalMockEnabled } from "../utils/payment-gateway.util.js";
 
 export class WalletController {
   getMine = async (req: Request, res: Response) => {
@@ -31,8 +29,7 @@ export class WalletController {
 
     if (provider === "esewa") {
       const transaction_uuid = `esewa_${user._id.toString()}_${Date.now()}`;
-      const product_code = process.env.ESEWA_PRODUCT_CODE || ESEWA_TEST_PRODUCT_CODE;
-      const secret_key = process.env.ESEWA_SECRET_KEY || ESEWA_TEST_SECRET_KEY;
+      const { productCode: product_code, secretKey: secret_key, paymentUrl } = getEsewaConfig();
       const total_amount = amount.toFixed(2);
 
       const signatureString = `total_amount=${total_amount},transaction_uuid=${transaction_uuid},product_code=${product_code}`;
@@ -46,9 +43,7 @@ export class WalletController {
 
       return ApiResponseHelper.success(res, {
         provider: "esewa",
-        paymentUrl: process.env.NODE_ENV === "production"
-          ? "https://epay.esewa.com.np/api/epay/main/v2/form"
-          : "https://rc-epay.esewa.com.np/api/epay/main/v2/form",
+        paymentUrl,
         formData: {
           amount: total_amount,
           tax_amount: "0",
@@ -68,10 +63,19 @@ export class WalletController {
       const backendUrl = `${req.protocol}://${req.get("host")}`;
       const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
 
-      const khaltiKey = process.env.KHALTI_SECRET_KEY;
+      const { secretKey: khaltiKey, initiateUrl } = getKhaltiConfig();
 
       let paymentUrl = "";
       let pidx = "";
+
+      if (isKhaltiLocalMockEnabled() || (!khaltiKey && process.env.NODE_ENV !== "production")) {
+        const sandboxPaymentUrl = `${frontendUrl}/payments/khalti-sandbox?intentId=${user._id.toString()}&purchaseOrderId=${encodeURIComponent(purchase_order_id)}&amount=${Math.round(amount * 100)}`;
+        return ApiResponseHelper.success(res, {
+          provider: "khalti",
+          paymentUrl: sandboxPaymentUrl,
+          pidx: `mock_khalti_${user._id.toString()}_${Date.now()}`,
+        }, "Khalti sandbox payment initiated successfully");
+      }
 
       if (!khaltiKey) {
         return res.status(400).json({
@@ -80,7 +84,7 @@ export class WalletController {
       }
 
       try {
-        const response = await fetch("https://a.khalti.com/api/v2/epayment/initiate/", {
+        const response = await fetch(initiateUrl, {
           method: "POST",
           headers: {
             "Authorization": `Key ${khaltiKey}`,
@@ -106,9 +110,25 @@ export class WalletController {
           paymentUrl = responseData.payment_url;
           pidx = responseData.pidx;
         } else {
+          if (process.env.NODE_ENV !== "production") {
+            const sandboxPaymentUrl = `${frontendUrl}/payments/khalti-sandbox?intentId=${user._id.toString()}&purchaseOrderId=${encodeURIComponent(purchase_order_id)}&amount=${Math.round(amount * 100)}`;
+            return ApiResponseHelper.success(res, {
+              provider: "khalti",
+              paymentUrl: sandboxPaymentUrl,
+              pidx: `mock_khalti_${user._id.toString()}_${Date.now()}`,
+            }, "Khalti sandbox payment initiated (fallback)");
+          }
           throw new Error(responseData.message || "Failed to initiate payment with Khalti");
         }
       } catch (error: any) {
+        if (process.env.NODE_ENV !== "production") {
+          const sandboxPaymentUrl = `${frontendUrl}/payments/khalti-sandbox?intentId=${user._id.toString()}&purchaseOrderId=${encodeURIComponent(purchase_order_id)}&amount=${Math.round(amount * 100)}`;
+          return ApiResponseHelper.success(res, {
+            provider: "khalti",
+            paymentUrl: sandboxPaymentUrl,
+            pidx: `mock_khalti_${user._id.toString()}_${Date.now()}`,
+          }, "Khalti sandbox payment initiated (fallback)");
+        }
         return res.status(400).json({
           message: "Failed to initiate payment with Khalti",
           details: error.message,
@@ -151,8 +171,11 @@ export class WalletController {
         return res.redirect(`${frontendUrl}/dashboard/bookings?payment=failed&reason=not_complete`);
       }
 
-      const secret_key = process.env.ESEWA_SECRET_KEY || ESEWA_TEST_SECRET_KEY;
-      const signatureString = `total_amount=${total_amount},transaction_uuid=${transaction_uuid},product_code=${product_code}`;
+      const { secretKey: secret_key } = getEsewaConfig();
+      const signatureString = (decoded.signed_field_names as string)
+        .split(",")
+        .map((field) => `${field}=${decoded[field] || ""}`)
+        .join(",");
       const expectedSignature = crypto
         .createHmac("sha256", secret_key)
         .update(signatureString)
@@ -187,35 +210,47 @@ export class WalletController {
     }
 
     try {
-      const khaltiKey = process.env.KHALTI_SECRET_KEY;
-      if (!khaltiKey) {
-        return res.redirect(`${frontendUrl}/dashboard/bookings?payment=failed&reason=missing_khalti_secret`);
+      let gatewayTxId: string;
+      let userId: string;
+      let amountInRupees: number;
+
+      if (typeof pidx === "string" && pidx.startsWith("mock_khalti_")) {
+        gatewayTxId = (transaction_id as string) || `mock_tx_${Date.now()}`;
+        const parts = (purchase_order_id as string || "").split("_");
+        userId = parts[1] || "";
+        amountInRupees = Number(amount || 0) / 100;
+      } else {
+        const { secretKey: khaltiKey, lookupUrl } = getKhaltiConfig();
+        if (!khaltiKey) {
+          return res.redirect(`${frontendUrl}/dashboard/bookings?payment=failed&reason=missing_khalti_secret`);
+        }
+
+        const response = await fetch(lookupUrl, {
+          method: "POST",
+          headers: {
+            "Authorization": `Key ${khaltiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ pidx }),
+        });
+
+        const responseData = await response.json() as any;
+
+        if (!response.ok || responseData.status !== "Completed") {
+          return res.redirect(`${frontendUrl}/dashboard/bookings?payment=failed&reason=lookup_failed`);
+        }
+
+        const parts = (purchase_order_id as string || responseData.purchase_order_id).split("_");
+        userId = parts[1];
+        amountInRupees = Number(responseData.total_amount) / 100;
+        gatewayTxId = responseData.transaction_id || (transaction_id as string);
       }
-
-      const response = await fetch("https://a.khalti.com/api/v2/epayment/lookup/", {
-        method: "POST",
-        headers: {
-          "Authorization": `Key ${khaltiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ pidx }),
-      });
-
-      const responseData = await response.json() as any;
-
-      if (!response.ok || responseData.status !== "Completed") {
-        return res.redirect(`${frontendUrl}/dashboard/bookings?payment=failed&reason=lookup_failed`);
-      }
-
-      const parts = (purchase_order_id as string || responseData.purchase_order_id).split("_");
-      const userId = parts[1];
-      const amountInRupees = Number(responseData.total_amount) / 100;
 
       await walletService.verifyAndApplyGatewayTopUp(
         userId,
         amountInRupees,
         "khalti",
-        responseData.transaction_id || (transaction_id as string)
+        gatewayTxId
       );
 
       return res.redirect(`${frontendUrl}/dashboard/bookings?payment=success`);
