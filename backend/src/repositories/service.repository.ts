@@ -42,11 +42,11 @@ export class ServiceMongoRepository implements IServiceRepository {
   }
 
   async findById(id: string): Promise<IService | null> {
-    return ServiceModel.findById(id);
+    return ServiceModel.findById(id).populate("professionalId", "firstName lastName email phoneNumber profilePicture averageRating reviewCount status city address");
   }
 
   async findBySlug(slug: string): Promise<IService | null> {
-    return ServiceModel.findOne({ slug, isActive: true });
+    return ServiceModel.findOne({ slug, isActive: true }).populate("professionalId", "firstName lastName email phoneNumber profilePicture averageRating reviewCount status city address");
   }
 
   async create(payload: Partial<IService>): Promise<IService> {

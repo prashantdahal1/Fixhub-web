@@ -10,7 +10,7 @@ export const CreateBookingDTO = z.object({
   scheduledAt: z.coerce.date(),
   address: z.string().trim().min(3),
   notes: z.string().trim().optional(),
-  paymentProvider: z.enum(["esewa", "khalti"]),
+  paymentProvider: z.enum(["esewa", "khalti", "cod"]),
 });
 export type CreateBookingDTO = z.infer<typeof CreateBookingDTO>;
 
