@@ -1,6 +1,7 @@
 import { ServiceMongoRepository, type ServiceQuery } from "../repositories/service.repository.js";
 import type { IService } from "../models/service.model.js";
 import { HttpException } from "../exceptions/http-exception.js";
+import { broadcastRealtimeEvent } from "../utils/realtime.util.js";
 
 const repo = new ServiceMongoRepository();
 
@@ -31,17 +32,33 @@ export class ServiceService {
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/(^-|-$)/g, "");
     }
-    return repo.create(payload);
+    const service = await repo.create(payload);
+    broadcastRealtimeEvent("service_created", {
+      id: service._id.toString(),
+      title: service.title,
+      slug: service.slug,
+      category: service.category,
+      isActive: service.isActive,
+    });
+    return service;
   }
 
   async updateService(id: string, payload: Partial<IService>): Promise<IService> {
     const updated = await repo.update(id, payload);
     if (!updated) throw new HttpException(404, "Service not found");
+    broadcastRealtimeEvent("service_updated", {
+      id: updated._id.toString(),
+      title: updated.title,
+      slug: updated.slug,
+      category: updated.category,
+      isActive: updated.isActive,
+    });
     return updated;
   }
 
   async deleteService(id: string): Promise<void> {
     const deleted = await repo.remove(id);
     if (!deleted) throw new HttpException(404, "Service not found");
+    broadcastRealtimeEvent("service_deleted", { id });
   }
 }

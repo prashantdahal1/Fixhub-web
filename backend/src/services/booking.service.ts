@@ -6,6 +6,7 @@ import { resolveNextStatus } from "./booking-state.js";
 import type { CreateBookingDTO } from "../dtos/marketplace.dto.js";
 import type { IUser } from "../models/user.model.js";
 import { createNotification } from "../utils/notification.util.js";
+import { broadcastRealtimeEvent } from "../utils/realtime.util.js";
 
 export class BookingService {
   async createBooking(customer: IUser, data: CreateBookingDTO): Promise<IBooking> {
@@ -126,6 +127,14 @@ export class BookingService {
       updated.escrowStatus = "refunded";
       await updated.save();
     }
+
+    // Trigger realtime update
+    broadcastRealtimeEvent("booking_updated", {
+      id: updated._id.toString(),
+      status: updated.status,
+      escrowStatus: updated.escrowStatus,
+      bookingId: updated._id.toString(),
+    });
 
     // Trigger Notifications
     try {

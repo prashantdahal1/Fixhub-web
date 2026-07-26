@@ -65,6 +65,60 @@ export class UserService {
         return { user, token }
     }
 
+    async loginOrCreateUserWithGoogle(googlePayload: {
+        email: string;
+        firstName: string;
+        lastName: string;
+        profilePicture?: string;
+        googleId?: string;
+        role?: string;
+    }) {
+        const { email, firstName, lastName, profilePicture, role } = googlePayload;
+        let user = await userRepository.getUserByEmail(email);
+
+        if (!user) {
+            const candidate = email.split('@')[0] || 'user';
+            const baseUsername = candidate.replace(/[^a-zA-Z0-9]/g, '') || 'user';
+            const username = await this.generateUniqueUsername(baseUsername);
+            const dummyPassword = Math.random().toString(36).slice(-10) + "A1!";
+            const hashedPassword = await bcrypt.hash(dummyPassword, 10);
+            const normalizedRole = this.normalizeRole(role);
+
+            user = await userRepository.createUser({
+                firstName,
+                lastName,
+                email,
+                username,
+                password: hashedPassword,
+                role: normalizedRole,
+                profilePicture: profilePicture || "",
+            } as any);
+        }
+
+        const token = jwt.sign(
+            { id: user._id, email: user.email, role: user.role },
+            SECRET_KEY,
+            { expiresIn: "30d" }
+        );
+
+        return { user, token };
+    }
+
+    private normalizeRole(role?: string): 'professional' | 'customer' {
+      const normalized = role?.toString().trim().toLowerCase();
+      return normalized == 'professional' ? 'professional' : 'customer';
+    }
+
+    private async generateUniqueUsername(baseUsername: string): Promise<string> {
+        let username = baseUsername;
+        let suffix = 0;
+        while (await userRepository.getUserByUsername(username)) {
+            suffix += 1;
+            username = `${baseUsername}${suffix}`;
+        }
+        return username;
+    }
+
     async getUserById(id: string): Promise<IUser | null> {
         return await userRepository.getUserById(id);
     }
