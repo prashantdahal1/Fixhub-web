@@ -74,19 +74,33 @@ const FixieAvatar = ({ thinking = false, error = false }: { thinking?: boolean; 
 
 /* ─── Main Widget ────────────────────────────────────────────────────────── */
 
+import { useAuth } from "../contexts/AuthContext";
+import { FileText, MessageSquare, DollarSign } from "lucide-react";
+
 export default function ChatbotWidget() {
+  const { user } = useAuth();
+  const isPro = user?.role === "professional";
+
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "model",
-      text: "Hi, I'm Fixie.\nI can help you book services, track requests, and answer questions.",
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (messages.length === 0) {
+      setMessages([
+        {
+          role: "model",
+          text: isPro
+            ? "Hi, I'm FixHub Pro Copilot.\nI can help you draft client quotes, estimate job pricing, and write professional customer updates."
+            : "Hi, I'm Fixie.\nI can help you book services, track requests, and answer questions.",
+        },
+      ]);
+    }
+  }, [isPro, messages.length]);
 
   useEffect(() => {
     if (isOpen) {
@@ -103,7 +117,7 @@ export default function ChatbotWidget() {
     setIsLoading(true);
 
     try {
-      const payload = { message: textToSend, history: messages };
+      const payload = { message: textToSend, history: messages, role: user?.role };
 
       const response = await fetch("/api/v1/chat", {
         method: "POST",
@@ -148,11 +162,13 @@ export default function ChatbotWidget() {
   };
 
   const handleReset = () => {
-    if (window.confirm("Reset your conversation with Fixie?")) {
+    if (window.confirm("Reset conversation?")) {
       setMessages([
         {
           role: "model",
-          text: "Hi, I'm Fixie.\nI can help you book services, track requests, and answer questions.",
+          text: isPro
+            ? "Hi, I'm FixHub Pro Copilot.\nI can help you draft client quotes, estimate job pricing, and write professional customer updates."
+            : "Hi, I'm Fixie.\nI can help you book services, track requests, and answer questions.",
         },
       ]);
       setError(null);
@@ -339,19 +355,25 @@ export default function ChatbotWidget() {
             {messages.length === 1 && !isLoading && (
               <div className="pl-9 pr-2 pt-1 space-y-1.5">
                 <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                  Suggestions
+                  {isPro ? "Pro Copilot Actions" : "Suggestions"}
                 </p>
-                {[
-                  { emoji: "🔍", text: "Need something fixed today?" },
-                  { emoji: "🛠️", text: "Help me find the right service." },
-                ].map(({ emoji, text }) => (
+                {(isPro
+                  ? [
+                      { label: "Draft a client quote for AC repair", text: "Draft a professional quote for AC repair" },
+                      { label: "Estimate labor pricing for 3h job", text: "Calculate estimated pricing for 3 hours electrical work" },
+                      { label: "Write a professional follow-up", text: "Write a professional message to follow up with a client" },
+                    ]
+                  : [
+                      { label: "Find plumbing or electrical services", text: "Help me find the right service for my issue" },
+                      { label: "How does escrow payment work?", text: "Explain how FixHub escrow payment works" },
+                    ]
+                ).map(({ label, text }) => (
                   <button
-                    key={text}
+                    key={label}
                     onClick={() => handleSuggestionClick(text)}
-                    className="w-full text-left text-[11.5px] text-blue-600 hover:text-blue-700 bg-white hover:bg-blue-50 rounded-xl px-3 py-2 transition-all duration-150 cursor-pointer"
-                    style={{ border: "1px solid #dbeafe", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+                    className="w-full text-left text-[11.5px] font-medium text-blue-600 hover:text-blue-700 bg-white hover:bg-blue-50 rounded-xl px-3 py-2 transition-all duration-150 cursor-pointer border border-blue-100 shadow-xs"
                   >
-                    {emoji} {text}
+                    {label}
                   </button>
                 ))}
               </div>
