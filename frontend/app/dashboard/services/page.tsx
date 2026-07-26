@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import CreateServiceForm from "../components/CreateServiceForm";
 
 type PriceUnit = "flat" | "per_hour" | "per_sqft";
 type ServiceCategory =
@@ -150,7 +151,12 @@ function ServiceCardSkeleton() {
 
 
 
+import { useAuth } from "../../../contexts/AuthContext";
+import { toast } from "react-toastify";
+import { Plus, X } from "lucide-react";
+
 export default function ServicesPage() {
+  const { user } = useAuth();
   const searchParams = useSearchParams();
   const categoryParam = searchParams.get("category") as ServiceCategory | null;
 
@@ -162,6 +168,20 @@ export default function ServicesPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const LIMIT = 12;
+
+  // Post Service Modal state
+  const [postModalOpen, setPostModalOpen] = useState(false);
+  const [submittingService, setSubmittingService] = useState(false);
+  const [formData, setFormData] = useState({
+    title: "",
+    category: "electrician" as ServiceCategory,
+    shortDescription: "",
+    basePrice: "",
+    priceUnit: "flat" as PriceUnit,
+    estimatedDuration: "1-2 hours",
+  });
+
+  const isPro = user?.role === "professional";
 
   useEffect(() => {
     if (categoryParam) {
@@ -202,13 +222,72 @@ export default function ServicesPage() {
     fetchServices();
   }, [fetchServices]);
 
+  const handlePostService = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmittingService(true);
+    try {
+      const price = parseFloat(formData.basePrice);
+      if (isNaN(price) || price <= 0) {
+        toast.error("Please enter a valid price");
+        setSubmittingService(false);
+        return;
+      }
+
+      const res = await fetch("/api/v1/services", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...formData,
+          basePrice: price,
+        }),
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        toast.success("Service posted successfully!");
+        setPostModalOpen(false);
+        setFormData({
+          title: "",
+          category: "electrician",
+          shortDescription: "",
+          basePrice: "",
+          priceUnit: "flat",
+          estimatedDuration: "1-2 hours",
+        });
+        fetchServices();
+      } else {
+        toast.error(json.message || "Failed to post service");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Error posting service");
+    } finally {
+      setSubmittingService(false);
+    }
+  };
+
   const totalPages = Math.ceil(total / LIMIT);
 
   return (
     <div className="max-w-5xl space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-slate-900 tracking-tight">Browse Services</h1>
-        <p className="text-xs text-slate-500 mt-1">Find and book verified home maintenance professionals in Nepal.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/80 pb-4">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+            {isPro ? "Job Marketplace & Service Catalog" : "Browse Services"}
+          </h1>
+          <p className="text-xs text-slate-500 mt-1">
+            {isPro
+              ? "Manage your service offerings or explore available customer jobs."
+              : "Find and book verified home maintenance professionals in Nepal."}
+          </p>
+        </div>
+        {isPro && (
+          <button
+            onClick={() => setPostModalOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-all shadow-md hover:shadow-blue-500/20 shrink-0 self-start sm:self-auto"
+          >
+            <Plus className="w-4 h-4" />
+            Post New Service
+          </button>
+        )}
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
@@ -282,6 +361,27 @@ export default function ServicesPage() {
           >
             Next
           </button>
+        </div>
+      )}
+
+      {/* Backdrop Blur Modal for Post Service */}
+      {postModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto custom-scrollbar">
+          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-xl w-full shadow-2xl border border-slate-100 my-auto animate-in fade-in zoom-in-95 duration-150 relative">
+            <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-100">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Post a New Service</h2>
+                <p className="text-xs text-slate-500 mt-0.5">List your service on the FixHub catalog for local clients.</p>
+              </div>
+              <button
+                onClick={() => setPostModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-colors text-sm font-bold shrink-0"
+              >
+                ✕
+              </button>
+            </div>
+            <CreateServiceForm onSuccess={() => { setPostModalOpen(false); toast.success("Service posted!"); fetchServices(); }} />
+          </div>
         </div>
       )}
     </div>
