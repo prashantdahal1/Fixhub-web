@@ -78,6 +78,13 @@ const ZapIcon = () => (
   </svg>
 );
 
+const WalletIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="5" width="20" height="14" rx="2" />
+    <line x1="2" y1="10" x2="22" y2="10" />
+  </svg>
+);
+
 const UserIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
@@ -266,12 +273,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               Navigation
             </span>
             <div className="space-y-0.5">
-              {[
+              {(user?.role === "professional" ? [
+                { label: "Dashboard", icon: HomeIcon, href: "/dashboard" },
+                { label: "Marketplace", icon: ServicesIcon, href: "/dashboard/services" },
+                { label: "Job Requests", icon: BookingsIcon, href: "/dashboard/bookings" },
+                { label: "Job History", icon: HistoryIcon, href: "/dashboard/history" },
+                { label: "Wallet & Earnings", icon: WalletIcon, href: "/dashboard/wallet" },
+              ] : [
                 { label: "Dashboard", icon: HomeIcon, href: "/dashboard" },
                 { label: "Services", icon: ServicesIcon, href: "/dashboard/services" },
                 { label: "Active Bookings", icon: BookingsIcon, href: "/dashboard/bookings" },
                 { label: "Service History", icon: HistoryIcon, href: "/dashboard/history" },
-              ].map(({ label, icon: Icon, href }) => {
+              ]).map(({ label, icon: Icon, href }) => {
                 const isActive = pathname === href;
                 return (
                   <Link
@@ -359,20 +372,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Top bar */}
         <header className="h-[60px] bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0 sticky top-0 z-40">
 
-          {/* Search bar — centre of header */}
+          {/* Search bar — customer only or pro status header */}
           <div className="flex-1 max-w-sm mx-6">
-            <IntelligentSearchBar />
+            {user?.role !== "professional" ? (
+              <IntelligentSearchBar />
+            ) : (
+              <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Pro Workspace</span>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Emergency button */}
-            <button
-              onClick={() => setEmergOpen(true)}
-              className="hidden sm:flex items-center gap-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors"
-            >
-              <ZapIcon />
-              Emergency
-            </button>
+            {/* Emergency button — customer only */}
+            {user?.role !== "professional" && (
+              <button
+                onClick={() => setEmergOpen(true)}
+                className="hidden sm:flex items-center gap-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors"
+              >
+                <ZapIcon />
+                Emergency
+              </button>
+            )}
 
             {/* Bell */}
             <div className="relative" ref={notifRef}>

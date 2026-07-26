@@ -68,6 +68,28 @@ export default function LoginPage() {
       }
 
       toast.success('Login successful! Welcome to FixHub.');
+      // Register service worker and show notification if permission granted
+      if ('serviceWorker' in navigator) {
+        try {
+          const registration = await navigator.serviceWorker.register('/sw.js');
+          if (Notification.permission === 'granted') {
+            registration.showNotification('Login successful', {
+              body: 'Welcome to FixHub',
+              icon: '/images/fixhub.png',
+            });
+          } else if (Notification.permission !== 'denied') {
+            const permission = await Notification.requestPermission();
+            if (permission === 'granted') {
+              registration.showNotification('Login successful', {
+                body: 'Welcome to FixHub',
+                icon: '/images/fixhub.png',
+              });
+            }
+          }
+        } catch (e) {
+          console.error('Service worker registration failed:', e);
+        }
+      }
       await fetchUser();
       router.push('/dashboard');
     } catch (err) {
