@@ -7,6 +7,8 @@ import { apiFetch } from '../../../lib/api/client';
 import { API } from '../../../lib/api/endpoints';
 import { downloadReceiptPdf, downloadJobsReportPdf, JobReportEntry } from '../../../lib/receipt-pdf';
 import { Search, Download, FileText, CheckCircle2, Clock, XCircle, ChevronRight, Briefcase } from 'lucide-react';
+import ConfirmModal from '../../../components/shared/ConfirmModal';
+import { useRealtimeBookings } from '@/hooks/useRealtimeBookings';
 
 type BookingStatus = 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
 type BookingAction = 'start' | 'complete' | 'cancel';
@@ -65,6 +67,7 @@ export default function BookingsPage() {
   const [reviewDone, setReviewDone] = useState<Record<string, boolean>>({});
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [cancelConfirmBooking, setCancelConfirmBooking] = useState<BookingDoc | null>(null);
 
   const isPro = user?.role === 'professional';
 
@@ -105,6 +108,25 @@ export default function BookingsPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // ── Real-time booking status updates via WebSocket ───────────────────────────
+  useRealtimeBookings({
+    onBookingUpdated: (payload) => {
+      setBookings((prev) =>
+        prev.map((b) =>
+          b._id === payload.bookingId
+            ? { ...b, status: payload.status as BookingStatus, escrowStatus: payload.escrowStatus }
+            : b
+        )
+      );
+      // Update the open detail panel if it matches
+      setSelected((prev) =>
+        prev && prev._id === payload.bookingId
+          ? { ...prev, status: payload.status as BookingStatus, escrowStatus: payload.escrowStatus }
+          : prev
+      );
+    },
+  });
 
   const runAction = async (booking: BookingDoc, action: BookingAction) => {
     setActing(true);
@@ -207,7 +229,7 @@ export default function BookingsPage() {
   }, [bookings, activeTab, searchQuery, isPro]);
 
   return (
-    <div className="w-full space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+    <div className="w-full space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">
@@ -219,12 +241,12 @@ export default function BookingsPage() {
               : 'Track status, cancel before work starts, download invoices, and review completed jobs.'}
           </p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap shrink-0">
           {isPro && (
             <button
               onClick={downloadJobsReport}
               disabled={bookings.length === 0}
-              className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold px-4 py-2.5 transition-colors disabled:opacity-40 shadow-sm"
+              className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold px-4 py-2.5 transition-colors disabled:opacity-40 shadow-xs"
             >
               <Download className="h-4 w-4 text-blue-600" />
               Download Jobs PDF Report
@@ -241,9 +263,9 @@ export default function BookingsPage() {
         </div>
       </div>
 
-      {/* Tabs & Search Row */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-gray-200 shadow-sm">
-        <div className="flex rounded-xl bg-slate-100 p-1 text-xs font-semibold text-slate-600 overflow-x-auto">
+      {/* Toolbar: Filter Tabs & Search */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="flex rounded-xl bg-slate-100 p-1 text-xs font-semibold text-slate-600 overflow-x-auto shrink-0">
           {(
             [
               { id: 'all',         label: 'All',         count: bookings.length },
@@ -258,7 +280,7 @@ export default function BookingsPage() {
               onClick={() => setActiveTab(t.id)}
               className={`rounded-lg px-3 py-1.5 transition-all whitespace-nowrap ${
                 activeTab === t.id
-                  ? 'bg-white text-blue-600 shadow-sm font-bold'
+                  ? 'bg-white text-blue-600 shadow-xs font-bold'
                   : 'hover:text-slate-900'
               }`}
             >
@@ -267,20 +289,20 @@ export default function BookingsPage() {
           ))}
         </div>
 
-        <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+        <div className="relative flex-1 sm:max-w-xs">
+          <Search className="absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search booking, party, address..."
-            className="w-full rounded-xl border border-gray-200 bg-white py-1.5 pl-9 pr-3 text-xs text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+            className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-xs transition-all"
           />
         </div>
       </div>
 
       {loading ? (
-        <p className="text-sm text-slate-500 py-4">Loading bookings…</p>
+        <p className="text-xs font-medium text-slate-400 py-6 text-center">Loading bookings…</p>
       ) : filteredBookings.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center">
           <Briefcase className="h-8 w-8 text-slate-300 mx-auto mb-2" />
@@ -291,63 +313,54 @@ export default function BookingsPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredBookings.map((b) => {
-            const si = stepIndex(b.status);
-            return (
-              <button
-                key={b._id}
-                type="button"
-                onClick={() => setSelected(b)}
-                className="w-full text-left rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:border-blue-300 transition-all group"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-bold text-slate-900 text-base group-hover:text-blue-600 transition-colors">
-                        {serviceTitle(b.serviceId)}
-                      </p>
-                      <span className="font-mono text-[10px] text-slate-400">#{b._id.slice(-8).toUpperCase()}</span>
-                    </div>
-                    <p className="text-xs text-slate-500 mt-1 flex items-center gap-2 flex-wrap">
-                      <span className="inline-flex items-center gap-1">
-                        <Clock className="w-3 h-3 text-slate-400 inline" />
-                        {new Date(b.scheduledAt).toLocaleString()}
-                      </span>
-                      <span>·</span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block" />
-                        {b.address}
-                      </span>
-                    </p>
-                    <p className="text-xs text-slate-600 mt-1 font-medium">
-                      {isPro ? `Customer: ${personName(b.customerId)}` : `Pro: ${personName(b.professionalId)}`}
-                      {' · '}<strong className="text-slate-900">NPR {b.amount.toLocaleString()}</strong> · escrow: <span className="capitalize">{b.escrowStatus}</span>
-                    </p>
-                  </div>
-                  <div className="flex flex-col items-end gap-2 shrink-0">
-                    <span className={`text-[11px] font-bold px-3 py-1 rounded-full border ${STATUS_STYLE[b.status]}`}>
-                      {b.status.replace('_', ' ')}
-                    </span>
-                    {canDownloadReceipt(b) && (
-                      <span className="text-[10px] text-blue-600 font-semibold flex items-center gap-1 hover:underline">
-                        <Download className="h-3 w-3 inline" /> Download Invoice
-                      </span>
-                    )}
-                  </div>
+          {filteredBookings.map((b) => (
+            <div
+              key={b._id}
+              className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-xs hover:shadow-md hover:border-slate-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+            >
+              <div className="space-y-1">
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h3 className="font-bold text-slate-900 text-sm">{serviceTitle(b.serviceId)}</h3>
+                  <span className="font-mono text-[11px] font-semibold text-slate-400">#{b._id.slice(-8).toUpperCase()}</span>
+                  <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border capitalize ${STATUS_STYLE[b.status]}`}>
+                    {b.status.replace('_', ' ')}
+                  </span>
                 </div>
-                {si >= 0 && (
-                  <div className="mt-3 flex gap-1">
-                    {STEPS.map((s, i) => (
-                      <div
-                        key={s}
-                        className={`h-1.5 flex-1 rounded-full ${i <= si ? 'bg-blue-600' : 'bg-slate-100'}`}
-                      />
-                    ))}
-                  </div>
+                <p className="text-xs text-slate-500 flex items-center gap-2 flex-wrap">
+                  <span className="inline-flex items-center gap-1 text-slate-600">
+                    <Clock className="w-3.5 h-3.5 text-slate-400" />
+                    {new Date(b.scheduledAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                  </span>
+                  <span>•</span>
+                  <span className="text-slate-600">{b.address}</span>
+                </p>
+                <p className="text-xs text-slate-600 font-medium pt-0.5">
+                  {isPro ? `Customer: ${personName(b.customerId)}` : `Pro: ${personName(b.professionalId)}`}
+                  {' · '}<strong className="text-slate-900 font-semibold">NPR {b.amount.toLocaleString()}</strong> · Escrow: <span className="capitalize text-slate-700 font-medium">{b.escrowStatus}</span>
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {canDownloadReceipt(b) && (
+                  <button
+                    type="button"
+                    onClick={() => downloadReceipt(b)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors shadow-xs"
+                  >
+                    <Download className="h-3.5 w-3.5 text-blue-600" />
+                    Invoice
+                  </button>
                 )}
-              </button>
-            );
-          })}
+                <button
+                  type="button"
+                  onClick={() => setSelected(b)}
+                  className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors"
+                >
+                  Manage / Details
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
@@ -390,7 +403,13 @@ export default function BookingsPage() {
                 <button
                   key={action}
                   disabled={acting}
-                  onClick={() => runAction(selected, action)}
+                  onClick={() => {
+                    if (action === 'cancel') {
+                      setCancelConfirmBooking(selected);
+                    } else {
+                      runAction(selected, action);
+                    }
+                  }}
                   className={`rounded-xl px-4 py-2.5 text-xs font-semibold text-white transition-colors disabled:opacity-50 ${
                     action === 'cancel' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-blue-600 hover:bg-blue-700'
                   }`}
@@ -432,6 +451,23 @@ export default function BookingsPage() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={!!cancelConfirmBooking}
+        onClose={() => setCancelConfirmBooking(null)}
+        onConfirm={async () => {
+          if (cancelConfirmBooking) {
+            await runAction(cancelConfirmBooking, 'cancel');
+            setCancelConfirmBooking(null);
+          }
+        }}
+        title="Cancel Booking?"
+        message="Are you sure you want to cancel this booking? This action cannot be undone."
+        confirmText="Yes, Cancel Booking"
+        cancelText="Keep Booking"
+        variant="danger"
+        isLoading={acting}
+      />
     </div>
   );
 }

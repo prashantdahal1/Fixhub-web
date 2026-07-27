@@ -25,6 +25,9 @@ import {
 } from "lucide-react";
 import { getTokenCookie, getUserData, clearAuthCookies } from "@/lib/cookies";
 import { fetchNotifications, upsertNotification, type NotificationItem } from "@/lib/api/notifications";
+import ConfirmModal from "@/components/shared/ConfirmModal";
+import { toast } from "react-toastify";
+import { useRealtimeBookings } from "@/hooks/useRealtimeBookings";
 
 const navItems = [
   { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
@@ -206,6 +209,40 @@ export default function AdminLayout({
     };
   }, [isAuthenticated]);
 
+  // ── WebSocket: real-time booking updates + notification toasts ────────────────
+  useRealtimeBookings({
+    onNotification: (payload) => {
+      setNotifications((items) => upsertNotification(items, payload as unknown as NotificationItem));
+      // Pop a toast so admin sees it immediately
+      toast.info(
+        <div className="flex flex-col gap-0.5">
+          <span className="font-bold text-sm">{payload.title}</span>
+          <span className="text-xs text-slate-500">{payload.body}</span>
+        </div>,
+        { icon: "🔔", autoClose: 7000 }
+      );
+    },
+    onBookingUpdated: (payload) => {
+      const statusLabel: Record<string, string> = {
+        in_progress: "🔧 Work started",
+        completed:   "✅ Job completed",
+        cancelled:   "❌ Booking cancelled",
+        confirmed:   "✔️ Booking confirmed",
+      };
+      const label = statusLabel[payload.status];
+      if (label && payload.serviceTitle) {
+        toast.info(
+          <div className="flex flex-col gap-0.5">
+            <span className="font-bold text-sm">{label}</span>
+            <span className="text-xs text-slate-500">{payload.serviceTitle}</span>
+          </div>,
+          { autoClose: 6000 }
+        );
+      }
+    },
+  });
+
+
   // Click outside handlers
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -220,7 +257,13 @@ export default function AdminLayout({
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const handleLogout = async () => {
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+  const handleLogout = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = async () => {
     document.cookie = "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     document.cookie = "user_data=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     await clearAuthCookies();
@@ -431,6 +474,17 @@ export default function AdminLayout({
         {/* Page Content */}
         <main className="flex-1 p-6 overflow-y-auto">{children}</main>
       </div>
+
+      <ConfirmModal
+        isOpen={showLogoutConfirm}
+        title="Log Out?"
+        message="Are you sure you want to log out of the admin panel?"
+        confirmText="Log Out"
+        cancelText="Stay"
+        variant="warning"
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={confirmLogout}
+      />
     </div>
   );
 }

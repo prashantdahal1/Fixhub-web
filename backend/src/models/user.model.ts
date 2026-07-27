@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document } from "mongoose";
-import { type UserType } from '../types/user.type.js';
+import { type UserType } from '../shared/types/user.type.js';
 
 export interface IUser extends UserType, Document {
     _id: mongoose.Types.ObjectId;

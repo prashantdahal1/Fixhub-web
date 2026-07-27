@@ -247,8 +247,7 @@ const ProfilePage: React.FC = () => {
   const avatarUrl = user?.profilePicture;
 
   return (
-    <div className="min-h-screen bg-[#F9FAFB]">
-      <div className="max-w-4xl mx-auto px-6 py-8">
+    <div className="w-full space-y-6">
         {/* Page Title */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-slate-900">My Profile</h1>
@@ -581,7 +580,6 @@ const ProfilePage: React.FC = () => {
           </div>
         )}
       </div>
-    </div>
   );
 };
 

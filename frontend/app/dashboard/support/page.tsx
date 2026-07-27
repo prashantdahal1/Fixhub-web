@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../../../contexts/AuthContext";
 import { Search, ChevronDown, ChevronUp, MessageSquare, Mail, AlertCircle, Clock, ShieldCheck, Ticket, X, Send, Briefcase, Star, CreditCard } from "lucide-react";
+import ConfirmModal from "@/components/shared/ConfirmModal";
 import { apiFetch } from "../../../lib/api/client";
 import { API } from "../../../lib/api/endpoints";
 import { toast } from "react-toastify";
@@ -79,6 +80,8 @@ export default function SupportPage() {
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [showRaiseTicket, setShowRaiseTicket] = useState(false);
+  const [showLiveChatConfirm, setShowLiveChatConfirm] = useState(false);
+  const [showEmailConfirm, setShowEmailConfirm] = useState(false);
   const [ticketSubject, setTicketSubject] = useState("");
   const [ticketCategory, setTicketCategory] = useState("");
   const [ticketMessage, setTicketMessage] = useState("");
@@ -133,8 +136,8 @@ export default function SupportPage() {
     <div className="w-full space-y-12 px-4 py-6 sm:px-6 lg:px-8">
 
       {/* ── Hero / Search ────────────────────────────────────────────────────── */}
-      <div className="text-center max-w-2xl mx-auto space-y-4">
-        <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
+      <div className="space-y-4 max-w-3xl">
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
           {isPro ? "Professional Support Centre" : "How can we help you today?"}
         </h1>
         <p className="text-sm text-slate-500">
@@ -143,7 +146,7 @@ export default function SupportPage() {
             : "Search our knowledge base or get in touch with our operations team."}
         </p>
 
-        <div className="relative max-w-xl mx-auto pt-2">
+        <div className="relative max-w-xl pt-2">
           <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
@@ -220,7 +223,7 @@ export default function SupportPage() {
               </div>
             </div>
 
-            <div className="flex gap-3 pt-4 border-t border-slate-100 mt-4">
+            <div className="flex gap-3 pt-3 border-t border-slate-100">
 
               <button
                 onClick={() => setShowRaiseTicket(false)}
@@ -395,14 +398,14 @@ export default function SupportPage() {
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
           <button
-            onClick={() => alert("Initiating Live Chat with Support Desk...")}
+            onClick={() => setShowLiveChatConfirm(true)}
             className="flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-3 transition-colors shadow-sm"
           >
             <MessageSquare className="h-4 w-4" />
             Start Live Chat
           </button>
           <button
-            onClick={() => alert("Redirecting to email dispatch...")}
+            onClick={() => setShowEmailConfirm(true)}
             className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold px-5 py-3 transition-colors"
           >
             <Mail className="h-4 w-4 text-slate-500" />
@@ -419,6 +422,34 @@ export default function SupportPage() {
           )}
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={showLiveChatConfirm}
+        onClose={() => setShowLiveChatConfirm(false)}
+        onConfirm={() => {
+          setShowLiveChatConfirm(false);
+          toast.info("Live chat request queued — an agent will contact you shortly.");
+        }}
+        title="Start live chat"
+        message="You are about to initiate a live chat with the support desk. Continue?"
+        confirmText="Start Chat"
+        cancelText="Cancel"
+        variant="info"
+      />
+
+      <ConfirmModal
+        isOpen={showEmailConfirm}
+        onClose={() => setShowEmailConfirm(false)}
+        onConfirm={() => {
+          setShowEmailConfirm(false);
+          toast.info("Opening your email composer is not yet available in this preview.");
+        }}
+        title="Email support"
+        message="You are about to send a support email from your default email client. Continue?"
+        confirmText="Continue"
+        cancelText="Cancel"
+        variant="info"
+      />
 
     </div>
   );

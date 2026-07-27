@@ -8,8 +8,12 @@
     "skipLibCheck": true,
     "moduleResolution": "node",
     "outDir": "./dist",
-    "baseUrl": "."
+    "baseUrl": ".",
+    "jsx": "react-jsx",
+    "paths": {
+      "@/*": ["./*"]
+    }
   },
-  "include": ["__tests__/**/*"],
+  "include": ["__tests__/**/*", "app/**/*", "lib/**/*", "components/**/*", "contexts/**/*"],
   "exclude": ["node_modules"]
 }

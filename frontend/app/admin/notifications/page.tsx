@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Bell, CheckCheck, Trash2, Calendar, DollarSign, CheckCircle, Search, X } from "lucide-react";
 import { useAuth } from "../../../contexts/AuthContext";
 import { fetchNotifications, upsertNotification, type NotificationItem } from "../../../lib/api/notifications";
+import ConfirmModal from "../../../components/shared/ConfirmModal";
 
 function formatRelativeTime(dateString: string): string {
   const date = new Date(dateString);
@@ -87,8 +88,15 @@ export default function AdminNotificationsPage() {
     }
   };
 
+  const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
+
   const clearAll = async () => {
+    setShowClearAllConfirm(true);
+  };
+
+  const confirmClearAll = async () => {
     setNotifications([]);
+    setShowClearAllConfirm(false);
     try {
       await fetch("/api/v1/notifications/clear-all", { method: "DELETE" });
     } catch (_) {
@@ -259,6 +267,17 @@ export default function AdminNotificationsPage() {
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={showClearAllConfirm}
+        title="Clear All Notifications?"
+        message="Are you sure you want to clear all admin notifications? This action cannot be undone."
+        confirmText="Clear All"
+        cancelText="Cancel"
+        variant="danger"
+        onClose={() => setShowClearAllConfirm(false)}
+        onConfirm={confirmClearAll}
+      />
     </div>
   );
 }

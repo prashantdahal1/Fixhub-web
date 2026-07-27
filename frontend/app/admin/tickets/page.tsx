@@ -1,10 +1,11 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState, type ReactElement } from "react";
 import axiosInstance from "../../../lib/api/axios-instance";
 import { API } from "../../../lib/api/endpoints";
 import { Search, Filter, Loader2, AlertCircle, CheckCircle2, Clock, Trash2, Clock3, AlertTriangle, Eye, X } from "lucide-react";
 import { toast } from "react-toastify";
+import ConfirmModal from "../../../components/shared/ConfirmModal";
 
 interface Ticket {
   _id: string;
@@ -34,6 +35,47 @@ export default function AdminTicketsPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  // Edit ticket state
+  const [editStatus, setEditStatus] = useState<Ticket["status"]>("Under Review");
+  const [editCategory, setEditCategory] = useState("");
+  const [editTechnician, setEditTechnician] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  const openTicketModal = (ticket: Ticket) => {
+    setSelectedTicket(ticket);
+    setEditStatus(ticket.status);
+    setEditCategory(ticket.category || "");
+    setEditTechnician(ticket.technicianName || "");
+    setEditDescription(ticket.description || "");
+  };
+
+  const handleSaveTicket = async () => {
+    if (!selectedTicket) return;
+    setIsSaving(true);
+    try {
+      const response = await axiosInstance.patch(API.TICKETS.ADMIN_UPDATE(selectedTicket._id), {
+        status: editStatus,
+        category: editCategory,
+        technicianName: editTechnician,
+        description: editDescription,
+      });
+      const updated = response.data?.data || {
+        ...selectedTicket,
+        status: editStatus,
+        category: editCategory,
+        technicianName: editTechnician,
+        description: editDescription,
+      };
+      setTickets((prev) => prev.map((t) => (t._id === selectedTicket._id ? updated : t)));
+      setSelectedTicket(updated);
+      toast.success("Ticket updated successfully");
+    } catch {
+      toast.error("Failed to update ticket details");
+    } finally {
+      setIsSaving(false);
+    }
+  };
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -87,33 +129,63 @@ export default function AdminTicketsPage() {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
-  const handleBulkDelete = async () => {
+  // Delete confirm modal state
+  const [deleteConfirmState, setDeleteConfirmState] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+  });
+
+  const handleBulkDelete = () => {
     if (selectedIds.length === 0) return;
-    if (!confirm(`Delete ${selectedIds.length} ticket(s)? This cannot be undone.`)) return;
-    setIsDeleting(true);
-    try {
-      await axiosInstance.post(API.TICKETS.ADMIN_BULK_DELETE, { ids: selectedIds });
-      setTickets((prev) => prev.filter((t) => !selectedIds.includes(t._id)));
-      setSelectedIds([]);
-      toast.success("Tickets deleted successfully");
-      fetchLogs(); // refresh logs too
-    } catch (err) {
-      toast.error("Failed to delete tickets");
-    } finally {
-      setIsDeleting(false);
-    }
+    setDeleteConfirmState({
+      isOpen: true,
+      title: "Delete Tickets?",
+      message: `Are you sure you want to delete ${selectedIds.length} ticket(s)? This action cannot be undone.`,
+      onConfirm: async () => {
+        setIsDeleting(true);
+        try {
+          await axiosInstance.post(API.TICKETS.ADMIN_BULK_DELETE, { ids: selectedIds });
+          setTickets((prev) => prev.filter((t) => !selectedIds.includes(t._id)));
+          setSelectedIds([]);
+          toast.success("Tickets deleted successfully");
+          fetchLogs();
+        } catch {
+          toast.error("Failed to delete tickets");
+        } finally {
+          setIsDeleting(false);
+          setDeleteConfirmState((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
   };
 
-  const handleSingleDelete = async (id: string) => {
-    if (!confirm("Delete this ticket? This cannot be undone.")) return;
-    try {
-      await axiosInstance.post(API.TICKETS.ADMIN_BULK_DELETE, { ids: [id] });
-      setTickets((prev) => prev.filter((t) => t._id !== id));
-      toast.success("Ticket deleted");
-      fetchLogs();
-    } catch {
-      toast.error("Failed to delete ticket");
-    }
+  const handleSingleDelete = (id: string) => {
+    setDeleteConfirmState({
+      isOpen: true,
+      title: "Delete Ticket?",
+      message: "Are you sure you want to delete this ticket? This action cannot be undone.",
+      onConfirm: async () => {
+        setIsDeleting(true);
+        try {
+          await axiosInstance.post(API.TICKETS.ADMIN_BULK_DELETE, { ids: [id] });
+          setTickets((prev) => prev.filter((t) => t._id !== id));
+          toast.success("Ticket deleted");
+          fetchLogs();
+        } catch {
+          toast.error("Failed to delete ticket");
+        } finally {
+          setIsDeleting(false);
+          setDeleteConfirmState((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
   };
 
   const updateStatus = async (id: string, newStatus: string) => {
@@ -240,64 +312,74 @@ export default function AdminTicketsPage() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-slate-50 border-b border-slate-100">
+                <table className="w-full text-left border-collapse">
+                  <thead className="bg-slate-50/80 border-b border-slate-200/80">
                     <tr>
-                      <th className="px-5 py-3 w-10">
-                        <input type="checkbox"
+                      <th className="px-4 py-3.5 w-10 text-center">
+                        <input
+                          type="checkbox"
                           checked={filteredTickets.length > 0 && selectedIds.length === filteredTickets.length}
                           onChange={(e) => handleSelectAll(e.target.checked)}
-                          className="h-4 w-4 rounded border-slate-300 text-blue-600 cursor-pointer" />
+                          className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500/20 cursor-pointer"
+                        />
                       </th>
-                      <th className="px-5 py-3 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider">Ticket ID</th>
-                      <th className="px-5 py-3 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider">Booking</th>
-                      <th className="px-5 py-3 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider">Category</th>
-                      <th className="px-5 py-3 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider">Issue</th>
-                      <th className="px-5 py-3 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider">Status</th>
-                      <th className="px-5 py-3 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider">Date</th>
-                      <th className="px-5 py-3 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider">Action</th>
+                      <th className="px-4 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Ticket ID</th>
+                      <th className="px-4 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Booking</th>
+                      <th className="px-4 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Category</th>
+                      <th className="px-4 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Issue</th>
+                      <th className="px-4 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Status</th>
+                      <th className="px-4 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Date</th>
+                      <th className="px-4 py-3.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap pr-6">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-50">
+                  <tbody className="divide-y divide-slate-100">
                     {filteredTickets.map((ticket) => (
-                      <tr key={ticket._id} className="hover:bg-slate-50/60 transition-colors">
-                        <td className="px-5 py-3.5">
-                          <input type="checkbox" checked={selectedIds.includes(ticket._id)}
+                      <tr key={ticket._id} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="px-4 py-3.5 text-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(ticket._id)}
                             onChange={() => handleSelectOne(ticket._id)}
-                            className="h-4 w-4 rounded border-slate-300 text-blue-600 cursor-pointer" />
+                            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500/20 cursor-pointer"
+                          />
                         </td>
-                        <td className="px-5 py-3.5">
-                          <span className="font-mono text-xs font-bold text-slate-800">{ticket.ticketId}</span>
+                        <td className="px-4 py-3.5 whitespace-nowrap">
+                          <span className="font-mono text-xs font-bold text-slate-900">{ticket.ticketId}</span>
                         </td>
-                        <td className="px-5 py-3.5">
-                          <p className="text-sm text-slate-700 font-medium">{ticket.bookingId?.slice(-8).toUpperCase()}</p>
-                          <p className="text-xs text-slate-400">{ticket.technicianName}</p>
+                        <td className="px-4 py-3.5 whitespace-nowrap">
+                          <p className="text-xs font-semibold text-slate-800">{ticket.bookingId ? ticket.bookingId.slice(-8).toUpperCase() : "N/A"}</p>
+                          {ticket.technicianName && <p className="text-[11px] text-slate-500">{ticket.technicianName}</p>}
                         </td>
-                        <td className="px-5 py-3.5">
-                          <span className="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg text-xs font-semibold">{ticket.category}</span>
+                        <td className="px-4 py-3.5 whitespace-nowrap">
+                          <span className="inline-flex items-center px-2.5 py-0.5 bg-slate-100 text-slate-700 border border-slate-200/60 rounded-md text-xs font-medium capitalize">
+                            {ticket.category || "General"}
+                          </span>
                         </td>
-                        <td className="px-5 py-3.5">
-                          <p className="text-sm text-slate-600 max-w-[180px] truncate">{ticket.description}</p>
+                        <td className="px-4 py-3.5">
+                          <p className="text-xs text-slate-600 max-w-[220px] truncate" title={ticket.description}>
+                            {ticket.description}
+                          </p>
                         </td>
-                        <td className="px-5 py-3.5">{getStatusBadge(ticket.status)}</td>
-                        <td className="px-5 py-3.5 text-xs text-slate-400">{new Date(ticket.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</td>
-                        <td className="px-5 py-3.5 text-center">
-                          <div className="flex items-center justify-center gap-2">
+                        <td className="px-4 py-3.5 whitespace-nowrap">
+                          {getStatusBadge(ticket.status)}
+                        </td>
+                        <td className="px-4 py-3.5 text-xs text-slate-500 whitespace-nowrap font-medium">
+                          {new Date(ticket.createdAt).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })}
+                        </td>
+                        <td className="px-4 py-3.5 whitespace-nowrap text-right pr-6">
+                          <div className="flex items-center justify-end gap-1.5">
                             <button
-                              onClick={() => setSelectedTicket(ticket)}
-                              className="inline-flex items-center gap-1 rounded-xl bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200 transition"
+                              onClick={() => openTicketModal(ticket)}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-medium text-slate-700 transition-colors"
                             >
-                              <Eye className="w-3.5 h-3.5" />
+                              <Eye className="w-3.5 h-3.5 text-slate-500" />
                               View
                             </button>
-                            <select value={ticket.status} onChange={(e) => updateStatus(ticket._id, e.target.value)}
-                              className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-900 font-medium cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20">
-                              <option value="Under Review">Under Review</option>
-                              <option value="In Progress">In Progress</option>
-                              <option value="Resolved">Resolved</option>
-                            </select>
-                            <button onClick={() => handleSingleDelete(ticket._id)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all">
+                            <button
+                              onClick={() => handleSingleDelete(ticket._id)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                              title="Delete ticket"
+                            >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
@@ -312,7 +394,7 @@ export default function AdminTicketsPage() {
         </>
       )}
 
-      {/* â”€â”€â”€ DELETION LOGS TAB â”€â”€â”€ */}
+      {/* ─── DELETION LOGS TAB ─── */}
       {activeTab === "deletions" && (
         <div className="bg-white rounded-2xl border border-slate-200/70 shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
@@ -358,7 +440,7 @@ export default function AdminTicketsPage() {
                     <tr key={log._id} className="hover:bg-slate-50 transition-colors">
                       <td className="px-6 py-3.5 font-mono text-xs text-slate-500 font-bold">{log._id.slice(-8).toUpperCase()}</td>
                       <td className="px-6 py-3.5 font-mono text-xs text-rose-600 font-bold">{log.ticketId}</td>
-                      <td className="px-6 py-3.5 text-sm text-slate-700">{log.deletedBy || "â€”"}</td>
+                      <td className="px-6 py-3.5 text-sm text-slate-700">{log.deletedBy || "-"}</td>
                       <td className="px-6 py-3.5 text-sm text-slate-500 max-w-[200px] truncate">{log.reason || "No reason provided"}</td>
                       <td className="px-6 py-3.5 text-xs text-slate-400">{new Date(log.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</td>
                     </tr>
@@ -369,12 +451,14 @@ export default function AdminTicketsPage() {
           )}
         </div>
       )}
+
+      {/* ─── TICKET DETAIL & EDIT MODAL ─── */}
       {selectedTicket && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
-          <div className="w-full max-w-2xl rounded-3xl bg-white shadow-2xl overflow-hidden">
+          <div className="w-full max-w-2xl rounded-3xl bg-white shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">Ticket {selectedTicket.ticketId}</h2>
+                <h2 className="text-lg font-bold text-slate-900">Edit Ticket {selectedTicket.ticketId}</h2>
                 <p className="text-xs text-slate-500">Created on {new Date(selectedTicket.createdAt).toLocaleString()}</p>
               </div>
               <button
@@ -384,35 +468,99 @@ export default function AdminTicketsPage() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="px-6 py-6 space-y-4">
+            <div className="px-6 py-6 space-y-4 max-h-[80vh] overflow-y-auto">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-[11px] uppercase tracking-[0.25em] text-slate-500">Booking</p>
-                  <p className="mt-2 text-sm font-semibold text-slate-800">{selectedTicket.bookingId || "N/A"}</p>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Booking ID</label>
+                  <p className="text-sm font-semibold text-slate-800">{selectedTicket.bookingId || "N/A"}</p>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-[11px] uppercase tracking-[0.25em] text-slate-500">Category</p>
-                  <p className="mt-2 text-sm font-semibold text-slate-800">{selectedTicket.category}</p>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <label htmlFor="ticket-status-select" className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Status</label>
+                  <select
+                    id="ticket-status-select"
+                    value={editStatus}
+                    onChange={(e) => setEditStatus(e.target.value as any)}
+                    className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 bg-slate-50 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  >
+                    <option value="Under Review">Under Review</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Resolved">Resolved</option>
+                  </select>
                 </div>
               </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <label htmlFor="ticket-category-input" className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Category</label>
+                  <input
+                    id="ticket-category-input"
+                    type="text"
+                    value={editCategory}
+                    onChange={(e) => setEditCategory(e.target.value)}
+                    className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 bg-slate-50 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    placeholder="e.g. Plumbing, Billing..."
+                  />
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <label htmlFor="ticket-tech-input" className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Technician / Support</label>
+                  <input
+                    id="ticket-tech-input"
+                    type="text"
+                    value={editTechnician}
+                    onChange={(e) => setEditTechnician(e.target.value)}
+                    className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 bg-slate-50 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    placeholder="Assigned staff..."
+                  />
+                </div>
+              </div>
+
               <div className="rounded-2xl border border-slate-200 p-4 bg-white">
-                <p className="text-[11px] uppercase tracking-[0.25em] text-slate-500">Description</p>
-                <p className="mt-3 text-sm leading-6 text-slate-700 whitespace-pre-wrap">{selectedTicket.description}</p>
+                <label htmlFor="ticket-desc-input" className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Description / Issue Notes</label>
+                <textarea
+                  id="ticket-desc-input"
+                  rows={4}
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  className="w-full text-sm border border-slate-200 rounded-xl p-3 bg-slate-50 text-slate-900 leading-relaxed focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  placeholder="Ticket description details..."
+                />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-[11px] uppercase tracking-[0.25em] text-slate-500">Technician</p>
-                  <p className="mt-2 text-sm font-semibold text-slate-800">{selectedTicket.technicianName}</p>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-[11px] uppercase tracking-[0.25em] text-slate-500">Status</p>
-                  <p className="mt-2 text-sm font-semibold text-slate-800">{selectedTicket.status}</p>
-                </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  onClick={() => setSelectedTicket(null)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveTicket}
+                  disabled={isSaving}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold shadow-md shadow-blue-600/20 transition-all disabled:opacity-60"
+                >
+                  {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Save Changes
+                </button>
               </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteConfirmState.isOpen}
+        title={deleteConfirmState.title}
+        message={deleteConfirmState.message}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={isDeleting}
+        onClose={() => setDeleteConfirmState((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={deleteConfirmState.onConfirm}
+      />
     </div>
   );
 }

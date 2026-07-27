@@ -10,7 +10,8 @@
     "test": "jest",
     "test:unit": "jest --testPathPatterns=unit",
     "test:integration": "jest --testPathPatterns=integration",
-    "test:e2e": "npx playwright test"
+    "test:e2e": "npx playwright test",
+    "test:coverage": "jest --coverage"
   },
   "dependencies": {
     "@types/bcryptjs": "^2.4.6",

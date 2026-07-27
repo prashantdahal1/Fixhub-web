@@ -15,6 +15,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "FixHub — Instant Home Solutions",
   description: "Book trusted local professionals for home repairs and maintenance.",
+  icons: {
+    icon: "/images/fixhub_icon.png",
+    shortcut: "/images/fixhub_icon.png",
+    apple: "/images/fixhub_icon.png",
+  },
 };
 
 import { AuthProvider } from "../contexts/AuthContext";

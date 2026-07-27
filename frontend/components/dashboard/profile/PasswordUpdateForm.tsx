@@ -48,7 +48,7 @@ export default function PasswordUpdateForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4 max-w-md mx-auto p-4 border rounded mt-4">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4 max-w-md p-4 border rounded mt-4">
       {message && <div className="text-sm font-semibold">{message}</div>}
 
       <div className="flex flex-col">

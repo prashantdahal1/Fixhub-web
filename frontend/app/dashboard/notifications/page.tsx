@@ -13,6 +13,7 @@ import {
   X,
   ArrowRight
 } from "lucide-react";
+import ConfirmModal from "@/components/shared/ConfirmModal";
 import { useAuth } from "../../../contexts/AuthContext";
 import { fetchNotifications, upsertNotification, type NotificationItem } from "../../../lib/api/notifications";
 
@@ -98,8 +99,15 @@ export default function NotificationsPage() {
     } catch (_) {}
   };
 
+  const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
+
   const clearAll = async () => {
+    setShowClearAllConfirm(true);
+  };
+
+  const confirmClearAll = async () => {
     setNotifications([]);
+    setShowClearAllConfirm(false);
     try {
       await fetch("/api/v1/notifications/clear-all", { method: "DELETE" });
     } catch (_) {}
@@ -129,7 +137,7 @@ export default function NotificationsPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="w-full space-y-6">
       {/* Header Banner */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -295,6 +303,17 @@ export default function NotificationsPage() {
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={showClearAllConfirm}
+        title="Clear All Notifications?"
+        message="Are you sure you want to clear all notifications? This action cannot be undone."
+        confirmText="Clear All"
+        cancelText="Cancel"
+        variant="danger"
+        onClose={() => setShowClearAllConfirm(false)}
+        onConfirm={confirmClearAll}
+      />
     </div>
   );
 }

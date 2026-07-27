@@ -12,9 +12,10 @@ import {
   MapPin,
   Clock,
   User,
-  AlertCircle,
 } from "lucide-react";
 
+import { authHeaders } from "@/lib/api/client";
+import ConfirmModal from "@/components/shared/ConfirmModal";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -64,53 +65,6 @@ const statusBadgeStyles: Record<string, { bg: string; dot: string }> = {
     dot: "bg-rose-500",
   },
 };
-
-function DeleteConfirmModal({
-  isOpen,
-  onClose,
-  onConfirm,
-  title = "Delete user",
-  message = "Are you sure you want to delete this user? This action cannot be undone.",
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
-  title?: string;
-  message?: string;
-}) {
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
-      <div className="w-full max-w-[340px] bg-white rounded-3xl p-6 shadow-xl border border-slate-100 flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-150">
-        {/* Red warning icon with glow */}
-        <div className="h-12 w-12 rounded-full bg-red-50 flex items-center justify-center mb-4 ring-8 ring-red-50/50">
-          <AlertCircle className="h-6 w-6 text-red-500" />
-        </div>
-
-        <h3 className="text-[17px] font-bold text-slate-800 mb-2">{title}</h3>
-        <p className="text-xs text-slate-400 leading-relaxed px-2 mb-6">
-          {message}
-        </p>
-
-        <div className="grid grid-cols-2 gap-3 w-full">
-          <button
-            onClick={onClose}
-            className="w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200/80 text-sm font-semibold text-slate-600 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            className="w-full py-2.5 px-4 rounded-xl bg-red-500 hover:bg-red-600 text-sm font-semibold text-white transition-colors shadow-sm shadow-red-200"
-          >
-            Delete
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function UserModal({
   user,
@@ -475,14 +429,9 @@ export default function RegisteredUsersPage() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
       const res = await fetch(`/api/v1/admin/users?page=${page}&size=${pageSize}&search=${encodeURIComponent(search)}&role=${filterRole}&status=${filterStatus}`, {
         method: 'GET',
-        headers,
+        headers: authHeaders(),
         credentials: 'include',
       });
       if (!res.ok) {
@@ -514,14 +463,9 @@ export default function RegisteredUsersPage() {
   const confirmDelete = async () => {
     if (!deleteTargetId) return;
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      const headers: Record<string, string> = {};
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
       const res = await fetch(`/api/v1/admin/users/${deleteTargetId}`, {
         method: "DELETE",
-        headers,
+        headers: authHeaders(),
         credentials: 'include'
       });
       if (res.ok) {
@@ -541,9 +485,7 @@ export default function RegisteredUsersPage() {
     if (selectedIds.length === 0) return;
     setIsBulkDeleting(true);
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const headers = authHeaders({ 'Content-Type': 'application/json' });
       await Promise.all(selectedIds.map(id =>
         fetch(`/api/v1/admin/users/${id}`, { method: 'DELETE', headers, credentials: 'include' })
       ));
@@ -662,12 +604,16 @@ export default function RegisteredUsersPage() {
         </div>
       </div>
 
-      <DeleteConfirmModal
+      <ConfirmModal
         isOpen={showBulkDeleteConfirm}
         onClose={() => setShowBulkDeleteConfirm(false)}
         onConfirm={confirmBulkDelete}
-        title={`Delete ${selectedIds.length} users?`}
-        message={`This will permanently delete ${selectedIds.length} user${selectedIds.length!==1 ? 's' : ''}. This action cannot be undone.`}
+        title={`Delete ${selectedIds.length} user${selectedIds.length !== 1 ? 's' : ''}?`}
+        message={`This will permanently delete ${selectedIds.length} user${selectedIds.length !== 1 ? 's' : ''}. This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={isBulkDeleting}
       />
 
       <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
@@ -938,12 +884,16 @@ export default function RegisteredUsersPage() {
       {modalUser !== undefined && (
         <UserModal user={modalUser} onClose={() => setModalUser(undefined)} onSave={fetchUsers} />
       ) }
-      <DeleteConfirmModal
+      <ConfirmModal
         isOpen={deleteTargetId !== null}
         onClose={() => setDeleteTargetId(null)}
         onConfirm={confirmDelete}
         title="Delete user"
         message="Are you sure you want to delete this user? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={false}
       />
       <ToastContainer />
     </div>

@@ -62,7 +62,7 @@ export default function OffersPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="w-full space-y-6">
       {/* Banner / Header */}
       <div>
         <h1 className="text-xl font-bold text-slate-900 tracking-tight">Offers & Promos</h1>

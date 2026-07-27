@@ -45,6 +45,14 @@ export const UpdateTicketStatusDTO = z.object({
 });
 export type UpdateTicketStatusDTO = z.infer<typeof UpdateTicketStatusDTO>;
 
+export const UpdateTicketDTO = z.object({
+  status: z.enum(["Under Review", "In Progress", "Resolved"]).optional(),
+  category: z.string().trim().min(1).optional(),
+  technicianName: z.string().trim().optional(),
+  description: z.string().trim().min(1).optional(),
+});
+export type UpdateTicketDTO = z.infer<typeof UpdateTicketDTO>;
+
 export const BulkDeleteTicketsDTO = z.object({
   ids: z.array(z.string().min(1)).min(1),
 });

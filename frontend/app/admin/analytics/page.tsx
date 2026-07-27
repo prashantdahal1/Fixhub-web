@@ -1,7 +1,8 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { BarChart3, TrendingUp, Users, Wrench, AlertCircle, DollarSign, RefreshCw, Activity, Star } from "lucide-react";
+import { authHeaders } from "@/lib/api/client";
 
 export default function AdminAnalyticsPage() {
   const [loading, setLoading] = useState(true);
@@ -18,15 +19,13 @@ export default function AdminAnalyticsPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-      const h: Record<string, string> = { "Content-Type": "application/json" };
-      if (token) h["Authorization"] = `Bearer ${token}`;
+      const headers = authHeaders();
 
       const [usersRes, servicesRes, bookingsRes, ticketsRes] = await Promise.allSettled([
-        fetch("/api/v1/admin/users?page=1&size=200", { headers: h, credentials: "include" }),
-        fetch("/api/v1/services?limit=200", { headers: h, credentials: "include" }),
-        fetch("/api/v1/bookings", { headers: h, credentials: "include" }),
-        fetch("/api/v1/tickets/admin", { headers: h, credentials: "include" }),
+        fetch("/api/v1/admin/users?page=1&size=200", { headers, credentials: "include" }),
+        fetch("/api/v1/services?limit=200", { headers, credentials: "include" }),
+        fetch("/api/v1/bookings", { headers, credentials: "include" }),
+        fetch("/api/v1/tickets/admin", { headers, credentials: "include" }),
       ]);
 
       if (usersRes.status === "fulfilled" && usersRes.value.ok) {
@@ -91,12 +90,12 @@ export default function AdminAnalyticsPage() {
   useEffect(() => { fetchData(); }, []);
 
   const stats = [
-    { label: "Total Users", value: loading ? "â€”" : totalUsers.toLocaleString(), icon: Users, accent: "#2563EB", bg: "bg-blue-50", sub: `${totalPros} professionals` },
-    { label: "Active Services", value: loading ? "â€”" : totalServices.toLocaleString(), icon: Wrench, accent: "#10B981", bg: "bg-emerald-50", sub: "Catalog listings" },
-    { label: "Total Bookings", value: loading ? "â€”" : totalBookings.toLocaleString(), icon: BarChart3, accent: "#6366F1", bg: "bg-violet-50", sub: "All-time" },
-    { label: "Gross Revenue", value: loading ? "â€”" : `â‚¹${totalRevenue.toLocaleString("en-IN")}`, icon: DollarSign, accent: "#F59E0B", bg: "bg-amber-50", sub: "From all bookings" },
-    { label: "Open Tickets", value: loading ? "â€”" : openTickets.toLocaleString(), icon: AlertCircle, accent: "#EF4444", bg: "bg-red-50", sub: "Unresolved" },
-    { label: "Avg Revenue/Booking", value: loading ? "â€”" : `â‚¹${totalBookings > 0 ? Math.round(totalRevenue / totalBookings).toLocaleString("en-IN") : 0}`, icon: TrendingUp, accent: "#0EA5E9", bg: "bg-sky-50", sub: "Per transaction" },
+    { label: "Total Users", value: loading ? "-" : totalUsers.toLocaleString(), icon: Users, accent: "#2563EB", bg: "bg-blue-50", sub: `${totalPros} professionals` },
+    { label: "Active Services", value: loading ? "-" : totalServices.toLocaleString(), icon: Wrench, accent: "#10B981", bg: "bg-emerald-50", sub: "Catalog listings" },
+    { label: "Total Bookings", value: loading ? "-" : totalBookings.toLocaleString(), icon: BarChart3, accent: "#6366F1", bg: "bg-violet-50", sub: "All-time" },
+    { label: "Gross Revenue", value: loading ? "-" : `Rs. ${totalRevenue.toLocaleString("en-IN")}`, icon: DollarSign, accent: "#F59E0B", bg: "bg-amber-50", sub: "From all bookings" },
+    { label: "Open Tickets", value: loading ? "-" : openTickets.toLocaleString(), icon: AlertCircle, accent: "#EF4444", bg: "bg-red-50", sub: "Unresolved" },
+    { label: "Avg Revenue/Booking", value: loading ? "-" : `Rs. ${totalBookings > 0 ? Math.round(totalRevenue / totalBookings).toLocaleString("en-IN") : 0}`, icon: TrendingUp, accent: "#0EA5E9", bg: "bg-sky-50", sub: "Per transaction" },
   ];
 
   return (
@@ -173,7 +172,7 @@ export default function AdminAnalyticsPage() {
                           {b.status || "pending"}
                         </span>
                       </td>
-                      <td className="px-6 py-3 text-slate-900 font-bold">â‚¹{(b.amount || 0).toLocaleString("en-IN")}</td>
+                      <td className="px-6 py-3 text-slate-900 font-bold">Rs. {(b.amount || 0).toLocaleString("en-IN")}</td>
                       <td className="px-6 py-3 text-xs text-slate-400">{new Date(b.createdAt || Date.now()).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</td>
                     </tr>
                   ))}

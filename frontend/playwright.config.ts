@@ -2,6 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './playwright',
+  fullyParallel: true,
   timeout: 30_000,
   expect: {
     timeout: 5000,
@@ -15,10 +16,10 @@ export default defineConfig({
     headless: true,
   },
   webServer: {
-    command: 'npm run dev -- --hostname localhost',
-    port: 3000,
+    command: 'npm run dev',
+    url: 'http://localhost:3000',
     reuseExistingServer: true,
-    timeout: 120_000,
+    timeout: 30_000,
   },
   projects: [
     {

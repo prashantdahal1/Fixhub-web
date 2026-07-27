@@ -3,7 +3,7 @@ import { TicketModel } from "../../models/ticket.model.js";
 import { TicketDeletionModel } from "../../models/ticket-deletion.model.js";
 import { ApiResponseHelper } from "../../shared/utils/apihelper.util.js";
 import { createAdminNotification } from "../../shared/utils/notification.util.js";
-import type { CreateTicketDTO, UpdateTicketStatusDTO } from "../../dtos/marketplace.dto.js";
+import type { CreateTicketDTO, UpdateTicketStatusDTO, UpdateTicketDTO } from "../../dtos/marketplace.dto.js";
 
 export const createTicket = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -56,6 +56,33 @@ export const updateTicketStatus = async (req: Request, res: Response, next: Next
         }
 
         return ApiResponseHelper.success(res, updatedTicket, "Ticket status updated");
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const updateTicket = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { id } = req.params;
+        const { status, category, technicianName, description } = req.body as UpdateTicketDTO;
+
+        const updateFields: any = {};
+        if (status) updateFields.status = status;
+        if (category) updateFields.category = category;
+        if (technicianName !== undefined) updateFields.technicianName = technicianName;
+        if (description) updateFields.description = description;
+
+        const updatedTicket = await TicketModel.findByIdAndUpdate(
+            id,
+            updateFields,
+            { new: true }
+        );
+
+        if (!updatedTicket) {
+            return ApiResponseHelper.error(res, "Ticket not found", 404);
+        }
+
+        return ApiResponseHelper.success(res, updatedTicket, "Ticket updated successfully");
     } catch (error) {
         next(error);
     }

@@ -5,7 +5,7 @@ import { walletService } from "../wallet/wallet.service.js";
 import { resolveNextStatus } from "./booking-state.js";
 import type { CreateBookingDTO } from "../../dtos/marketplace.dto.js";
 import type { IUser } from "../../models/user.model.js";
-import { createNotification } from "../../shared/utils/notification.util.js";
+import { createNotification, createAdminNotification } from "../../shared/utils/notification.util.js";
 import { broadcastRealtimeEvent } from "../../shared/utils/realtime.util.js";
 
 export class BookingService {
@@ -133,12 +133,17 @@ export class BookingService {
       await updated.save();
     }
 
-    // Trigger realtime update
+    // Trigger realtime update — broadcast to all connected WS clients with enriched context
+    const serviceForBroadcast = await ServiceModel.findById(updated.serviceId).select("title category");
     broadcastRealtimeEvent("booking_updated", {
       id: updated._id.toString(),
+      bookingId: updated._id.toString(),
       status: updated.status,
       escrowStatus: updated.escrowStatus,
-      bookingId: updated._id.toString(),
+      customerId: updated.customerId.toString(),
+      professionalId: updated.professionalId.toString(),
+      serviceTitle: serviceForBroadcast?.title || "Service",
+      serviceCategory: serviceForBroadcast?.category || "",
     });
 
     // Trigger Notifications
@@ -147,10 +152,26 @@ export class BookingService {
       const serviceTitle = service?.title || "Service";
 
       if (nextStatus === "in_progress") {
+        // Customer — technician is on the way
         await createNotification(
           updated.customerId,
-          "Technician on the way",
-          `Work has started on your booking for "${serviceTitle}".`,
+          "Technician on the way 🔧",
+          `Work has started on your booking for "${serviceTitle}". Your technician is now active.`,
+          "booking"
+        );
+        // Professional — confirmation they started
+        if (updated.professionalId) {
+          await createNotification(
+            updated.professionalId,
+            "Job started",
+            `You have started work on "${serviceTitle}". The customer has been notified.`,
+            "booking"
+          );
+        }
+        // Admin — live alert
+        await createAdminNotification(
+          "Job started 🚨",
+          `Booking for "${serviceTitle}" has been marked as IN PROGRESS by the assigned professional.`,
           "booking"
         );
       } else if (nextStatus === "completed") {

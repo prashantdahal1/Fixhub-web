@@ -7,6 +7,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "../../contexts/AuthContext";
 import { IntelligentSearchBar } from "@/components/shared/IntelligentSearchBar";
 import { fetchNotifications, upsertNotification, type NotificationItem } from "../../lib/api/notifications";
+import ConfirmModal from "@/components/shared/ConfirmModal";
+import { toast } from "react-toastify";
+import { useRealtimeBookings } from "@/hooks/useRealtimeBookings";
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 const HomeIcon = () => (
@@ -182,13 +185,58 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     };
   }, [user]);
 
+  // ── WebSocket: real-time booking status updates + notification toasts ──────────
+  useRealtimeBookings({
+    onNotification: (payload) => {
+      // Add to notification bell
+      setNotifications((items) => upsertNotification(items, payload as unknown as DBNotification));
+      // Show a pop-up toast so user sees it immediately
+      toast.info(
+        <div className="flex flex-col gap-0.5">
+          <span className="font-bold text-sm">{payload.title}</span>
+          <span className="text-xs text-slate-500">{payload.body}</span>
+        </div>,
+        { icon: "🔔", autoClose: 6000 }
+      );
+    },
+    onBookingUpdated: (payload) => {
+      const statusLabel: Record<string, string> = {
+        in_progress: "🔧 Work has started",
+        completed:   "✅ Job completed",
+        cancelled:   "❌ Booking cancelled",
+        confirmed:   "✔️ Booking confirmed",
+      };
+      const label = statusLabel[payload.status];
+      if (label && payload.serviceTitle) {
+        toast.info(
+          <div className="flex flex-col gap-0.5">
+            <span className="font-bold text-sm">{label}</span>
+            <span className="text-xs text-slate-500">{payload.serviceTitle}</span>
+          </div>,
+          { autoClose: 5000 }
+        );
+      }
+    },
+  });
+
+
   const unreadCount = notifications.filter(n => !n.read).length;
 
   const initials  = `${user?.firstName?.charAt(0) || "U"}${user?.lastName?.charAt(0) || ""}`.toUpperCase();
   const fullName  = user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() : "User";
-  const avatarUrl = user?.profilePicture;
+  const avatarUrl = user?.profilePicture || null;
+  const [imgError, setImgError] = React.useState(false);
 
-  const handleLogout = async () => {
+  // Reset imgError if user profile picture changes
+  React.useEffect(() => { setImgError(false); }, [avatarUrl]);
+
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+  const handleLogout = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = async () => {
     try { await fetch("/api/v1/auth/logout", { method: "POST" }); } catch (_) {}
     finally { setUser(null); router.push("/"); }
   };
@@ -351,8 +399,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               pathname === "/dashboard/profile" ? "bg-[#EFF6FF] text-[#2563EB] font-semibold" : "hover:bg-slate-50"
             }`}
           >
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="Avatar" className="w-7 h-7 rounded-full object-cover ring-1 ring-slate-200" />
+            {avatarUrl && !imgError ? (
+              <img src={avatarUrl} alt="Avatar" className="w-7 h-7 rounded-full object-cover ring-1 ring-slate-200" onError={() => setImgError(true)} />
             ) : (
               <div className="w-7 h-7 rounded-full bg-[#2563EB] flex items-center justify-center text-white text-[10px] font-bold shrink-0">
                 {initials}
@@ -375,22 +423,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="flex-1 flex flex-col min-w-0 min-h-screen">
 
         {/* Top bar */}
-        <header className="h-[60px] bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0 sticky top-0 z-40">
-
-          {/* Search bar — customer only or pro status header */}
-          <div className="flex-1 max-w-sm mx-6">
-            {user?.role !== "professional" ? (
-              <IntelligentSearchBar />
-            ) : (
-              <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span>Pro Workspace</span>
-              </div>
-            )}
-          </div>
+        <header className="h-[60px] bg-white border-b border-slate-200 px-6 flex items-center justify-end shrink-0 sticky top-0 z-40">
 
           <div className="flex items-center gap-2">
-            <div className="w-px h-5 bg-slate-200" />
 
             {/* Bell */}
             <div className="relative" ref={notifRef}>
@@ -515,8 +550,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 className="flex items-center focus:outline-none transition-opacity hover:opacity-85"
                 aria-label="User menu"
               >
-                {avatarUrl ? (
-                  <img src={avatarUrl} alt="Profile" className="w-8 h-8 rounded-full object-cover ring-2 ring-slate-100" />
+                {avatarUrl && !imgError ? (
+                  <img src={avatarUrl} alt="Profile" className="w-8 h-8 rounded-full object-cover ring-2 ring-slate-100" onError={() => setImgError(true)} />
                 ) : (
                   <div className="w-8 h-8 rounded-full bg-[#2563EB] flex items-center justify-center text-white text-[10px] font-bold ring-2 ring-blue-100">
                     {initials}
@@ -565,6 +600,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {children}
         </main>
       </div>
+
+      <ConfirmModal
+        isOpen={showLogoutConfirm}
+        title="Log Out?"
+        message="Are you sure you want to log out of your account?"
+        confirmText="Log Out"
+        cancelText="Stay"
+        variant="warning"
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={confirmLogout}
+      />
     </div>
   );
 }

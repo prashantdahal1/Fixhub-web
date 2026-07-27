@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Search, Filter, Eye, Trash2, Edit3, MoreVertical, X, AlertCircle, Lock, Image, Plus } from "lucide-react";
+import { Search, Filter, Eye, Trash2, Edit3, MoreVertical, X, Lock, Image, Plus } from "lucide-react";
 import { toast } from "react-toastify";
 import { useAuth } from "../../../contexts/AuthContext";
+import ConfirmModal from "../../shared/ConfirmModal";
 
 interface Service {
   _id: string;
@@ -34,47 +35,7 @@ interface ProfessionalOption {
   email: string;
 }
 
-function BulkDeleteModal({
-  isOpen,
-  onClose,
-  onConfirm,
-  count,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
-  count: number;
-}) {
-  if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
-      <div className="w-full max-w-[340px] bg-white rounded-3xl p-6 shadow-xl border border-slate-100 flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-150">
-        <div className="h-12 w-12 rounded-full bg-red-50 flex items-center justify-center mb-4 ring-8 ring-red-50/50">
-          <AlertCircle className="h-6 w-6 text-red-500" />
-        </div>
-        <h3 className="text-[17px] font-bold text-slate-800 mb-2">Delete {count} service{count !== 1 ? 's' : ''}?</h3>
-        <p className="text-xs text-slate-400 leading-relaxed px-2 mb-6">
-          This action cannot be undone. These services will be permanently removed from the platform.
-        </p>
-        <div className="grid grid-cols-2 gap-3 w-full">
-          <button
-            onClick={onClose}
-            className="w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200/80 text-sm font-semibold text-slate-600 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            className="w-full py-2.5 px-4 rounded-xl bg-red-500 hover:bg-red-600 text-sm font-semibold text-white transition-colors shadow-sm shadow-red-200"
-          >
-            Delete All
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function AdminServicesPage() {
   const [services, setServices] = useState<Service[]>([]);
@@ -191,23 +152,30 @@ export default function AdminServicesPage() {
 
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [singleDeleteTargetId, setSingleDeleteTargetId] = useState<string | null>(null);
 
-  const handleDeleteService = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this service? This action cannot be undone.')) return;
+  const handleDeleteService = (id: string) => {
+    setSingleDeleteTargetId(id);
+  };
+
+  const confirmSingleDelete = async () => {
+    if (!singleDeleteTargetId) return;
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
-      const res = await fetch(`/api/v1/services/${id}`, { method: 'DELETE', headers, credentials: 'include' });
+      const res = await fetch(`/api/v1/services/${singleDeleteTargetId}`, { method: 'DELETE', headers, credentials: 'include' });
       if (!res.ok) {
         toast.error('Failed to delete service');
         return;
       }
-      setServices(prev => prev.filter(s => s._id !== id));
-      setSelectedIds(prev => prev.filter(i => i !== id));
+      setServices(prev => prev.filter(s => s._id !== singleDeleteTargetId));
+      setSelectedIds(prev => prev.filter(i => i !== singleDeleteTargetId));
       toast.success('Service deleted');
     } catch (err) {
       toast.error('Failed to delete service');
+    } finally {
+      setSingleDeleteTargetId(null);
     }
   };
 
@@ -539,11 +507,25 @@ export default function AdminServicesPage() {
         </div>
       </div>
 
-      <BulkDeleteModal
+      <ConfirmModal
         isOpen={showBulkDeleteModal}
         onClose={() => setShowBulkDeleteModal(false)}
         onConfirm={handleBulkDelete}
-        count={selectedIds.length}
+        title={`Delete ${selectedIds.length} service${selectedIds.length !== 1 ? 's' : ''}?`}
+        message="This action cannot be undone. These services will be permanently removed from the platform."
+        confirmText="Delete All"
+        cancelText="Cancel"
+        variant="danger"
+      />
+      <ConfirmModal
+        isOpen={!!singleDeleteTargetId}
+        onClose={() => setSingleDeleteTargetId(null)}
+        onConfirm={confirmSingleDelete}
+        title="Delete Service?"
+        message="Are you sure you want to delete this service? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
       />
       {showEditModal && editingService && (
         <EditServiceModal

@@ -155,7 +155,7 @@ export default function RegisterPage() {
           {/* Logo — update path */}
           <div className="mb-4">
             <Image
-              src="/fixhub.png"
+              src="/images/fixhub.png"
               alt="FixHub"
               width={95}
               height={30}

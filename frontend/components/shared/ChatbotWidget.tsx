@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { X, Send, RotateCcw } from "lucide-react";
+import ConfirmModal from "./ConfirmModal";
 
 interface Message {
   role: "user" | "model";
@@ -163,18 +164,23 @@ export default function ChatbotWidget() {
     handleSend(text);
   };
 
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+
   const handleReset = () => {
-    if (window.confirm("Reset conversation?")) {
-      setMessages([
-        {
-          role: "model",
-          text: isPro
-            ? "Hi, I'm FixHub Pro Copilot.\nI can help you draft client quotes, estimate job pricing, and write professional customer updates."
-            : "Hi, I'm Fixie.\nI can help you book services, track requests, and answer questions.",
-        },
-      ]);
-      setError(null);
-    }
+    setShowResetConfirm(true);
+  };
+
+  const confirmReset = () => {
+    setMessages([
+      {
+        role: "model",
+        text: isPro
+          ? "Hi, I'm FixHub Pro Copilot.\nI can help you draft client quotes, estimate job pricing, and write professional customer updates."
+          : "Hi, I'm Fixie.\nI can help you book services, track requests, and answer questions.",
+      },
+    ]);
+    setError(null);
+    setShowResetConfirm(false);
   };
 
   const handleSuggestionClick = (suggestion: string) => handleSend(suggestion);
@@ -423,6 +429,17 @@ export default function ChatbotWidget() {
           </form>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={showResetConfirm}
+        title="Reset Conversation?"
+        message="Are you sure you want to reset the conversation? All chat history in this session will be cleared."
+        confirmText="Reset"
+        cancelText="Cancel"
+        variant="warning"
+        onClose={() => setShowResetConfirm(false)}
+        onConfirm={confirmReset}
+      />
     </div>
   );
 }

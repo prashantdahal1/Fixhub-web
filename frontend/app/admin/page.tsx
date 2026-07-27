@@ -15,6 +15,7 @@ import {
   Clock,
   Zap,
 } from "lucide-react";
+import { authHeaders } from "@/lib/api/client";
 
 export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
@@ -36,9 +37,7 @@ export default function AdminDashboardPage() {
   const fetchRealData = async () => {
     setLoading(true);
     try {
-      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (token) headers["Authorization"] = `Bearer ${token}`;
+      const headers = authHeaders();
 
       const [usersRes, servicesRes, bookingsRes, ticketsRes] = await Promise.allSettled([
         fetch("/api/v1/admin/users?page=1&size=100", { headers, credentials: "include" }),
@@ -97,7 +96,7 @@ export default function AdminDashboardPage() {
         activities.push({
           icon: "booking",
           text: `Booking ${b.status || "confirmed"}`,
-          meta: `₹${b.amount || 0} · ${new Date(b.createdAt || Date.now()).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`,
+          meta: `Rs. ${b.amount || 0} · ${new Date(b.createdAt || Date.now()).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`,
           tag: b.status || "Confirmed",
           color: "#6366F1",
           tagBg: "bg-violet-50 text-violet-700 border-violet-100",
@@ -107,7 +106,7 @@ export default function AdminDashboardPage() {
         activities.push({
           icon: "service",
           text: `Service: "${s.title}"`,
-          meta: `${s.category} · ₹${s.basePrice}/flat`,
+          meta: `${s.category} · Rs. ${s.basePrice}/flat`,
           tag: "Live",
           color: "#10B981",
           tagBg: "bg-emerald-50 text-emerald-700 border-emerald-100",
@@ -162,7 +161,7 @@ export default function AdminDashboardPage() {
     },
     {
       label: "Platform Revenue",
-      value: loading ? "—" : `₹${totalRevenue.toLocaleString("en-IN")}`,
+      value: loading ? "—" : `Rs. ${totalRevenue.toLocaleString("en-IN")}`,
       icon: <TrendingUp className="w-5 h-5" />,
       accent: "from-violet-600 to-violet-500",
       glow: "#8B5CF6",
@@ -190,49 +189,48 @@ export default function AdminDashboardPage() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-10">
       {/* ─── HERO BANNER ─── */}
-      <div className="relative overflow-hidden rounded-2xl mb-7" style={{ background: "linear-gradient(135deg, #0F62FE 0%, #2563EB 35%, #60A5FA 70%, #93C5FD 100%)" }}>
-        {/* Decorative blobs */}
-        <div className="absolute -right-16 -top-16 w-72 h-72 rounded-full opacity-25 pointer-events-none"
-          style={{ background: "radial-gradient(circle, rgba(56, 189, 248, 0.35), transparent 70%)" }} />
-        <div className="absolute left-1/3 -bottom-12 w-56 h-56 rounded-full opacity-10 pointer-events-none"
-          style={{ background: "radial-gradient(circle, #2563EB, transparent 70%)" }} />
-        <div className="absolute right-1/4 top-4 w-32 h-32 rounded-full opacity-10 pointer-events-none"
-          style={{ background: "radial-gradient(circle, #10B981, transparent 70%)" }} />
+      <div className="relative overflow-hidden rounded-2xl mb-7 shadow-xl shadow-blue-900/15" style={{ background: "linear-gradient(145deg, #3B82F6 0%, #1D4ED8 45%, #1E3A8A 100%)" }}>
+        {/* Premium ambient radial glows matching login & signup page */}
+        <div className="absolute -top-12 -right-12 w-72 h-72 rounded-full pointer-events-none opacity-30"
+          style={{ background: "radial-gradient(circle, #60A5FA 0%, transparent 70%)" }} />
+        <div className="absolute -bottom-16 left-1/3 w-60 h-60 rounded-full pointer-events-none opacity-20"
+          style={{ background: "radial-gradient(circle, #93C5FD 0%, transparent 70%)" }} />
 
-        <div className="relative z-10 p-7">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
+        <div className="relative z-10 p-6 sm:p-7">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
               {/* Live pill */}
-              <div className="inline-flex items-center gap-2 mb-4 px-3 py-1.5 rounded-full border border-white/10 bg-white/5 backdrop-blur-md">
-                <span className={`w-2 h-2 rounded-full bg-emerald-400 ${tick % 2 === 0 ? "opacity-100" : "opacity-50"} transition-opacity duration-500`} />
-                <span className="text-[11px] font-bold tracking-widest text-emerald-300 uppercase">Live Admin Console</span>
+              <div className="inline-flex items-center gap-2 mb-3.5 px-3 py-1 rounded-full border border-white/20 bg-white/10 backdrop-blur-md">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+                </span>
+                <span className="text-[11px] font-semibold tracking-wider text-white/90 uppercase">Live Admin Console</span>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                FixHub <span className="text-blue-400">Admin</span> Workspace
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                FixHub Admin Workspace
               </h1>
-              <p className="text-slate-400 text-sm mt-1.5 max-w-md leading-relaxed">
-                Real-time control panel — all data synchronized with live MongoDB.
+              <p className="text-blue-100/90 text-sm mt-1.5 max-w-lg leading-relaxed font-normal">
+                Real-time management dashboard and platform operations hub.
               </p>
-              <div className="mt-3 flex items-center gap-3 text-xs text-slate-500 font-medium">
-                <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {dateLabel}</span>
-                <span className="w-1 h-1 rounded-full bg-slate-600" />
-                <span className="flex items-center gap-1"><Activity className="w-3 h-3 text-emerald-400" /> {timeLabel} NST</span>
+              <div className="mt-4 flex items-center gap-2 text-xs text-blue-100/80 font-medium">
+                <Clock className="w-3.5 h-3.5 text-blue-200" />
+                <span>{dateLabel}</span>
+                <span className="text-blue-300/60">•</span>
+                <span>{timeLabel} NST</span>
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-3 shrink-0">
-              {/* Quick metrics pills */}
-              <div className="flex items-center gap-2 bg-white/8 backdrop-blur-md border border-white/10 rounded-xl px-4 py-2.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <div>
-                  <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">System</p>
-                  <p className="text-sm font-bold text-white">Operational</p>
-                </div>
+            <div className="flex items-center gap-3 shrink-0">
+              {/* Clean Status & Refresh */}
+              <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/10 border border-white/15 backdrop-blur-md text-xs text-white">
+                <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                <span className="font-medium text-white/90">System Operational</span>
               </div>
               <button
                 onClick={fetchRealData}
                 disabled={loading}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 active:scale-95 transition-all border border-blue-400/30 rounded-xl px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-blue-900/30"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/15 hover:bg-white/25 active:scale-95 border border-white/20 text-xs font-semibold text-white transition-all backdrop-blur-md shadow-sm"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
                 Refresh
@@ -240,9 +238,6 @@ export default function AdminDashboardPage() {
             </div>
           </div>
         </div>
-
-        {/* Bottom gradient fade */}
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/30 to-transparent" />
       </div>
 
       {/* ─── STAT CARDS ─── */}

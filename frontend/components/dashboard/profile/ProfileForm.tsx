@@ -60,7 +60,7 @@ export default function ProfileForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4 max-w-md mx-auto p-4 border rounded">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4 max-w-md p-4 border rounded">
       {message && <div className="text-sm font-semibold">{message}</div>}
       
       <div className="flex flex-col">

@@ -152,7 +152,7 @@ export default function LandingPage() {
                       <p className="text-sm font-medium text-slate-700">Pipe Leak Repair</p>
                       <p className="text-xs text-slate-400">Estimated: 45 mins</p>
                     </div>
-                    <span className="ml-auto text-sm font-semibold text-slate-900">₹1,200</span>
+                    <span className="ml-auto text-sm font-semibold text-slate-900">Rs. 1,200</span>
                   </div>
                   <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
                     <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
@@ -162,7 +162,7 @@ export default function LandingPage() {
                       <p className="text-sm font-medium text-slate-700">Electrical Wiring</p>
                       <p className="text-xs text-slate-400">Estimated: 2 hours</p>
                     </div>
-                    <span className="ml-auto text-sm font-semibold text-slate-900">₹2,500</span>
+                    <span className="ml-auto text-sm font-semibold text-slate-900">Rs. 2,500</span>
                   </div>
                 </div>
                 <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">

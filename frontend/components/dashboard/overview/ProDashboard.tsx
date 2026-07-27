@@ -9,6 +9,8 @@ import { apiFetch } from "../../../lib/api/client";
 import { API } from "../../../lib/api/endpoints";
 import { downloadReceiptPdf, downloadJobsReportPdf, JobReportEntry } from "../../../lib/receipt-pdf";
 import { Search, Download, Ticket, PlusCircle, CheckCircle2, Clock, AlertTriangle, ShieldCheck, DollarSign, Briefcase, ChevronRight, Wallet, MapPin, Calendar, User as UserIcon } from "lucide-react";
+import { useRealtimeBookings } from "@/hooks/useRealtimeBookings";
+
 
 interface BookingDoc {
   _id: string;
@@ -78,6 +80,25 @@ export default function ProDashboard() {
     }
   };
 
+  // ── Real-time booking status updates via WebSocket ───────────────────────────
+  useRealtimeBookings({
+    onBookingUpdated: (payload) => {
+      setBookings((prev) =>
+        prev.map((b) =>
+          b._id === payload.bookingId
+            ? { ...b, status: payload.status, escrowStatus: payload.escrowStatus }
+            : b
+        )
+      );
+      // Also refresh selected booking detail if open
+      setSelectedBooking((prev) =>
+        prev && prev._id === payload.bookingId
+          ? { ...prev, status: payload.status, escrowStatus: payload.escrowStatus }
+          : prev
+      );
+    },
+  });
+
   useEffect(() => {
     if (user?.isVerified) loadJobs();
   }, [user?.isVerified]);
@@ -140,7 +161,7 @@ export default function ProDashboard() {
   // ── Unverified state ─────────────────────────────────────────────────────────
   if (!user?.isVerified) {
     return (
-      <div className="w-full space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+      <div className="w-full space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Hello, {name}!</h1>
           <p className="text-sm text-slate-500 mt-1 font-medium">Welcome to your Professional Dashboard.</p>
@@ -201,7 +222,7 @@ export default function ProDashboard() {
   });
 
   return (
-    <div className="w-full space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+    <div className="w-full space-y-6">
 
       {/* ── Clean Header Bar ──────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3">
