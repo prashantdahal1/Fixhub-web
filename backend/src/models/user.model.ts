@@ -13,6 +13,8 @@ export interface IUser extends UserType, Document {
     resetPasswordExpires?: Date;
     isVerified: boolean;
     verificationDocument?: string;
+    nationalIdFront?: string;
+    nationalIdBack?: string;
     averageRating?: number;
     reviewCount?: number;
 }
@@ -35,6 +37,8 @@ const UserMongoSchema: Schema = new Schema<IUser>(
         resetPasswordExpires: { type: Date },
         isVerified: { type: Boolean, default: false },
         verificationDocument: { type: String, default: '' },
+        nationalIdFront: { type: String, default: '' },
+        nationalIdBack: { type: String, default: '' },
         averageRating: { type: Number, default: 0, min: 0, max: 5 },
         reviewCount: { type: Number, default: 0, min: 0 },
     },
@@ -42,6 +46,7 @@ const UserMongoSchema: Schema = new Schema<IUser>(
         timestamps: true
     }
 );
+
 
 UserMongoSchema.index({ role: 1, status: 1 });
 UserMongoSchema.index({ role: 1, isVerified: 1 });

@@ -24,7 +24,8 @@ export interface IService extends Document {
   priceUnit: "flat" | "per_hour" | "per_sqft";
   rating: number;
   reviewCount: number;
-  imageUrl: string;
+  imageUrl?: string;
+  imageUrls: string[];
   tags: string[];
   specifications: { label: string; value: string }[];
   isActive: boolean;
@@ -51,6 +52,7 @@ const ServiceSchema = new Schema<IService>(
     rating: { type: Number, default: 0, min: 0, max: 5 },
     reviewCount: { type: Number, default: 0 },
     imageUrl: { type: String, default: "" },
+    imageUrls: { type: [String], default: [] },
     tags: [{ type: String }],
     specifications: [{ label: String, value: String }],
     isActive: { type: Boolean, default: true },

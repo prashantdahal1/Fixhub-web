@@ -2,7 +2,8 @@ import mongoose, { Schema, Document } from "mongoose";
 
 export interface ITicket extends Document {
     ticketId: string;
-    bookingId: string;
+    bookingId?: string;
+    subject?: string;
     technicianName: string;
     category: string;
     description: string;
@@ -14,7 +15,8 @@ export interface ITicket extends Document {
 const TicketSchema: Schema = new Schema<ITicket>(
     {
         ticketId: { type: String, required: true, unique: true },
-        bookingId: { type: String, required: true },
+        bookingId: { type: String, required: false },
+        subject: { type: String, required: false },
         technicianName: { type: String, default: 'Unassigned' },
         category: { type: String, required: true },
         description: { type: String, required: true },

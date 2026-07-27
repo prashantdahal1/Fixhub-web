@@ -19,6 +19,8 @@ export interface IBooking extends Document {
   address: string;
   notes?: string;
   amount: number;
+  promoCode?: string;
+  discount?: number;
   status: BookingStatus;
   escrowStatus: EscrowStatus;
   createdAt: Date;
@@ -34,6 +36,8 @@ const BookingSchema = new Schema<IBooking>(
     address: { type: String, required: true, trim: true },
     notes: { type: String, default: "" },
     amount: { type: Number, required: true, min: 0 },
+    promoCode: { type: String, trim: true, uppercase: true },
+    discount: { type: Number, default: 0, min: 0 },
     status: {
       type: String,
       enum: ["confirmed", "in_progress", "completed", "cancelled"],
