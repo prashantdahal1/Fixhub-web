@@ -3,16 +3,20 @@ import path from 'path';
 
 const DOC_DIR = path.resolve(process.cwd(), 'uploads/documents');
 
+import fs from 'fs';
+
+if (!fs.existsSync(DOC_DIR)) {
+  fs.mkdirSync(DOC_DIR, { recursive: true });
+}
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, DOC_DIR),
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
-    if ((req as any).user?.id) {
-      cb(null, `${(req as any).user.id}-doc${ext}`);
-    } else {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-      cb(null, `${uniqueSuffix}${ext}`);
-    }
+    const userId = (req as any).user?.id;
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    const prefix = userId ? `${userId}` : uniqueSuffix;
+    cb(null, `${prefix}-${file.fieldname}-${uniqueSuffix}${ext}`);
   },
 });
 
