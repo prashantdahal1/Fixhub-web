@@ -16,6 +16,7 @@ import userRoutes from "./routes/admin/user.route.js";
 import { profileRouter } from './routes/profile.route.js';
 import adminRoutes from "./routes/admin.route.js";
 import ticketRoutes from "./routes/ticket.route.js";
+import ticketDeletionRoutes from './routes/ticket-deletion.route.js';
 import session from "express-session";
 import passport from "./configs/passport.config.js";
 import authRoutes from "./routes/auth.route.js";
@@ -26,6 +27,7 @@ import walletRouter from "./routes/wallet.route.js";
 import reviewRouter from "./routes/review.route.js";
 import notificationRouter from "./routes/notification.route.js";
 import messageRouter from "./routes/message.route.js";
+import thingRouter from "./routes/thing.route.js";
 
 const app: Application = express();
 app.use(corsMiddleware);
@@ -51,6 +53,7 @@ app.use("/api/v1/auth", profileRouter);
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/admin", adminRoutes);
 app.use("/api/v1/tickets", ticketRoutes);
+app.use('/api/v1/ticket-deletions', ticketDeletionRoutes);
 app.use("/api/v1/chat", chatbotRouter);
 app.use("/api/v1/services", serviceRouter);
 app.use("/api/v1/bookings", bookingRouter);
@@ -58,6 +61,7 @@ app.use("/api/v1/wallet", walletRouter);
 app.use("/api/v1/reviews", reviewRouter);
 app.use("/api/v1/notifications", notificationRouter);
 app.use("/api/v1/messages", messageRouter);
+app.use("/api/v1/things", thingRouter);
 app.use("/auth", authRoutes);
 
 app.use(
