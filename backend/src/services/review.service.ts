@@ -4,6 +4,7 @@ import { BookingModel } from "../models/booking.model.js";
 import { ServiceModel } from "../models/service.model.js";
 import { UserModel, type IUser } from "../models/user.model.js";
 import { HttpException } from "../exceptions/http-exception.js";
+import { broadcastRealtimeEvent } from "../utils/realtime.util.js";
 import type { CreateReviewDTO } from "../dtos/marketplace.dto.js";
 
 export class ReviewService {
@@ -46,6 +47,31 @@ export class ReviewService {
     }
 
     await this.recomputeAverages(booking.serviceId.toString(), booking.professionalId.toString());
+
+    const reviewPayload = {
+      _id: review._id.toString(),
+      bookingId: review.bookingId.toString(),
+      serviceId: review.serviceId.toString(),
+      professionalId: review.professionalId.toString(),
+      customerId: {
+        _id: customer._id.toString(),
+        firstName: customer.firstName || "",
+        lastName: customer.lastName || "",
+        profilePicture: customer.profilePicture || "",
+      },
+      rating: review.rating,
+      comment: review.comment,
+      createdAt: review.createdAt.toISOString(),
+    };
+
+    const updatedService = await ServiceModel.findById(booking.serviceId).select("rating reviewCount");
+    broadcastRealtimeEvent("review_created", {
+      serviceId: reviewPayload.serviceId,
+      review: reviewPayload,
+      rating: updatedService?.rating || review.rating,
+      reviewCount: updatedService?.reviewCount || 1,
+    });
+
     return review;
   }
 

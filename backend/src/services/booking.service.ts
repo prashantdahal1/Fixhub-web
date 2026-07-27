@@ -24,6 +24,9 @@ export class BookingService {
       throw new HttpException(400, "scheduledAt must be in the future");
     }
 
+    const promoCode = data.promoCode?.trim().toUpperCase();
+    const discount = 0;
+
     // Create booking in confirmed state, then hold escrow; roll back on hold failure
     let booking: IBooking;
     try {
@@ -35,8 +38,10 @@ export class BookingService {
         address: data.address,
         notes: data.notes || "",
         amount: service.basePrice,
+        discount,
         status: "confirmed",
         escrowStatus: "none",
+        ...(promoCode ? { promoCode } : {}),
       });
     } catch (err: any) {
       if (err?.code === 11000) {

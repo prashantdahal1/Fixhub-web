@@ -1,4 +1,5 @@
 import { NotificationModel } from "../models/notification.model.js";
+import { UserModel } from "../models/user.model.js";
 import type mongoose from "mongoose";
 import { EventEmitter } from "events";
 import { broadcastRealtimeEvent } from "./realtime.util.js";
@@ -27,5 +28,22 @@ export async function createNotification(
     );
   } catch (error) {
     console.error("Failed to create notification:", error);
+  }
+}
+
+export async function createAdminNotification(
+  title: string,
+  body: string,
+  type: "booking" | "confirm" | "done" | "payment"
+) {
+  try {
+    const admins = await UserModel.find({ role: "admin" }).select("_id");
+    await Promise.all(
+      admins.map((admin) =>
+        createNotification(admin._id, title, body, type)
+      )
+    );
+  } catch (error) {
+    console.error("Failed to notify admins:", error);
   }
 }
