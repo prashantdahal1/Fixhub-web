@@ -56,5 +56,7 @@ export const ALLOWED_ORIGINS: string[] = [
 ];
 export const UPLOAD_DIR: string = path.resolve(__dirname, '../../uploads');
 
+export const FRONTEND_URL: string = process.env.FRONTEND_URL || 'http://localhost:3000';
+export const GOOGLE_CALLBACK_URL: string = process.env.GOOGLE_CALLBACK_URL || 'http://localhost:5000/auth/google/callback';
 export const GOOGLE_CLIENT_ID: string = process.env.GOOGLE_CLIENT_ID || '';
 export const GOOGLE_CLIENT_SECRET: string = process.env.GOOGLE_CLIENT_SECRET || '';
