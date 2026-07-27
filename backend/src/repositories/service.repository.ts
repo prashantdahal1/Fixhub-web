@@ -1,7 +1,7 @@
 import { ServiceModel, type IService, type ServiceCategory } from "../models/service.model.js";
 
 export interface ServiceQuery {
-  category?: ServiceCategory | undefined;
+  category?: ServiceCategory | "all" | undefined;
   search?: string | undefined;
   page?: number | undefined;
   limit?: number | undefined;
@@ -17,10 +17,10 @@ export interface IServiceRepository {
 }
 
 export class ServiceMongoRepository implements IServiceRepository {
-  async findAll({ category, search, page = 1, limit = 12 }: ServiceQuery): Promise<{ data: IService[]; total: number }> {
-    const filter: Record<string, any> = { isActive: true };
+  async findAll({ category, search, page = 1, limit = 100 }: ServiceQuery): Promise<{ data: IService[]; total: number }> {
+    const filter: Record<string, any> = {};
 
-    if (category) filter.category = category;
+    if (category && category !== "all") filter.category = category;
 
     if (search) {
       const regex = new RegExp(search, "i");
@@ -34,12 +34,17 @@ export class ServiceMongoRepository implements IServiceRepository {
     const skip = (page - 1) * limit;
 
     const [data, total] = await Promise.all([
-      ServiceModel.find(filter).skip(skip).limit(limit).sort({ rating: -1, createdAt: -1 }),
+      ServiceModel.find(filter)
+        .populate("professionalId", "firstName lastName email phoneNumber profilePicture averageRating reviewCount status city address")
+        .skip(skip)
+        .limit(limit)
+        .sort({ rating: -1, createdAt: -1 }),
       ServiceModel.countDocuments(filter),
     ]);
 
     return { data, total };
   }
+
 
   async findById(id: string): Promise<IService | null> {
     return ServiceModel.findById(id).populate("professionalId", "firstName lastName email phoneNumber profilePicture averageRating reviewCount status city address");

@@ -60,7 +60,7 @@ export class UserMongoRepository implements IUserRepository {
             ];
         }
         if (role && role !== 'all') {
-            query.role = role;
+            query.role = role === 'expert' ? 'professional' : role;
         }
         if (status && status !== 'all') {
             query.status = status;
@@ -74,6 +74,7 @@ export class UserMongoRepository implements IUserRepository {
 
         return { data, total };
     }
+
 
     async update(id: string, user: Partial<IUser>): Promise<IUser | null> {
         if (!this.validateObjectId(id)) return null;
