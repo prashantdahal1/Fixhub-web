@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "../../contexts/AuthContext";
-import { IntelligentSearchBar } from "../../components/IntelligentSearchBar";
+import { IntelligentSearchBar } from "@/components/shared/IntelligentSearchBar";
 import { fetchNotifications, upsertNotification, type NotificationItem } from "../../lib/api/notifications";
 
 // ─── Icons ───────────────────────────────────────────────────────────────────

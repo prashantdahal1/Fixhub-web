@@ -11,9 +11,26 @@ export interface NotificationItem {
 }
 
 export async function fetchNotifications(): Promise<NotificationItem[]> {
-  const res = await fetch("/api/v1/notifications", { credentials: "include" });
-  const json = await res.json();
-  return json.success ? json.data : [];
+  try {
+    const res = await fetch("/api/v1/notifications", { credentials: "include" });
+
+    if (!res.ok) {
+      if (res.status === 401) {
+        console.warn("Notifications unavailable: user is not authenticated.");
+        return [];
+      }
+
+      const text = await res.text().catch(() => "");
+      console.warn("Notifications request failed", { status: res.status, body: text });
+      return [];
+    }
+
+    const json = await res.json().catch(() => null);
+    return json?.success ? (json.data ?? []) : [];
+  } catch (error) {
+    console.warn("Notifications request failed", error);
+    return [];
+  }
 }
 
 export function upsertNotification(

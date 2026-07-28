@@ -1,10 +1,10 @@
 import express, { type Application, type NextFunction, type Request, type Response } from "express";
 import cookieParser from "cookie-parser";
-import { HttpException } from './exceptions/http-exception.js';
-import { ApiResponseHelper } from './utils/apihelper.util.js';
-import { corsMiddleware } from './middlewares/cors.middleware.js';
-import { SESSION_SECRET } from './configs/constant.js';
-import { logger } from './utils/logger.js';
+import { HttpException } from './shared/exceptions/http-exception.js';
+import { ApiResponseHelper } from './shared/utils/apihelper.util.js';
+import { corsMiddleware } from './shared/middlewares/cors.middleware.js';
+import { SESSION_SECRET } from './config/constants.js';
+import { logger } from './shared/utils/logger.js';
 import morgan from "morgan";
 import path from "path";
 import { fileURLToPath } from 'url';
@@ -12,28 +12,27 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-import userRoutes from "./routes/admin/user.route.js";
-import { profileRouter } from './routes/profile.route.js';
-import adminRoutes from "./routes/admin.route.js";
-import ticketRoutes from "./routes/ticket.route.js";
-import ticketDeletionRoutes from './routes/ticket-deletion.route.js';
+import userRoutes from "./modules/user/user.route.js";
+import { profileRouter } from './modules/admin/profile.route.js';
+import adminRoutes from "./modules/admin/admin.route.js";
+import ticketRoutes from "./modules/ticket/ticket.route.js";
+import ticketDeletionRoutes from './modules/ticket/ticket-deletion.route.js';
 import session from "express-session";
-import passport from "./configs/passport.config.js";
-import authRoutes from "./routes/auth.route.js";
-import chatbotRouter from "./routes/chatbot.route.js";
-import serviceRouter from "./routes/service.route.js";
-import bookingRouter from "./routes/booking.route.js";
-import walletRouter from "./routes/wallet.route.js";
-import reviewRouter from "./routes/review.route.js";
-import notificationRouter from "./routes/notification.route.js";
-import messageRouter from "./routes/message.route.js";
-import thingRouter from "./routes/thing.route.js";
+import passport from "./config/passport.config.js";
+import authRoutes from "./modules/auth/auth.route.js";
+import chatbotRouter from "./modules/chat/chatbot.route.js";
+import serviceRouter from "./modules/service/service.route.js";
+import bookingRouter from "./modules/booking/booking.route.js";
+import walletRouter from "./modules/wallet/wallet.route.js";
+import reviewRouter from "./modules/review/review.route.js";
+import notificationRouter from "./modules/notification/notification.route.js";
+import messageRouter from "./modules/chat/message.route.js";
+import thingRouter from "./modules/thing/thing.route.js";
 
 const app: Application = express();
 app.use(corsMiddleware);
 
 app.use(cookieParser());
-
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

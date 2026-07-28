@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import CreateServiceForm from "../components/CreateServiceForm";
+import CreateServiceForm from "@/components/dashboard/services/CreateServiceForm";
 
 type PriceUnit = "flat" | "per_hour" | "per_sqft";
 type ServiceCategory =
