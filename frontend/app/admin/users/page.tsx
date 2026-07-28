@@ -4,8 +4,6 @@ import React, { useEffect, useState } from "react";
 import {
   Search,
   Plus,
-  Pencil,
-  Trash2,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
@@ -470,6 +468,9 @@ export default function RegisteredUsersPage() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -536,6 +537,27 @@ export default function RegisteredUsersPage() {
     }
   };
 
+  const confirmBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      await Promise.all(selectedIds.map(id =>
+        fetch(`/api/v1/admin/users/${id}`, { method: 'DELETE', headers, credentials: 'include' })
+      ));
+      toast.success(`${selectedIds.length} user${selectedIds.length!==1 ? 's' : ''} deleted`);
+      setSelectedIds([]);
+      fetchUsers();
+    } catch (err) {
+      toast.error('Failed to delete selected users');
+    } finally {
+      setIsBulkDeleting(false);
+      setShowBulkDeleteConfirm(false);
+    }
+  };
+
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
       setSelectedIds(users.map((u) => u._id));
@@ -578,6 +600,12 @@ export default function RegisteredUsersPage() {
                 title="Clear selection"
               >
                 <X className="h-3 w-3" />
+              </button>
+              <button
+                onClick={() => setShowBulkDeleteConfirm(true)}
+                className="ml-2 text-xs bg-red-600 text-white px-3 py-1.5 rounded-xl hover:bg-red-700 transition"
+              >
+                Delete
               </button>
             </div>
           )}
@@ -633,6 +661,14 @@ export default function RegisteredUsersPage() {
           </button>
         </div>
       </div>
+
+      <DeleteConfirmModal
+        isOpen={showBulkDeleteConfirm}
+        onClose={() => setShowBulkDeleteConfirm(false)}
+        onConfirm={confirmBulkDelete}
+        title={`Delete ${selectedIds.length} users?`}
+        message={`This will permanently delete ${selectedIds.length} user${selectedIds.length!==1 ? 's' : ''}. This action cannot be undone.`}
+      />
 
       <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
@@ -736,42 +772,43 @@ export default function RegisteredUsersPage() {
                           })()}
                         </td>
                         <td className="px-4 py-2 text-right" onClick={(e) => e.stopPropagation()}>
-                          <div className="inline-flex items-center bg-slate-50 border border-slate-200/80 rounded-lg p-0.5 shadow-sm">
+                          <div className="relative inline-block">
+                            {/* 3-dot kebab trigger */}
                             <button
-                              onClick={() => setModalUser(user)}
-                              className="h-7 w-7 flex items-center justify-center rounded-md text-slate-400 hover:bg-white hover:text-blue-600 hover:shadow-sm transition-all"
-                              title="Edit User"
+                              onClick={() => setOpenMenuId(openMenuId === user._id ? null : user._id)}
+                              className="h-8 w-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all"
+                              title="Actions"
                             >
-                              <Pencil className="h-3.5 w-3.5" />
+                              {/* Vertical three dots */}
+                              <span className="flex flex-col items-center gap-[3px]">
+                                <span className="block w-[3.5px] h-[3.5px] rounded-full bg-current" />
+                                <span className="block w-[3.5px] h-[3.5px] rounded-full bg-current" />
+                                <span className="block w-[3.5px] h-[3.5px] rounded-full bg-current" />
+                              </span>
                             </button>
-                            {user.role === 'professional' && !user.isVerified && (
-                              <button
-                                onClick={async () => {
-                                  try {
-                                    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-                                    const response = await fetch(`/api/v1/admin/verify-pro/${user._id}`, {
-                                      method: "PATCH",
-                                      headers: { Authorization: `Bearer ${token}` }
-                                    });
-                                    if (!response.ok) throw new Error("Failed to verify professional");
-                                    toast.success("Professional verified successfully");
-                                    fetchUsers();
-                                  } catch (error: any) {
-                                    toast.error(error.message);
-                                  }
-                                }}
-                                className="h-7 w-7 flex items-center justify-center rounded-md text-amber-500 hover:bg-white hover:text-emerald-600 hover:shadow-sm transition-all"
-                                title="Verify Professional"
+
+                            {/* Dropdown menu */}
+                            {openMenuId === user._id && (
+                              <div
+                                className="absolute right-0 top-9 z-50 w-36 bg-white rounded-xl shadow-lg border border-slate-100 py-1 animate-in fade-in zoom-in-95 duration-100"
+                                onMouseLeave={() => setOpenMenuId(null)}
                               >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
-                              </button>
+                                <button
+                                  onClick={() => { setModalUser(user); setOpenMenuId(null); }}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-slate-600 hover:bg-blue-50 hover:text-blue-700 transition-colors rounded-lg"
+                                >
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                  Edit User
+                                </button>
+                                <button
+                                  onClick={() => { handleDelete(user._id); setOpenMenuId(null); }}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-rose-500 hover:bg-rose-50 hover:text-rose-700 transition-colors rounded-lg"
+                                >
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                                  Delete User
+                                </button>
+                              </div>
                             )}
-                            <button
-                              onClick={() => handleDelete(user._id)}
-                              className="h-7 w-7 flex items-center justify-center rounded-md text-slate-400 hover:bg-white hover:text-red-600 hover:shadow-sm transition-all"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
                           </div>
                         </td>
                       </tr>
