@@ -3,7 +3,7 @@ import passport from "passport";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
-import { SECRET_KEY } from "../configs/constant.js";
+import { SECRET_KEY, FRONTEND_URL } from "../configs/constant.js";
 import { UserModel } from "../models/user.model.js";
 import { sendPasswordResetEmail } from "../utils/email.util.js";
 import type { IUser } from "../models/user.model.js";
@@ -22,20 +22,37 @@ const forgotPasswordLimiter = rateLimit({
     message: { success: false, message: "Too many password reset attempts, please try again later." },
 });
 
+const resolveGoogleCallbackUrl = (req: Request) => {
+    const configured = process.env.GOOGLE_CALLBACK_URL?.trim();
+    if (configured) return configured;
+
+    const forwardedProto = req.headers["x-forwarded-proto"]?.toString();
+    const protocol = forwardedProto?.split(",")[0]?.trim() || req.protocol || "http";
+    const host = req.get("host");
+    return `${protocol}://${host}/auth/google/callback`;
+};
+
 // /auth/google: Redirect user to Google (always show account picker)
-router.get(
-    "/google",
+router.get("/google", (req: Request, res: Response, next: NextFunction) => {
+    const callbackURL = resolveGoogleCallbackUrl(req);
     passport.authenticate("google", {
-        scope: ["profile", "email"],
+        scope: ["openid", "profile", "email"],
         prompt: "select_account",
-    })
-);
+        accessType: "offline",
+        includeGrantedScopes: true,
+        callbackURL,
+    } as any)(req, res, next);
+});
 
 // /auth/google/callback: Callback endpoint for Google
-router.get(
-    "/google/callback",
-    passport.authenticate("google", { failureRedirect: "/login", session: false }),
-    (req, res) => {
+router.get("/google/callback", (req: Request, res: Response, next: NextFunction) => {
+    const callbackURL = resolveGoogleCallbackUrl(req);
+    passport.authenticate("google", {
+        failureRedirect: `${FRONTEND_URL}/login?error=oauth`,
+        session: false,
+        callbackURL,
+    } as any)(req, res, next);
+}, (req, res) => {
         // Successful authentication, generate JWT
         const user = req.user as IUser;
         const token = jwt.sign(
@@ -44,9 +61,8 @@ router.get(
             { expiresIn: "30d" }
         );
 
-        // Redirect to frontend with token (adjust the URL to your frontend's URL)
-        // E.g., http://localhost:3000/auth/success?token=...
-        res.redirect(`http://localhost:3000/?token=${token}`);
+        // Redirect to frontend with token
+        res.redirect(`${FRONTEND_URL}/?token=${token}`);
     }
 );
 

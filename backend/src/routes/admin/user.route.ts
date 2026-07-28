@@ -22,5 +22,14 @@ userRouter.post("/logout", (req, res) => {
 userRouter.get("/whoami", authMiddleware, userController.whoami.bind(userController));
 userRouter.put("/update", authMiddleware, profileUpload.single('avatar'), userController.updateProfile.bind(userController));
 userRouter.put("/password", authMiddleware, userController.updatePassword.bind(userController));
+userRouter.post(
+  "/national-id",
+  authMiddleware,
+  documentUpload.fields([
+    { name: 'nationalIdFront', maxCount: 1 },
+    { name: 'nationalIdBack', maxCount: 1 }
+  ]),
+  userController.uploadNationalId.bind(userController)
+);
 
 export default userRouter;

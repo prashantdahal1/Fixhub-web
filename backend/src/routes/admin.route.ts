@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { UserController } from '../controllers/user.controller.js';
 import { authorizedMiddleware, adminMiddleware } from '../middlewares/authorized.middleware.js';
 import { profileUpload } from '../middlewares/profileUpload.middleware.js';
+import { documentUpload } from '../middlewares/documentUpload.middleware.js';
+import adminController from '../controllers/admin.controller.js';
 
 const adminRouter = Router();
 const userController = new UserController();
@@ -18,5 +20,8 @@ adminRouter.delete('/users/:id', userController.deleteUser.bind(userController))
 
 adminRouter.get('/unverified-pros', userController.getUnverifiedPros.bind(userController));
 adminRouter.patch('/verify-pro/:id', userController.verifyPro.bind(userController));
+
+// Suggest service details from a provided image (heuristic/AI placeholder)
+adminRouter.post('/service-suggest', documentUpload.single('image'), adminController.suggestServiceFromImage.bind(adminController));
 
 export default adminRouter;

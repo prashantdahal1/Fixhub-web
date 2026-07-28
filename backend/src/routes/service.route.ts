@@ -16,7 +16,10 @@ router.post(
     "/",
     authorizedMiddleware,
     requireVerifiedPro,
-    documentUpload.single("image"),
+    documentUpload.fields([
+      { name: "image", maxCount: 1 },
+      { name: "images", maxCount: 4 },
+    ]),
     (req, res) => controller.createService(req, res)
 );
 
@@ -24,15 +27,24 @@ router.put(
     "/:id",
     authorizedMiddleware,
     requireVerifiedPro,
-    documentUpload.single("image"),
+    documentUpload.fields([
+      { name: "image", maxCount: 1 },
+      { name: "images", maxCount: 4 },
+    ]),
     (req, res) => controller.updateService(req, res)
 );
 
 router.delete(
     "/:id",
     authorizedMiddleware,
-    requireVerifiedPro,
-    (req, res) => controller.deleteService(req, res)
+        requireVerifiedPro,
+        (req, res) => controller.deleteService(req, res)
+);
+
+router.delete(
+    "/:id/image",
+    authorizedMiddleware,
+    (req, res) => controller.deleteServiceImage(req, res)
 );
 
 export default router;
