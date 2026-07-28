@@ -7,6 +7,11 @@ export const API = {
         CREATE: "/api/v1/tickets",
         ADMIN_GET_ALL: "/api/v1/tickets/admin",
         ADMIN_UPDATE_STATUS: (id: string) => `/api/v1/tickets/admin/${id}/status`,
+        ADMIN_DELETE: (id: string) => `/api/v1/tickets/${id}`,
+        ADMIN_BULK_DELETE: "/api/v1/tickets/admin/bulk-delete",
+    },
+    TICKET_DELETIONS: {
+        ADMIN_GET_ALL: "/api/v1/ticket-deletions/admin",
     },
     BOOKINGS: {
         LIST: "/api/v1/bookings",
