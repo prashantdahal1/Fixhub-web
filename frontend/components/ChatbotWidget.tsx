@@ -109,15 +109,17 @@ export default function ChatbotWidget() {
   }, [messages, isOpen]);
 
   const handleSend = async (textToSend: string) => {
-    if (!textToSend.trim() || isLoading) return;
+    const trimmedText = textToSend?.trim();
+    if (!trimmedText || isLoading) return;
 
     setError(null);
-    const updatedMessages = [...messages, { role: "user" as const, text: textToSend }];
+    const userMessage = { role: "user" as const, text: trimmedText };
+    const updatedMessages = [...messages, userMessage];
     setMessages(updatedMessages);
     setIsLoading(true);
 
     try {
-      const payload = { message: textToSend, history: messages, role: user?.role };
+      const payload = { message: trimmedText, history: updatedMessages, role: user?.role };
 
       const response = await fetch("/api/v1/chat", {
         method: "POST",
