@@ -35,14 +35,17 @@ const servicesFixture = {
   meta: { total: 2 }
 };
 
-test.skip('services list shows cards and search input (skipped - flaky SSR)', async ({ page }) => {
-  await page.addInitScript(() => { localStorage.setItem('token', 'test-token'); });
-
-  await page.route('**/api/v1/auth/me', (route) => {
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { email: 'test@fixhub', firstName: 'Test', role: 'customer' } }) });
+test('services list shows cards and search input', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('token', 'test-token');
+    document.cookie = 'auth_token=test-token; path=/';
   });
 
-  await page.route('**/api/v1/services**', (route) => {
+  await page.route('**/api/v1/auth/whoami', (route) => {
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { email: 'test@fixhub', firstName: 'Test', lastName: 'User', role: 'customer' } }) });
+  });
+
+  await page.route('**/api/v1/services?*', (route) => {
     route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -54,8 +57,6 @@ test.skip('services list shows cards and search input (skipped - flaky SSR)', as
 
   await expect(page.locator('h1')).toContainText('Browse Services', { timeout: 10000 });
   await expect(page.locator('input[placeholder="Search services..."]')).toBeVisible({ timeout: 10000 });
-
-  // Expect both service titles to be visible in the list
-  await expect(page.locator('text=Test Electrician Service')).toBeVisible({ timeout: 10000 });
-  await expect(page.locator('text=Test Plumber Service')).toBeVisible({ timeout: 10000 });
+  await expect(page.getByText('Test Electrician Service')).toBeVisible({ timeout: 10000 });
+  await expect(page.getByText('Test Plumber Service')).toBeVisible({ timeout: 10000 });
 });

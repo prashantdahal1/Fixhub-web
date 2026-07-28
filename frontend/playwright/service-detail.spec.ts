@@ -23,14 +23,17 @@ const serviceDetail = {
 
 const reviewsFixture = { success: true, data: [] };
 
-test.skip('service detail renders title and booking card (skipped - flaky SSR)', async ({ page }) => {
-  await page.addInitScript(() => { localStorage.setItem('token', 'test-token'); });
-
-  await page.route('**/api/v1/auth/me', (route) => {
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { email: 'test@fixhub', firstName: 'Test', role: 'customer' } }) });
+test('service detail renders title and booking card', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('token', 'test-token');
+    document.cookie = 'auth_token=test-token; path=/';
   });
 
-  await page.route('**/api/v1/services**', (route) =>
+  await page.route('**/api/v1/auth/whoami', (route) => {
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { email: 'test@fixhub', firstName: 'Test', lastName: 'User', role: 'customer' } }) });
+  });
+
+  await page.route('**/api/v1/services?*', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: [serviceDetail.data], meta: { total: 1 } }) })
   );
   await page.route('**/api/v1/services/slug/test-electrician-service', (route) =>
@@ -40,9 +43,9 @@ test.skip('service detail renders title and booking card (skipped - flaky SSR)',
 
   await page.goto('/dashboard/services', { waitUntil: 'networkidle' });
   await expect(page.locator('h1')).toContainText('Browse Services', { timeout: 10000 });
-  await page.click('text=Test Electrician Service');
+  await page.getByText('Test Electrician Service').click();
 
-  await expect(page.locator('h1')).toHaveText('Test Electrician Service', { timeout: 10000 });
-  await expect(page.locator('text=Book This Service')).toBeVisible();
+  await expect(page.locator('h1')).toContainText('Test Electrician Service', { timeout: 10000 });
+  await expect(page.getByRole('button', { name: 'Book This Service' })).toBeVisible();
   await expect(page.locator('text=Starting from')).toBeVisible();
 });

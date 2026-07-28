@@ -9,7 +9,7 @@ test.describe('Homepage E2E Tests', () => {
 
   test('homepage should display call-to-action buttons', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('a:has-text("View all services")')).toBeVisible();
+    await expect(page.getByRole('link', { name: /view all services/i }).first()).toBeVisible();
   });
 
   test('homepage should render category showcase cards', async ({ page }) => {
