@@ -165,6 +165,7 @@ export default function ServicesPage() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<ServiceCategory | "all">(categoryParam || "all");
+  const [sortBy, setSortBy] = useState<string>("popular");
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const LIMIT = 12;
@@ -204,7 +205,15 @@ export default function ServicesPage() {
       const res = await fetch(`/api/v1/services?${params.toString()}`);
       const json = await res.json();
       if (json.success) {
-        setServices(json.data);
+        let list: Service[] = json.data || [];
+        if (sortBy === "price_desc") {
+          list = [...list].sort((a, b) => b.basePrice - a.basePrice);
+        } else if (sortBy === "price_asc") {
+          list = [...list].sort((a, b) => a.basePrice - b.basePrice);
+        } else if (sortBy === "rating_desc") {
+          list = [...list].sort((a, b) => b.rating - a.rating);
+        }
+        setServices(list);
         setTotal(json.meta?.total ?? 0);
       }
     } catch {
@@ -212,7 +221,7 @@ export default function ServicesPage() {
     } finally {
       setLoading(false);
     }
-  }, [activeCategory, debouncedSearch, page]);
+  }, [activeCategory, debouncedSearch, page, sortBy]);
 
   useEffect(() => {
     setPage(1);
@@ -267,7 +276,7 @@ export default function ServicesPage() {
   const totalPages = Math.ceil(total / LIMIT);
 
   return (
-    <div className="max-w-5xl space-y-6">
+    <div className="w-full space-y-6 px-4 py-6 sm:px-6 lg:px-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/80 pb-4">
         <div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight">
@@ -302,6 +311,18 @@ export default function ServicesPage() {
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-8 pr-4 py-2 text-sm border border-slate-200 rounded-xl bg-white text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
           />
+        </div>
+        <div className="sm:w-56">
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 font-medium transition-all"
+          >
+            <option value="popular">Sort by: Popular</option>
+            <option value="price_desc">Price: High to Low</option>
+            <option value="price_asc">Price: Low to High</option>
+            <option value="rating_desc">Highest Rated</option>
+          </select>
         </div>
       </div>
 
@@ -366,8 +387,8 @@ export default function ServicesPage() {
 
       {/* Backdrop Blur Modal for Post Service */}
       {postModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto custom-scrollbar">
-          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-xl w-full shadow-2xl border border-slate-100 my-auto animate-in fade-in zoom-in-95 duration-150 relative">
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-md flex items-center justify-center p-4 sm:p-6">
+          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-xl w-full shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-150 relative max-h-[90vh] overflow-y-auto custom-scrollbar">
             <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-100">
               <div>
                 <h2 className="text-lg font-bold text-slate-900">Post a New Service</h2>

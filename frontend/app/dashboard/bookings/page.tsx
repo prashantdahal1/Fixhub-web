@@ -207,7 +207,7 @@ export default function BookingsPage() {
   }, [bookings, activeTab, searchQuery, isPro]);
 
   return (
-    <div className="max-w-5xl space-y-5">
+    <div className="w-full space-y-6 px-4 py-6 sm:px-6 lg:px-8">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">

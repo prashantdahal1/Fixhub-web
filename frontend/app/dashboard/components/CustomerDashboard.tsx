@@ -98,7 +98,7 @@ export default function CustomerDashboard() {
   const name = user?.firstName || "User";
 
   return (
-    <div className="max-w-5xl space-y-5">
+    <div className="w-full space-y-6 px-4 py-6 sm:px-6 lg:px-8">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Hello, {name}!</h1>
         <p className="text-sm text-slate-500 mt-1">What can we help you maintain today?</p>
@@ -152,29 +152,119 @@ export default function CustomerDashboard() {
         </div>
       </div>
 
+      {/* ── Popular Services with Photos ────────────────────────────────────────── */}
       <div className="rounded-2xl border border-gray-200 bg-white p-5 transition-shadow hover:shadow-sm">
         <div className="flex items-center justify-between mb-4">
-          <span className="text-[15px] font-semibold text-slate-900">Recent Activity</span>
-          <button className="text-xs font-medium text-slate-500 hover:text-blue-600 transition-colors">View all</button>
+          <div>
+            <h2 className="text-base font-bold text-slate-900">Popular Services &amp; Pros</h2>
+            <p className="text-xs text-slate-500">Book top rated verified local specialists</p>
+          </div>
+          <Link href="/dashboard/services" className="text-xs font-bold text-[#2563EB] hover:text-[#1D4ED8] transition-colors">View all</Link>
         </div>
-        <div className="divide-y divide-gray-100">
-          {recentActivity.map((item) => (
-            <div key={item.label} className="flex items-center gap-4 py-3 first:pt-0 last:pb-0">
-              <ActivityIconContainer>
-                {item.icon === "ac" ? <ACActivitySVG /> : <LightSVG />}
-              </ActivityIconContainer>
-              <div className="flex-1 min-w-0">
-                <p className="text-[15px] font-semibold text-slate-900">{item.label}</p>
-                <p className="text-sm text-slate-600 mt-0.5">{item.date}</p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          {[
+            {
+              title: "AC Service & Deep Clean",
+              category: "ac_repair",
+              rating: 5.0,
+              reviewCount: 1,
+              basePrice: 1200,
+              priceUnit: "flat",
+              estimatedDuration: "2-3 hours",
+              imageUrl: "https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=600&q=80",
+              slug: "ac-service-deep-clean",
+              isCertified: true,
+              shortDescription: "Full AC tune-up including filter wash, coil cleaning, gas refill check.",
+            },
+            {
+              title: "Complete Home Plumbing Repair",
+              category: "plumber",
+              rating: 4.8,
+              reviewCount: 12,
+              basePrice: 800,
+              priceUnit: "per_hour",
+              estimatedDuration: "1-2 hours",
+              imageUrl: "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=600&q=80",
+              slug: "home-plumbing-repair",
+              isCertified: true,
+              shortDescription: "Fix leaks, pipe bursting, and general plumbing repairs in your home.",
+            },
+            {
+              title: "Electrical Wiring Fix",
+              category: "electrician",
+              rating: 4.9,
+              reviewCount: 8,
+              basePrice: 1500,
+              priceUnit: "flat",
+              estimatedDuration: "1 hour",
+              imageUrl: "https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?auto=format&fit=crop&w=600&q=80",
+              slug: "electrical-wiring-fix",
+              isCertified: true,
+              shortDescription: "Diagnose and fix electrical wiring faults securely.",
+            },
+          ].map((service) => (
+            <Link key={service.slug} href={`/dashboard/services/${service.slug}`} className="group block">
+              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-200 flex flex-col h-full">
+                <div
+                  className="h-40 relative flex items-end p-4"
+                  style={{
+                    background: service.imageUrl
+                      ? `url(${service.imageUrl}) center/cover no-repeat`
+                      : "#f1f5f9",
+                  }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                  {service.isCertified && (
+                    <span className="relative z-10 flex items-center gap-1 bg-white/90 backdrop-blur-sm text-[10px] font-bold text-blue-700 px-2 py-0.5 rounded-full border border-blue-200 select-none">
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="#2563eb" stroke="none">
+                        <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0 1 12 2.944a11.955 11.955 0 0 1-8.618 3.04A12.02 12.02 0 0 0 3 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                      </svg>
+                      FixHub Certified
+                    </span>
+                  )}
+                </div>
+
+                <div className="p-4 flex flex-col flex-1 gap-3">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                      {service.category.replace("_", " ")}
+                    </p>
+                    <h3 className="text-sm font-bold text-slate-900 leading-snug group-hover:text-blue-600 transition-colors">
+                      {service.title}
+                    </h3>
+                    <p className="text-[11px] text-slate-500 mt-1.5 leading-relaxed line-clamp-2">
+                      {service.shortDescription}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 mt-auto">
+                    <div className="flex items-center gap-0.5">
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <svg key={n} width="11" height="11" viewBox="0 0 24 24" fill={n <= Math.round(service.rating) ? "#F59E0B" : "none"} stroke="#F59E0B" strokeWidth="1.75">
+                          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                        </svg>
+                      ))}
+                    </div>
+                    <span className="text-[11px] font-semibold text-slate-700">{service.rating.toFixed(1)}</span>
+                    <span className="text-[11px] text-slate-400">({service.reviewCount})</span>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                    <div>
+                      <p className="text-[10px] text-slate-400 uppercase tracking-wide">Starting from</p>
+                      <p className="text-base font-extrabold text-slate-900">
+                        Rs {service.basePrice.toLocaleString()}
+                        <span className="text-xs font-medium text-slate-400 ml-1">{service.priceUnit === "flat" ? "flat" : service.priceUnit === "per_hour" ? "/hr" : "/sqft"}</span>
+                      </p>
+                    </div>
+                    <span className="text-[10px] text-slate-500 bg-slate-50 border border-slate-200 px-2 py-1 rounded-lg">
+                      {service.estimatedDuration}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div className="text-right flex-shrink-0">
-                <p className="text-sm text-slate-600 font-semibold">{item.amount}</p>
-                <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold border-emerald-200 bg-emerald-50 text-emerald-700 mt-1">
-                  <span className="w-1 h-1 rounded-full bg-emerald-500 inline-block" />
-                  {item.status}
-                </span>
-              </div>
-            </div>
+            </Link>
           ))}
         </div>
       </div>

@@ -140,7 +140,7 @@ export default function ProDashboard() {
   // ── Unverified state ─────────────────────────────────────────────────────────
   if (!user?.isVerified) {
     return (
-      <div className="max-w-5xl space-y-5">
+      <div className="w-full space-y-6 px-4 py-6 sm:px-6 lg:px-8">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Hello, {name}!</h1>
           <p className="text-sm text-slate-500 mt-1 font-medium">Welcome to your Professional Dashboard.</p>
@@ -201,7 +201,7 @@ export default function ProDashboard() {
   });
 
   return (
-    <div className="max-w-5xl space-y-6">
+    <div className="w-full space-y-6 px-4 py-6 sm:px-6 lg:px-8">
 
       {/* ── Clean Header Bar ──────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3">

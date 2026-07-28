@@ -71,6 +71,13 @@ const ProfilePage: React.FC = () => {
   const [isEditingAddress, setIsEditingAddress] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const frontIdRef = useRef<HTMLInputElement>(null);
+  const backIdRef = useRef<HTMLInputElement>(null);
+
+  const [nationalIdFront, setNationalIdFront] = useState<File | null>(null);
+  const [nationalIdBack, setNationalIdBack] = useState<File | null>(null);
+  const [idUploadLoading, setIdUploadLoading] = useState(false);
+  const [idUploadDone, setIdUploadDone] = useState(false);
   
   const [profile, setProfile] = useState<ProfileData>({
     firstName: '',
@@ -164,6 +171,39 @@ const ProfilePage: React.FC = () => {
       city: cityValue,
       ...(mappedProvince ? { province: mappedProvince } : {})
     }));
+  };
+
+  const handleNationalIdUpload = async () => {
+    if (!nationalIdFront && !nationalIdBack) {
+      toast.warn('Please select at least one ID photo to upload.');
+      return;
+    }
+    setIdUploadLoading(true);
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const formData = new FormData();
+      if (nationalIdFront) formData.append('nationalIdFront', nationalIdFront);
+      if (nationalIdBack) formData.append('nationalIdBack', nationalIdBack);
+      const res = await fetch('/api/v1/auth/national-id', {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+      if (res.ok) {
+        toast.success('National ID uploaded! Our team will verify it shortly.');
+        setIdUploadDone(true);
+        setNationalIdFront(null);
+        setNationalIdBack(null);
+        await fetchUser();
+      } else {
+        const err = await res.json();
+        toast.error(err.message || 'Failed to upload National ID.');
+      }
+    } catch {
+      toast.error('Network error. Please try again.');
+    } finally {
+      setIdUploadLoading(false);
+    }
   };
 
   const handleAvatarClick = () => {
@@ -446,6 +486,100 @@ const ProfilePage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* National ID Verification Card — professionals only */}
+        {user?.role === 'professional' && (
+          <div className="rounded-2xl p-5 bg-white border border-gray-200 transition-shadow hover:shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-[15px] font-semibold text-slate-900">Identity Verification</h3>
+                <p className="text-xs text-slate-400 mt-0.5">Upload your Nepal National ID (front &amp; back) for manual verification.</p>
+              </div>
+              {(user as any)?.isVerified ? (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                  Verified
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-100">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
+                  Pending Verification
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Front Side */}
+              <div
+                onClick={() => frontIdRef.current?.click()}
+                className="relative cursor-pointer border-2 border-dashed border-slate-200 rounded-xl p-5 flex flex-col items-center justify-center gap-2 hover:border-blue-400 hover:bg-blue-50/30 transition-all group"
+              >
+                <input ref={frontIdRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+                  onChange={(e) => setNationalIdFront(e.target.files?.[0] || null)} />
+                {nationalIdFront ? (
+                  <>
+                    <img src={URL.createObjectURL(nationalIdFront)} alt="Front ID preview" className="w-full max-h-28 object-contain rounded-lg" />
+                    <p className="text-xs text-emerald-600 font-medium">{nationalIdFront.name}</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 group-hover:bg-blue-100 flex items-center justify-center transition-colors">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="text-slate-400 group-hover:text-blue-500">
+                        <rect x="2" y="5" width="20" height="14" rx="2"/>
+                        <circle cx="8" cy="12" r="2"/>
+                        <path d="M14 10h4M14 14h4"/>
+                      </svg>
+                    </div>
+                    <p className="text-xs font-semibold text-slate-600">Front Side</p>
+                    <p className="text-[11px] text-slate-400 text-center">Click to upload front of your Nepal National ID</p>
+                  </>
+                )}
+              </div>
+
+              {/* Back Side */}
+              <div
+                onClick={() => backIdRef.current?.click()}
+                className="relative cursor-pointer border-2 border-dashed border-slate-200 rounded-xl p-5 flex flex-col items-center justify-center gap-2 hover:border-blue-400 hover:bg-blue-50/30 transition-all group"
+              >
+                <input ref={backIdRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+                  onChange={(e) => setNationalIdBack(e.target.files?.[0] || null)} />
+                {nationalIdBack ? (
+                  <>
+                    <img src={URL.createObjectURL(nationalIdBack)} alt="Back ID preview" className="w-full max-h-28 object-contain rounded-lg" />
+                    <p className="text-xs text-emerald-600 font-medium">{nationalIdBack.name}</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 group-hover:bg-blue-100 flex items-center justify-center transition-colors">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="text-slate-400 group-hover:text-blue-500">
+                        <rect x="2" y="5" width="20" height="14" rx="2"/>
+                        <path d="M6 9h12M6 13h8"/>
+                      </svg>
+                    </div>
+                    <p className="text-xs font-semibold text-slate-600">Back Side</p>
+                    <p className="text-[11px] text-slate-400 text-center">Click to upload back of your Nepal National ID</p>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-4 flex items-center justify-between">
+              <p className="text-[11px] text-slate-400">Accepted formats: JPG, PNG, WEBP · Max 10 MB each</p>
+              <button
+                onClick={handleNationalIdUpload}
+                disabled={idUploadLoading || (!nationalIdFront && !nationalIdBack)}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+              >
+                {idUploadLoading ? (
+                  <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" strokeOpacity="0.25"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                )}
+                {idUploadLoading ? 'Uploading…' : 'Submit for Verification'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

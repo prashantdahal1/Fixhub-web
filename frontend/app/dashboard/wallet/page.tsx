@@ -67,7 +67,7 @@ export default function WalletPage() {
   const isPro = user?.role === "professional";
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
+    <div className="w-full space-y-6 px-4 py-6 sm:px-6 lg:px-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

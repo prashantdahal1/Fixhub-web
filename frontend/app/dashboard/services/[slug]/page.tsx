@@ -6,7 +6,9 @@ import { toast } from "react-toastify";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { apiFetch } from "../../../../lib/api/client";
 import { API } from "../../../../lib/api/endpoints";
+import { BACKEND_URL } from "../../../../lib/backend-url";
 import { downloadReceiptPdf } from "../../../../lib/receipt-pdf";
+import { evaluatePromoCode } from "../../../../lib/promo-codes";
 
 type PriceUnit = "flat" | "per_hour" | "per_sqft";
 type ServiceCategory =
@@ -57,7 +59,7 @@ function StarRating({ rating, size = 13 }: { rating: number; size?: number }) {
 
 function DetailSkeleton() {
   return (
-    <div className="max-w-5xl animate-pulse space-y-6">
+    <div className="w-full animate-pulse space-y-6 px-4 py-6 sm:px-6 lg:px-8">
       <div className="h-6 bg-slate-100 rounded w-1/3" />
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4">
@@ -100,6 +102,10 @@ export default function ServiceDetailPage() {
   const [address, setAddress] = useState("");
   const [notes, setNotes] = useState("");
   const [paymentProvider, setPaymentProvider] = useState<"esewa" | "khalti" | "cod">("esewa");
+  const [promoInput, setPromoInput] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState("");
+  const [appliedDiscount, setAppliedDiscount] = useState(0);
+  const [promoMessage, setPromoMessage] = useState("");
   const [bookingSubmitted, setBookingSubmitted] = useState(false);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingError, setBookingError] = useState("");
@@ -128,8 +134,9 @@ export default function ServiceDetailPage() {
     rating: number;
     comment: string;
     createdAt: string;
-    customerId?: { firstName?: string; lastName?: string } | string;
+    customerId?: { firstName?: string; lastName?: string; profilePicture?: string } | string;
   }>>([]);
+  const [socketConnected, setSocketConnected] = useState(false);
 
   const MONTH_NAMES = [
     "January", "February", "March", "April", "May", "June",
@@ -177,6 +184,50 @@ export default function ServiceDetailPage() {
     }
     load();
   }, [slug]);
+
+  useEffect(() => {
+    if (!service?._id || typeof window === "undefined") return;
+
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    const backendUrl = new URL(BACKEND_URL);
+    const protocol = backendUrl.protocol === "https:" ? "wss:" : "ws:";
+    const wsHost = backendUrl.host;
+    const wsUrl = `${protocol}//${wsHost}/ws?token=${encodeURIComponent(token)}`;
+    const socket = new WebSocket(wsUrl);
+
+    socket.addEventListener("open", () => setSocketConnected(true));
+    socket.addEventListener("message", (event) => {
+      try {
+        const envelope = JSON.parse(event.data);
+        if (!envelope || envelope.type !== "review_created") return;
+        const payload = envelope.payload as any;
+        if (!payload || payload.serviceId !== service._id) return;
+
+        if (payload.review) {
+          setReviews((prev) => [payload.review, ...prev]);
+        }
+        setService((prev) =>
+          prev
+            ? {
+                ...prev,
+                rating: payload.rating ?? prev.rating,
+                reviewCount: payload.reviewCount ?? prev.reviewCount,
+              }
+            : prev
+        );
+      } catch {
+        // ignore malformed websocket messages
+      }
+    });
+    socket.addEventListener("close", () => setSocketConnected(false));
+    socket.addEventListener("error", () => setSocketConnected(false));
+
+    return () => {
+      socket.close();
+    };
+  }, [service?._id]);
 
   // Calendar Helpers
   const handlePrevMonth = () => {
@@ -285,6 +336,7 @@ export default function ServiceDetailPage() {
         address: address.trim(),
         notes: notes.trim() || undefined,
         paymentProvider,
+        promoCode: appliedPromo || undefined,
       };
 
       const res = await apiFetch<{
@@ -335,11 +387,11 @@ export default function ServiceDetailPage() {
     }
   };
 
-  if (loading) return <div className="max-w-5xl"><DetailSkeleton /></div>;
+  if (loading) return <div className="w-full px-4 py-6 sm:px-6 lg:px-8"><DetailSkeleton /></div>;
 
   if (notFound || !service) {
     return (
-      <div className="max-w-5xl text-center py-20">
+      <div className="w-full px-4 py-6 sm:px-6 lg:px-8 text-center py-20">
         <p className="text-slate-400 text-sm">Service not found.</p>
         <button onClick={() => router.back()} className="mt-3 text-xs font-semibold text-blue-600 hover:underline">
           ← Back to Services
@@ -350,7 +402,8 @@ export default function ServiceDetailPage() {
 
   // Invoice Breakdown Calculations based on service.basePrice
   const totalAmount = service.basePrice;
-  const subtotal = Math.round((totalAmount / 1.13) * 100) / 100;
+  const effectiveAmount = Math.max(0, totalAmount - appliedDiscount);
+  const subtotal = Math.round((effectiveAmount / 1.13) * 100) / 100;
   const surcharge = Math.min(150, Math.round(subtotal * 0.08 * 100) / 100);
   const componentParts = Math.round(subtotal * 0.22 * 100) / 100;
   const baseServiceFee = Math.round((subtotal - surcharge - componentParts) * 100) / 100;
@@ -374,7 +427,7 @@ export default function ServiceDetailPage() {
       : "FixHub Customer";
 
     const isCod = paymentProvider === "cod";
-    const derivedAmount = totalAmount + (isCod ? 10 : 0);
+    const derivedAmount = effectiveAmount + (isCod ? 10 : 0);
 
     const lineItems = [
       { description: `${service.title} (Base Fee)`, quantity: 1, unitPrice: baseServiceFee, amount: baseServiceFee },
@@ -382,12 +435,21 @@ export default function ServiceDetailPage() {
       { description: "Asset & Logistics Surcharge", quantity: 1, unitPrice: surcharge, amount: surcharge },
     ];
 
+    if (appliedDiscount > 0) {
+      lineItems.push({
+        description: `Promo Discount (${appliedPromo})`,
+        quantity: 1,
+        unitPrice: -appliedDiscount,
+        amount: -appliedDiscount,
+      });
+    }
+
     if (isCod) {
       lineItems.push({
         description: "COD Cash Surcharge",
         quantity: 1,
         unitPrice: 10,
-        amount: 10
+        amount: 10,
       });
     }
 
@@ -429,7 +491,7 @@ export default function ServiceDetailPage() {
     };
 
     return (
-      <div className="max-w-5xl space-y-6">
+      <div className="w-full space-y-6 px-4 py-6 sm:px-6 lg:px-8">
         <button
           onClick={() => router.back()}
           className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
@@ -626,7 +688,7 @@ export default function ServiceDetailPage() {
   // ── WIZARD MODE: STEP 1 (Select Date / Appointment Confirmation) ──
   if (bookingStep === 1) {
     return (
-      <div className="max-w-5xl space-y-6">
+      <div className="w-full space-y-6 px-4 py-6 sm:px-6 lg:px-8">
         {/* Navigation Breadcrumb / Go Back */}
         <div className="flex justify-between items-center">
           <div className="flex flex-col">
@@ -837,15 +899,64 @@ export default function ServiceDetailPage() {
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-400 font-semibold">Service Base</span>
+                    <span className="text-slate-400 font-semibold">Subtotal</span>
                     <span className="text-slate-700 font-bold">रू {totalAmount.toLocaleString()}</span>
+                  </div>
+                  {appliedDiscount > 0 && (
+                    <div className="flex justify-between items-center text-emerald-600 font-bold">
+                      <span>Promo Discount ({appliedPromo})</span>
+                      <span>- रू {appliedDiscount.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {promoMessage && !appliedDiscount && (
+                    <div className="text-xs text-slate-500">{promoMessage}</div>
+                  )}
+                </div>
+
+                {/* Promo Code Input Block matching Reference Screenshot 3 */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Promo Code</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder="Promo code (e.g. FIXHUB30)"
+                      value={promoInput}
+                      onChange={(e) => setPromoInput(e.target.value)}
+                      className="flex-1 px-3 py-2 text-xs border border-slate-200 rounded-xl bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 uppercase tracking-wider font-semibold"
+                    />
+                                    <button
+                      type="button"
+                      onClick={() => {
+                        const promo = promoInput.trim();
+                        const result = evaluatePromoCode(promo, {
+                          basePrice: service.basePrice,
+                          category: service.category,
+                        }, user);
+
+                        if (!result.valid) {
+                          setAppliedPromo("");
+                          setAppliedDiscount(0);
+                          setPromoMessage(result.message);
+                          toast.error(result.message);
+                          return;
+                        }
+
+                        setAppliedPromo(result.normalizedCode || promo.toUpperCase());
+                        setAppliedDiscount(result.discount);
+                        setPromoMessage(result.message);
+                        toast.success(result.message);
+                      }}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
+                    >
+                      Apply
+                    </button>
                   </div>
                 </div>
 
                 {/* Total */}
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center pt-2">
                   <span className="text-sm font-bold text-slate-900">Total</span>
-                  <span className="text-xl font-extrabold text-blue-600">रू {totalAmount.toLocaleString()}</span>
+                  <span className="text-xl font-extrabold text-blue-600">रू {Math.max(0, totalAmount - appliedDiscount).toLocaleString()}</span>
                 </div>
 
                 <button
@@ -871,7 +982,7 @@ export default function ServiceDetailPage() {
 
   // ── WIZARD MODE: STEP 2 (Finalize Order & Payment Method) ──
   return (
-    <div className="max-w-5xl space-y-6">
+    <div className="w-full space-y-6 px-4 py-6 sm:px-6 lg:px-8">
       <div className="flex justify-between items-center">
         <div className="flex flex-col">
           <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">
@@ -1099,7 +1210,7 @@ export default function ServiceDetailPage() {
 
             <div className="flex justify-between items-center">
               <span className="text-sm font-bold">TOTAL AMOUNT DUE</span>
-              <span className="text-xl font-black">रू {(totalAmount + (paymentProvider === "cod" ? 10 : 0)).toFixed(2)}</span>
+              <span className="text-xl font-black">रू {(effectiveAmount + (paymentProvider === "cod" ? 10 : 0)).toFixed(2)}</span>
             </div>
 
             <div className="flex items-center justify-center gap-4 text-[9px] font-bold text-white/70 pt-1">

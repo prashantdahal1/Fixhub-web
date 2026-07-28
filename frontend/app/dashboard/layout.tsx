@@ -44,6 +44,11 @@ const SupportIcon = () => (
     <line x1="12" y1="17" x2="12.01" y2="17" />
   </svg>
 );
+const ChatIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+  </svg>
+);
 const BellIcon = () => (
   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -139,7 +144,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { user, setUser, loading } = useAuth();
 
   const [notifOpen, setNotifOpen]       = useState(false);
-  const [emergOpen, setEmergOpen]       = useState(false);
   const [profileOpen, setProfileOpen]   = useState(false);
   const [notifications, setNotifications] = useState<DBNotification[]>([]);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -230,7 +234,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") { 
         setNotifOpen(false); 
-        setEmergOpen(false); 
         setProfileOpen(false);
       }
     };
@@ -256,7 +259,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-[#F9FAFB] font-sans flex">
+    <div className="min-h-screen bg-[#F9FAFB] font-sans flex overflow-hidden">
 
       {/* ── SIDEBAR ────────────────────────────────────────────────────────── */}
       <aside className="w-[260px] bg-white border-r border-slate-100 flex-shrink-0 flex flex-col sticky top-0 h-screen">
@@ -278,12 +281,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 { label: "Marketplace", icon: ServicesIcon, href: "/dashboard/services" },
                 { label: "Job Requests", icon: BookingsIcon, href: "/dashboard/bookings" },
                 { label: "Job History", icon: HistoryIcon, href: "/dashboard/history" },
+                { label: "Chat & Messages", icon: ChatIcon, href: "/dashboard/chat" },
                 { label: "Wallet & Earnings", icon: WalletIcon, href: "/dashboard/wallet" },
               ] : [
                 { label: "Dashboard", icon: HomeIcon, href: "/dashboard" },
                 { label: "Services", icon: ServicesIcon, href: "/dashboard/services" },
                 { label: "Active Bookings", icon: BookingsIcon, href: "/dashboard/bookings" },
                 { label: "Service History", icon: HistoryIcon, href: "/dashboard/history" },
+                { label: "Chat & Messages", icon: ChatIcon, href: "/dashboard/chat" },
               ]).map(({ label, icon: Icon, href }) => {
                 const isActive = pathname === href;
                 return (
@@ -309,11 +314,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {/* Section: SUPPORT & HELP */}
           <div>
             <span className="text-[10px] font-bold text-slate-400 tracking-wider mb-2 px-3 block uppercase">
-              Support
+              Support &amp; Tickets
             </span>
             <div className="space-y-0.5">
               {[
-                { label: "Support", icon: SupportIcon, href: "/dashboard/support" },
+                { label: "Support & Tickets", icon: SupportIcon, href: "/dashboard/support" },
                 { label: "My Profile", icon: UserIcon, href: "/dashboard/profile" },
               ].map(({ label, icon: Icon, href }) => {
                 const isActive = pathname === href;
@@ -367,7 +372,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* ── MAIN AREA ─────────────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
 
         {/* Top bar */}
         <header className="h-[60px] bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0 sticky top-0 z-40">
@@ -385,16 +390,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Emergency button — customer only */}
-            {user?.role !== "professional" && (
-              <button
-                onClick={() => setEmergOpen(true)}
-                className="hidden sm:flex items-center gap-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors"
-              >
-                <ZapIcon />
-                Emergency
-              </button>
-            )}
+            <div className="w-px h-5 bg-slate-200" />
 
             {/* Bell */}
             <div className="relative" ref={notifRef}>
@@ -402,8 +398,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 onClick={() => setNotifOpen(o => !o)}
                 className={`w-9 h-9 rounded-lg border flex items-center justify-center transition-colors ${
                   notifOpen
-                    ? "bg-blue-50 border-blue-200 text-blue-600"
-                    : "border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                    ? "bg-blue-50 border-blue-300 text-blue-700"
+                    : "border-slate-300 text-slate-700 hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400"
                 }`}
               >
                 <BellIcon />
@@ -436,11 +432,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <div className="max-h-[360px] overflow-y-auto divide-y divide-slate-100">
                     {notifications.length === 0 ? (
                       <div className="py-12 text-center px-5">
-                        <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center mx-auto mb-3 text-slate-400">
+                        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3 text-slate-600">
                           <BellIcon />
                         </div>
-                        <p className="text-xs font-bold text-slate-700">All caught up</p>
-                        <p className="text-[11px] text-slate-400 mt-1">No new notifications</p>
+                        <p className="text-xs font-bold text-slate-800">All caught up</p>
+                        <p className="text-[11px] text-slate-500 mt-1">No new notifications</p>
                       </div>
                     ) : (
                       notifications.map((n) => {
@@ -565,86 +561,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-6 overflow-auto">
+        <main className="flex-1 p-6 overflow-y-auto overflow-x-hidden">
           {children}
         </main>
       </div>
-
-      {/* ── EMERGENCY MODAL ───────────────────────────────────────────────── */}
-      {emergOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)" }}
-          onClick={() => setEmergOpen(false)}
-        >
-          <div
-            className="bg-white rounded-2xl w-full max-w-[380px] mx-4 overflow-hidden"
-            style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.2)" }}
-            onClick={e => e.stopPropagation()}
-          >
-            {/* Modal header — red strip */}
-            <div className="bg-red-500 px-5 py-4 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                  <ZapIcon />
-                </div>
-                <div>
-                  <p className="text-white font-bold text-sm leading-none">Emergency Service</p>
-                  <p className="text-red-100 text-[11px] mt-0.5">Get help within minutes</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setEmergOpen(false)}
-                className="text-white/70 hover:text-white transition-colors"
-              >
-                <XIcon />
-              </button>
-            </div>
-
-            {/* Body */}
-            <div className="px-5 py-5 space-y-3">
-              <p className="text-xs text-slate-500 leading-relaxed">
-                For urgent situations — gas leaks, electrical faults, flooding, or no power.
-                A technician will be dispatched to your address immediately.
-              </p>
-
-              {/* Call option */}
-              <a
-                href="tel:+977-1-5555555"
-                className="flex items-center gap-3 w-full bg-red-50 hover:bg-red-100 border border-red-200 rounded-xl px-4 py-3.5 transition-colors group"
-              >
-                <div className="w-9 h-9 rounded-full bg-red-500 flex items-center justify-center text-white shrink-0 group-hover:bg-red-600 transition-colors">
-                  <PhoneIcon />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-slate-800">Call Emergency Line</p>
-                  <p className="text-[11.5px] text-slate-500">+977-1-5555555 · Available 24/7</p>
-                </div>
-              </a>
-
-              {/* Book emergency tech */}
-              <button
-                onClick={() => { setEmergOpen(false); router.push("/dashboard/bookings"); }}
-                className="flex items-center gap-3 w-full bg-slate-800 hover:bg-slate-900 rounded-xl px-4 py-3.5 transition-colors group"
-              >
-                <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0">
-                  <ZapIcon />
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-semibold text-white">Book Emergency Tech</p>
-                  <p className="text-[11.5px] text-slate-400">Fastest available pro near you</p>
-                </div>
-              </button>
-            </div>
-
-            <div className="border-t border-slate-100 px-5 py-3">
-              <p className="text-[10.5px] text-slate-400 text-center">
-                Emergency bookings are prioritised and may carry a call-out fee.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

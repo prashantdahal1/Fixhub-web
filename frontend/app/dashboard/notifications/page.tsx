@@ -210,11 +210,11 @@ export default function NotificationsPage() {
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
         {filteredNotifications.length === 0 ? (
           <div className="py-16 text-center">
-            <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center mx-auto mb-4 text-slate-400">
+            <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4 text-slate-600">
               <Bell size={20} />
             </div>
             <h3 className="text-sm font-bold text-slate-800">No notifications found</h3>
-            <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
+            <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
               There are no updates matching your criteria right now. Check back later!
             </p>
           </div>
