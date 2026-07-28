@@ -5,20 +5,58 @@ import { ApiResponseHelper } from "../utils/apihelper.util.js";
 // Initialize Gemini API Client
 const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || "";
 const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
+const requestedModel = process.env.GEMINI_MODEL?.trim();
+
+export const getChatModelCandidates = (configuredModel?: string) => {
+    const candidates = [configuredModel?.trim(), "gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-2.0-flash"]
+        .filter((value): value is string => Boolean(value && value.trim()));
+
+    return [...new Set(candidates)];
+};
+
+export const getFallbackResponse = (message: string) => {
+    const trimmed = (message || "").trim().toLowerCase();
+
+    if (!trimmed) {
+        return "I’m not available right now, but you can still browse trusted home services on FixHub.";
+    }
+
+    if (trimmed.includes("book") || trimmed.includes("technician") || trimmed.includes("plumber") || trimmed.includes("electric")) {
+        return "I can’t chat with the AI provider right now, but you can still book a trusted pro directly on FixHub by choosing the service category and time slot that fits your need.";
+    }
+
+    if (trimmed.includes("faucet") || trimmed.includes("leak") || trimmed.includes("dripping") || trimmed.includes("toilet")) {
+        return "A quick first step is to shut off the water and check the fixture for a worn washer or loose connection. If it still leaks, book a local plumber on FixHub.";
+    }
+
+    if (trimmed.includes("payment") || trimmed.includes("escrow")) {
+        return "FixHub uses secure payment steps for bookings. You can review the payment details before confirming a service request.";
+    }
+
+    return "I’m not available right now, but you can still browse trusted home services on FixHub and book a professional directly.";
+};
+
+const modelCandidates = getChatModelCandidates(requestedModel);
+const isGeminiConfigured = Boolean(apiKey);
 
 export const handleChat = async (req: Request, res: Response, next: NextFunction) => {
+    let requestMessage = "";
+    let requestHistory: unknown[] = [];
+
     try {
         const { message, history } = req.body;
+        requestMessage = typeof message === "string" ? message : "";
+        requestHistory = Array.isArray(history) ? history : [];
 
-        if (!message) {
+        if (!requestMessage.trim()) {
             return ApiResponseHelper.error(res, "Message is required", 400);
         }
 
-        if (!genAI) {
-            return ApiResponseHelper.error(
-                res, 
-                "Gemini API key is not configured on the server. Please check your environment variables.", 
-                500
+        if (!isGeminiConfigured || !genAI) {
+            return ApiResponseHelper.success(
+                res,
+                { response: getFallbackResponse(requestMessage) },
+                "Chatbot fallback response generated successfully"
             );
         }
 
@@ -58,16 +96,29 @@ export const handleChat = async (req: Request, res: Response, next: NextFunction
 
 
 
-        // Use gemini-3.1-flash-lite for lowest latency
-        const model = genAI.getGenerativeModel({ 
-            model: "gemini-3.1-flash-lite",
-            systemInstruction
-        });
+        let model: ReturnType<typeof genAI.getGenerativeModel> | null = null;
+        let lastError: unknown = null;
+
+        for (const modelName of modelCandidates) {
+            try {
+                model = genAI.getGenerativeModel({
+                    model: modelName,
+                    systemInstruction
+                });
+                break;
+            } catch (error) {
+                lastError = error;
+            }
+        }
+
+        if (!model) {
+            throw lastError || new Error("Unable to initialize Gemini model");
+        }
 
         // Map frontend chat history to the Gemini format
         // Gemini expects: { role: 'user' | 'model', parts: [{ text: string }] }
-        let formattedHistory = Array.isArray(history) 
-            ? history.map((item: any) => ({
+        let formattedHistory = Array.isArray(requestHistory) 
+            ? requestHistory.map((item: any) => ({
                 role: item.role === "model" || item.role === "assistant" ? "model" : "user",
                 parts: [{ text: item.text || item.message || "" }]
             }))
@@ -87,7 +138,7 @@ export const handleChat = async (req: Request, res: Response, next: NextFunction
         });
 
         // Send the new user message and wait for the response
-        const result = await chat.sendMessage(message);
+        const result = await chat.sendMessage(requestMessage);
         const responseText = result.response.text();
 
         return ApiResponseHelper.success(
@@ -97,10 +148,10 @@ export const handleChat = async (req: Request, res: Response, next: NextFunction
         );
     } catch (error: any) {
         console.error("Gemini API Error:", error);
-        return ApiResponseHelper.error(
+        return ApiResponseHelper.success(
             res,
-            error?.message || "An error occurred while communicating with the Chatbot.",
-            500
+            { response: getFallbackResponse(requestMessage) },
+            "Chatbot fallback response generated successfully"
         );
     }
 };

@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import crypto from "crypto";
 import { bookingService } from "../services/booking.service.js";
 import { ApiResponseHelper } from "../utils/apihelper.util.js";
-import type { UpdateBookingStatusDTO } from "../dtos/marketplace.dto.js";
+import type { UpdateBookingStatusDTO, CreateBookingDTO } from "../dtos/marketplace.dto.js";
 import { BookingModel } from "../models/booking.model.js";
 import { TransactionModel } from "../models/transaction.model.js";
 import { PaymentIntentModel } from "../models/payment-intent.model.js";
@@ -11,6 +11,7 @@ import { HttpException } from "../exceptions/http-exception.js";
 import { createNotification } from "../utils/notification.util.js";
 import { broadcastRealtimeEvent } from "../utils/realtime.util.js";
 import { getEsewaConfig, getKhaltiConfig, isKhaltiLocalMockEnabled } from "../utils/payment-gateway.util.js";
+import { calculatePromoDiscount } from "../utils/promo.util.js";
 
 export class BookingController {
   /**
@@ -20,13 +21,8 @@ export class BookingController {
    */
   create = async (req: Request, res: Response) => {
     const user = (req as any).user;
-    const { serviceId, scheduledAt, address, notes, paymentProvider } = req.body as {
-      serviceId: string;
-      scheduledAt: string;
-      address: string;
-      notes?: string;
-      paymentProvider: "esewa" | "khalti" | "cod";
-    };
+    // `validateBody(CreateBookingDTO)` is applied on the route; trust typed body here
+    const { serviceId, scheduledAt, address, notes, paymentProvider, promoCode } = req.body as CreateBookingDTO;
 
     if (user.role !== "customer" && user.role !== "admin") {
       throw new HttpException(403, "Only customers can create bookings");
@@ -42,12 +38,17 @@ export class BookingController {
       throw new HttpException(400, "scheduledAt must be in the future");
     }
 
-    const amount = service.basePrice;
+    const promoResult = await calculatePromoDiscount(promoCode, service, user);
+    if (promoCode && !promoResult.valid) {
+      throw new HttpException(400, promoResult.message || "Invalid promo code");
+    }
+
+    const amount = Math.max(0, service.basePrice - (promoResult.discount || 0));
     const backendUrl = `${req.protocol}://${req.get("host")}`;
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
 
     // Save booking intent — no booking in DB yet
-    const intent = await PaymentIntentModel.create({
+    const intentPayload = {
       customerId: user._id,
       serviceId: service._id,
       scheduledAt: scheduledDate,
@@ -55,7 +56,10 @@ export class BookingController {
       notes: notes?.trim() || "",
       amount,
       provider: paymentProvider,
-    });
+      discount: promoResult.discount || 0,
+      ...(promoResult.normalizedCode ? { promoCode: promoResult.normalizedCode } : {}),
+    };
+    const intent = await PaymentIntentModel.create(intentPayload);
     const intentId = intent._id.toString();
 
     // ── eSewa ──────────────────────────────────────────────────────────────
@@ -111,8 +115,10 @@ export class BookingController {
         address: address.trim(),
         notes: notes?.trim() || "",
         amount: codAmount,
+        discount: promoResult.discount || 0,
         status: "confirmed",
         escrowStatus: "none",
+        ...(promoResult.normalizedCode ? { promoCode: promoResult.normalizedCode } : {}),
       });
 
       // Send notifications
@@ -290,6 +296,12 @@ export class BookingController {
         return res.redirect(`${frontendUrl}/dashboard/bookings?payment=failed&reason=intent_expired`);
       }
 
+      const paidAmount = Number(total_amount);
+      if (Number.isNaN(paidAmount) || Math.round(paidAmount * 100) !== Math.round(intent.amount * 100)) {
+        await PaymentIntentModel.findByIdAndDelete(intentId);
+        return res.redirect(`${frontendUrl}/dashboard/bookings?payment=failed&reason=amount_mismatch`);
+      }
+
       // Idempotency — don't double-create if callback fires twice
       const existingTx = await TransactionModel.findOne({ gatewayTransactionId: transaction_code });
       if (existingTx) {
@@ -302,7 +314,7 @@ export class BookingController {
       if (!service || !service.professionalId) {
         throw new Error("Service or professional not found");
       }
-      const booking = (await BookingModel.create({
+      const booking = await BookingModel.create({
         customerId: intent.customerId,
         professionalId: service.professionalId,
         serviceId: intent.serviceId,
@@ -310,9 +322,11 @@ export class BookingController {
         address: intent.address,
         notes: intent.notes,
         amount: intent.amount,
+        discount: intent.discount || 0,
         status: "confirmed",
         escrowStatus: "held",
-      } as any)) as any;
+        ...(intent.promoCode ? { promoCode: intent.promoCode } : {}),
+      });
 
       await TransactionModel.create({
         userId: intent.customerId,
@@ -403,6 +417,13 @@ export class BookingController {
         return res.redirect(`${frontendUrl}/dashboard/bookings?payment=failed&reason=intent_expired`);
       }
 
+      const intentAmount = intent.amount;
+      const paidAmount = Number(amount || 0) / 100;
+      if (Number.isNaN(paidAmount) || Math.round(paidAmount * 100) !== Math.round(intentAmount * 100)) {
+        await PaymentIntentModel.findByIdAndDelete(intentId);
+        return res.redirect(`${frontendUrl}/dashboard/bookings?payment=failed&reason=amount_mismatch`);
+      }
+
       // Idempotency — don't double-create if callback fires twice
       const existingTx = await TransactionModel.findOne({ gatewayTransactionId: gatewayTxId });
       if (existingTx) {
@@ -415,7 +436,7 @@ export class BookingController {
       if (!service || !service.professionalId) {
         throw new Error("Service or professional not found");
       }
-      const booking = (await BookingModel.create({
+      const booking = await BookingModel.create({
         customerId: intent.customerId,
         professionalId: service.professionalId,
         serviceId: intent.serviceId,
@@ -423,9 +444,11 @@ export class BookingController {
         address: intent.address,
         notes: intent.notes,
         amount: intent.amount,
+        discount: intent.discount || 0,
         status: "confirmed",
         escrowStatus: "held",
-      } as any)) as any;
+        ...(intent.promoCode ? { promoCode: intent.promoCode } : {}),
+      });
 
       await TransactionModel.create({
         userId: intent.customerId,

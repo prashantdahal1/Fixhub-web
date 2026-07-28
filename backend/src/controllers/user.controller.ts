@@ -169,12 +169,13 @@ export class UserController {
     async getUsers(req: Request, res: Response) {
         try {
             const page = parseInt(req.query.page as string) || 1;
-            const limit = parseInt(req.query.limit as string) || 10;
+            const limit = parseInt(req.query.limit as string) || parseInt(req.query.size as string) || 10;
             const search = req.query.search as string;
             const role = req.query.role as string;
             const status = req.query.status as string;
 
             const { data, total } = await userService.getPaginatedUsers(page, limit, search, role, status);
+
             
             return res.status(200).json({
                 success: true,
@@ -257,6 +258,29 @@ export class UserController {
             return ApiResponseHelper.success(res, user, "Professional verified successfully");
         } catch (error: any) {
             return ApiResponseHelper.error(res, error.message || "Internal Server Error", error.status || 500);
+        }
+    }
+
+    async uploadNationalId(req: Request, res: Response) {
+        try {
+            const userId = (req as any).user?._id || (req as any).user?.id;
+            if (!userId) {
+                return ApiResponseHelper.error(res, "Unauthorized", 401);
+            }
+            const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+            const updateData: any = {};
+
+            if (files?.nationalIdFront?.[0]) {
+                updateData.nationalIdFront = `/uploads/documents/${files.nationalIdFront[0].filename}`;
+            }
+            if (files?.nationalIdBack?.[0]) {
+                updateData.nationalIdBack = `/uploads/documents/${files.nationalIdBack[0].filename}`;
+            }
+
+            const updatedUser = await userService.updateUser(userId.toString(), updateData);
+            return ApiResponseHelper.success(res, updatedUser, "National ID documents uploaded successfully");
+        } catch (error: any) {
+            return ApiResponseHelper.error(res, error.message || "Internal Server Error", 500);
         }
     }
 }
