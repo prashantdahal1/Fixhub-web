@@ -76,26 +76,18 @@ export default function RegisterPage() {
       toast.error(errMsg);
       return;
     }
-    
-    if (userType === 'professional' && !formData.verificationDocument) {
-      setError('Industrial/Business License is required for professionals');
-      toast.error('Industrial/Business License is required for professionals');
-      return;
-    }
 
     try {
       const submitData = new FormData();
       Object.entries(result.data).forEach(([key, value]) => {
         submitData.append(key, value as string);
       });
-      if (userType === 'professional' && formData.verificationDocument) {
-        submitData.append('verificationDocument', formData.verificationDocument);
-      }
 
       const response = await fetch('/api/v1/auth/register', {
         method: 'POST',
         body: submitData,
       });
+
       const data = await response.json();
       if (!response.ok) { 
         setError(data.message || 'Registration failed'); 
