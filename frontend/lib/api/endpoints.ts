@@ -2,6 +2,15 @@ export const API = {
     AUTH: {
         REGISTER: "/api/v1/auth/register",
         LOGIN: "/api/v1/auth/login",
+        WHOAMI: "/api/v1/auth/whoami",
+    },
+    SERVICES: {
+        LIST: "/api/v1/services",
+        CREATE: "/api/v1/services",
+        GET: (id: string) => `/api/v1/services/${id}`,
+        UPDATE: (id: string) => `/api/v1/services/${id}`,
+        DELETE: (id: string) => `/api/v1/services/${id}`,
+        BY_PROFESSIONAL: (professionalId: string) => `/api/v1/services/professional/${professionalId}`,
     },
     TICKETS: {
         CREATE: "/api/v1/tickets",
@@ -31,5 +40,9 @@ export const API = {
     },
     CHAT: {
         BY_BOOKING: (bookingId: string) => `/api/v1/messages/booking/${bookingId}`,
+    },
+    NOTIFICATIONS: {
+        LIST: "/api/v1/notifications",
+        MARK_READ: (id: string) => `/api/v1/notifications/${id}/read`,
     },
 };
