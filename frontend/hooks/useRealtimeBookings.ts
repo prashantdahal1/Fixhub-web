@@ -62,6 +62,15 @@ export function useRealtimeBookings(handlers: RealtimeHandlers) {
       const socket = new WebSocket(wsUrl);
       socketRef.current = socket;
 
+      // Send an auth envelope on open as a fallback (server accepts query param or initial message)
+      socket.addEventListener("open", () => {
+        try {
+          socket.send(JSON.stringify({ type: "auth", payload: { token } }));
+        } catch (e) {
+          // ignore send errors
+        }
+      });
+
       socket.addEventListener("message", (event) => {
         try {
           const envelope = JSON.parse(event.data as string) as {

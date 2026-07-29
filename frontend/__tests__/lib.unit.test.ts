@@ -1,4 +1,4 @@
-import { evaluatePromoCode, type PromoService, type PromoUser } from '../lib/promo-codes';
+import { evaluatePromoCode, getApplicablePromoCodes, type PromoService, type PromoUser } from '../lib/promo-codes';
 
 describe('Promo Code Evaluation Unit Tests', () => {
   const baseService: PromoService = {
@@ -55,6 +55,15 @@ describe('Promo Code Evaluation Unit Tests', () => {
     const res = evaluatePromoCode('GEYSER30', validGeyser);
     expect(res.valid).toBe(true);
     expect(res.discount).toBe(450);
+  });
+
+  it('should surface applicable promo codes for the current service and user', () => {
+    const promos = getApplicablePromoCodes(baseService, { isVerified: true });
+
+    expect(promos.some((promo) => promo.code === 'FIXHUB30')).toBe(true);
+    expect(promos.some((promo) => promo.code === 'FIRSTFIX10')).toBe(true);
+    expect(promos.some((promo) => promo.code === 'PROMO500')).toBe(true);
+    expect(promos.find((promo) => promo.code === 'FIXHUB30')?.eligible).toBe(true);
   });
 
   it('should return invalid for unknown promo codes', () => {
