@@ -2,7 +2,7 @@ import { Router } from "express";
 import { BookingController } from "./booking.controller.js";
 import { authorizedMiddleware } from "../../shared/middlewares/authorized.middleware.js";
 import { validateBody } from "../../shared/middlewares/validate.middleware.js";
-import { CreateBookingDTO, UpdateBookingStatusDTO } from "../../dtos/marketplace.dto.js";
+import { CreateBookingDTO, UpdateBookingStatusDTO, AddServiceDuringWorkDTO } from "../../dtos/marketplace.dto.js";
 import { asyncHandler } from "../../shared/utils/asyncHandler.js";
 
 const router = Router();
@@ -22,6 +22,11 @@ router.patch(
   "/:id/status",
   validateBody(UpdateBookingStatusDTO),
   asyncHandler(controller.updateStatus)
+);
+router.post(
+  "/:id/add-service",
+  validateBody(AddServiceDuringWorkDTO),
+  asyncHandler(controller.addServiceDuringWork)
 );
 
 export default router;

@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import crypto from "crypto";
 import { bookingService } from "./booking.service.js";
 import { ApiResponseHelper } from "../../shared/utils/apihelper.util.js";
-import type { UpdateBookingStatusDTO, CreateBookingDTO } from "../../dtos/marketplace.dto.js";
+import type { UpdateBookingStatusDTO, CreateBookingDTO, AddServiceDuringWorkDTO } from "../../dtos/marketplace.dto.js";
 import { BookingModel } from "../../models/booking.model.js";
 import { TransactionModel } from "../../models/transaction.model.js";
 import { PaymentIntentModel } from "../../models/payment-intent.model.js";
@@ -500,5 +500,82 @@ export class BookingController {
     }
 
     return res.redirect(`${frontendUrl}/dashboard/bookings?payment=cancelled`);
+  };
+
+  /**
+   * Add a new service during work - when customer requests additional repairs
+   * Professional can add a service that will be linked to the current booking
+   */
+  addServiceDuringWork = async (req: Request, res: Response) => {
+    const user = (req as any).user;
+    const { id: bookingId } = req.params;
+    const serviceData = req.body as AddServiceDuringWorkDTO;
+
+    if (user.role !== "professional") {
+      throw new HttpException(403, "Only professionals can add services during work");
+    }
+
+    const booking = await BookingModel.findById(bookingId);
+    if (!booking) {
+      throw new HttpException(404, "Booking not found");
+    }
+
+    if (booking.professionalId.toString() !== user._id.toString()) {
+      throw new HttpException(403, "You can only add services to your own bookings");
+    }
+
+    if (booking.status !== "in_progress") {
+      throw new HttpException(400, "Services can only be added during active work (in_progress status)");
+    }
+
+    // Create the new service with pending approval status
+    const newService = await ServiceModel.create({
+      professionalId: user._id,
+      title: serviceData.title,
+      slug: `${serviceData.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now()}`,
+      category: serviceData.category,
+      description: serviceData.description,
+      shortDescription: serviceData.shortDescription,
+      basePrice: serviceData.basePrice,
+      priceUnit: serviceData.priceUnit,
+      estimatedDuration: serviceData.estimatedDuration || "1-2 hours",
+      approvalStatus: "pending",
+      isActive: false,
+      rating: 0,
+      reviewCount: 0,
+      imageUrl: "",
+      imageUrls: [],
+      tags: [],
+      specifications: [],
+    });
+
+    // Notify admin about the new service needing approval
+    await createNotification(
+      user._id,
+      "Service Submitted for Approval",
+      `Your service "${serviceData.title}" has been submitted for admin approval.`,
+      "service"
+    );
+
+    // Notify customer about additional service
+    await createNotification(
+      booking.customerId,
+      "Additional Service Added",
+      `Professional has added "${serviceData.title}" to your booking. Awaiting admin approval.`,
+      "booking"
+    );
+
+    broadcastRealtimeEvent("service_added_during_work", {
+      bookingId: booking._id.toString(),
+      serviceId: newService._id.toString(),
+      serviceTitle: newService.title,
+      professionalId: user._id.toString(),
+      customerId: booking.customerId.toString(),
+    });
+
+    return ApiResponseHelper.success(res, {
+      service: newService,
+      bookingId: booking._id,
+    }, "Service added successfully and submitted for admin approval", 201);
   };
 }
