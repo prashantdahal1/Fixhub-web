@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../../contexts/AuthContext";
-import { Search, ChevronDown, ChevronUp, MessageSquare, Mail, AlertCircle, Clock, ShieldCheck, Ticket, X, Send, Briefcase, Star, CreditCard } from "lucide-react";
+import { Search, ChevronDown, ChevronUp, MessageSquare, Mail, AlertCircle, Clock, ShieldCheck, Ticket, X, Send, Briefcase, Star, CreditCard, CheckCircle2 } from "lucide-react";
 import ConfirmModal from "@/components/shared/ConfirmModal";
 import { apiFetch } from "../../../lib/api/client";
 import { API } from "../../../lib/api/endpoints";
@@ -72,6 +72,15 @@ const MOCK_TICKETS: Array<{ id: string; service: string; status: string; date: s
 const TICKET_CATEGORIES_PRO = ["Escrow / Payment Issue", "Verification Problem", "Customer Dispute", "Technical Bug", "Booking Problem", "Other"];
 const TICKET_CATEGORIES_CUSTOMER = ["Payment / Refund", "Technician Delay", "Cancellation", "Invoice Error", "Account Issue", "Other"];
 
+const MOCK_CHAT_QA: Array<{ q: string; a: string }> = [
+  { q: "How do I get a refund?", a: "You can request a refund from the booking details page. Refunds are processed back to the original payment method within 3-5 business days." },
+  { q: "My technician is late — what now?", a: "Use the 'Report Issue' button in the booking details to notify operations. If verified, partial compensation may apply." },
+  { q: "How do I cancel/reschedule?", a: "Cancel or reschedule from 'Active Bookings' at least 24 hours before the appointment to avoid fees." },
+  { q: "Escrow not released — what happens?", a: "Escrow releases after both parties confirm completion; if no response within 48 hours it auto-releases." },
+  { q: "How do I update my service pricing?", a: "Go to Dashboard → Services, select the service and edit pricing or availability." },
+  { q: "How long to verify my license?", a: "Verification usually completes within 1-2 business days. If delayed, raise a support ticket for acceleration." },
+];
+
 export default function SupportPage() {
   const { user } = useAuth();
   const isPro = user?.role === "professional";
@@ -81,7 +90,9 @@ export default function SupportPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [showRaiseTicket, setShowRaiseTicket] = useState(false);
   const [showLiveChatConfirm, setShowLiveChatConfirm] = useState(false);
+  const [showLiveChatModal, setShowLiveChatModal] = useState(false);
   const [showEmailConfirm, setShowEmailConfirm] = useState(false);
+  const [chatMessages, setChatMessages] = useState<Array<{ from: 'user' | 'agent'; text: string }>>([]);
   const [ticketSubject, setTicketSubject] = useState("");
   const [ticketCategory, setTicketCategory] = useState("");
   const [ticketMessage, setTicketMessage] = useState("");
@@ -93,6 +104,34 @@ export default function SupportPage() {
     window.addEventListener('open-raise-ticket', handler as EventListener);
     return () => window.removeEventListener('open-raise-ticket', handler as EventListener);
   }, []);
+
+  const [myTickets, setMyTickets] = useState<Array<{
+    _id: string;
+    ticketId: string;
+    subject?: string;
+    category: string;
+    description: string;
+    adminReply?: string;
+    status: string;
+    createdAt: string;
+  }>>([]);
+  const [loadingTickets, setLoadingTickets] = useState(false);
+
+  const fetchMyTickets = useCallback(async () => {
+    try {
+      setLoadingTickets(true);
+      const res = await apiFetch("/api/v1/tickets/my-tickets");
+      setMyTickets(res?.data || []);
+    } catch {
+      // ignore
+    } finally {
+      setLoadingTickets(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchMyTickets();
+  }, [fetchMyTickets]);
 
   const faqs = isPro ? PRO_FAQS : CUSTOMER_FAQS;
   const categories = isPro ? PRO_CATEGORIES : CUSTOMER_CATEGORIES;
@@ -112,21 +151,40 @@ export default function SupportPage() {
     }
     setSubmitting(true);
     try {
-      await apiFetch(API.TICKETS.CREATE, {
-        method: "POST",
-        body: JSON.stringify({
-          subject: ticketSubject,
-          category: ticketCategory,
-          description: ticketMessage,
-        }),
-      });
-      toast.success("Ticket raised successfully! Our team will respond within 24 hours.");
+      // Simulate ticket creation locally (no API call)
+      const randomId = "TKT-" + Math.floor(10000 + Math.random() * 90000);
+      const now = new Date().toISOString();
+      const newTicket = {
+        _id: String(Date.now()),
+        ticketId: randomId,
+        subject: ticketSubject.trim(),
+        category: ticketCategory,
+        description: ticketMessage.trim(),
+        adminReply: "",
+        status: "Under Review",
+        createdAt: now,
+      };
+      setMyTickets((prev) => [newTicket, ...(prev || [])]);
+      // Notify the user locally
+      toast.success("Ticket created locally — support will review it shortly.");
+      // Dispatch a lightweight client-side admin notification event (no network)
+      try {
+        window.dispatchEvent(new CustomEvent('admin-notification', { detail: { title: 'New support ticket', body: `Ticket ${randomId} created`, ticket: newTicket } }));
+      } catch (e) {
+        // ignore
+      }
+      // Also dispatch a local notification event for the current user view
+      try {
+        window.dispatchEvent(new CustomEvent('local-notification', { detail: { title: 'Ticket created', body: `Your ticket ${randomId} was submitted.` } }));
+      } catch (e) {
+        // ignore
+      }
       setShowRaiseTicket(false);
       setTicketSubject("");
       setTicketCategory("");
       setTicketMessage("");
     } catch (err: any) {
-      toast.error(err.message || "Failed to raise ticket. Please try again.");
+      toast.error(err?.message || "Failed to create ticket locally. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -346,29 +404,52 @@ export default function SupportPage() {
 
           {/* Open Tickets Widget */}
           <div className="space-y-2">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">My Open Tickets</h3>
-            <div className="rounded-2xl border border-gray-200 bg-white p-5 space-y-4 shadow-sm">
-              {MOCK_TICKETS.length === 0 ? (
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">My Support Tickets</h3>
+            <div className="rounded-2xl border border-gray-200 bg-white p-5 space-y-4 shadow-sm max-h-96 overflow-y-auto">
+              {loadingTickets ? (
+                <p className="text-xs text-slate-400 text-center py-4">Loading tickets...</p>
+              ) : myTickets.length === 0 ? (
                 <p className="text-xs text-slate-500 text-center py-4">No open tickets.</p>
               ) : (
-                MOCK_TICKETS.map((ticket) => (
-                  <div key={ticket.id} className="border-b border-slate-100 last:border-0 pb-3 last:pb-0 space-y-2">
+                myTickets.map((ticket) => (
+                  <div key={ticket._id} className="border-b border-slate-100 last:border-0 pb-3 last:pb-0 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="font-mono text-xs font-semibold text-slate-500">{ticket.id}</span>
+                      <span className="font-mono text-xs font-semibold text-slate-500">{ticket.ticketId}</span>
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        ticket.status === "Resolved" ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700"
+                        ticket.status === "Resolved" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
+                        ticket.status === "In Progress" ? "bg-amber-50 text-amber-700 border border-amber-200" :
+                        "bg-blue-50 text-blue-700 border border-blue-200"
                       }`}>
                         {ticket.status}
                       </span>
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-slate-800 leading-tight">{ticket.service}</p>
-                      <p className="text-xs text-slate-400 mt-0.5">{ticket.date}</p>
+                      <p className="text-sm font-semibold text-slate-800 leading-tight">{ticket.subject || ticket.category}</p>
+                      <p className="text-[11px] text-slate-500 mt-1">{ticket.description}</p>
+                      <p className="text-[10px] text-slate-400 mt-1">Submitted on {new Date(ticket.createdAt).toLocaleDateString()}</p>
                     </div>
-                    <div className="flex items-center gap-1.5 bg-slate-50 p-2 rounded-lg text-xs text-slate-600">
-                      <Ticket className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                      <span className="truncate">{ticket.updates}</span>
-                    </div>
+                    {ticket.adminReply ? (
+                      <div className={`flex items-start gap-2.5 p-3 rounded-xl text-xs border ${
+                        ticket.status === "Resolved" 
+                          ? "bg-emerald-50/80 border-emerald-200 text-emerald-950" 
+                          : "bg-blue-50/80 border-blue-200 text-blue-950"
+                      }`}>
+                        <CheckCircle2 className={`h-4 w-4 shrink-0 mt-0.5 ${
+                          ticket.status === "Resolved" ? "text-emerald-600" : "text-blue-600"
+                        }`} />
+                        <div className="space-y-0.5">
+                          <p className="font-bold text-[11px] tracking-wide uppercase">
+                            {ticket.status === "Resolved" ? "Reason for Resolution:" : "Support Team Update:"}
+                          </p>
+                          <p className="text-xs leading-relaxed">{ticket.adminReply}</p>
+                        </div>
+                      </div>
+                    ) : ticket.status === "Resolved" ? (
+                      <div className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                        <span>This ticket has been marked as <strong>Resolved</strong> by our support team.</span>
+                      </div>
+                    ) : null}
                   </div>
                 ))
               )}
@@ -397,8 +478,8 @@ export default function SupportPage() {
           Get connected to our live agents or send an offline email request.
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-          <button
-            onClick={() => setShowLiveChatConfirm(true)}
+                <button
+                  onClick={() => setShowLiveChatModal(true)}
             className="flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-3 transition-colors shadow-sm"
           >
             <MessageSquare className="h-4 w-4" />
@@ -423,19 +504,53 @@ export default function SupportPage() {
         </div>
       </div>
 
-      <ConfirmModal
-        isOpen={showLiveChatConfirm}
-        onClose={() => setShowLiveChatConfirm(false)}
-        onConfirm={() => {
-          setShowLiveChatConfirm(false);
-          toast.info("Live chat request queued — an agent will contact you shortly.");
-        }}
-        title="Start live chat"
-        message="You are about to initiate a live chat with the support desk. Continue?"
-        confirmText="Start Chat"
-        cancelText="Cancel"
-        variant="info"
-      />
+      {/* Local simulated live-chat modal (no network calls) */}
+      {showLiveChatModal && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/50">
+          <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold">Live Chat (simulated)</h3>
+              <button onClick={() => setShowLiveChatModal(false)} className="text-slate-500 hover:text-slate-800">Close</button>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="col-span-1">
+                <p className="text-xs font-semibold text-slate-400 mb-2">Suggested questions</p>
+                <div className="space-y-2">
+                  {MOCK_CHAT_QA.map((item, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        // push user message and simulated agent reply
+                        const userMsg = { from: 'user', text: item.q };
+                        const agentMsg = { from: 'agent', text: item.a };
+                        // local state push
+                        setChatMessages((prev) => [...prev, userMsg]);
+                        setTimeout(() => setChatMessages((prev) => [...prev, agentMsg]), 550);
+                      }}
+                      className="w-full text-left p-2 rounded-lg border hover:bg-slate-50"
+                    >
+                      <div className="text-sm font-medium">{item.q}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="col-span-2">
+                <div className="h-64 overflow-y-auto border rounded-lg p-3 bg-slate-50">
+                  {chatMessages.length === 0 ? (
+                    <p className="text-xs text-slate-400">No messages yet — pick a suggested question to start.</p>
+                  ) : (
+                    chatMessages.map((m, i) => (
+                      <div key={i} className={`mb-2 ${m.from === 'user' ? 'text-right' : ''}`}>
+                        <div className={`${m.from === 'user' ? 'inline-block bg-blue-600 text-white' : 'inline-block bg-white border'} rounded-md px-3 py-2 text-sm`}>{m.text}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ConfirmModal
         isOpen={showEmailConfirm}

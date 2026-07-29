@@ -8,7 +8,7 @@ import { apiFetch } from "../../../../lib/api/client";
 import { API } from "../../../../lib/api/endpoints";
 import { BACKEND_URL } from "../../../../lib/backend-url";
 import { downloadReceiptPdf } from "../../../../lib/receipt-pdf";
-import { evaluatePromoCode } from "../../../../lib/promo-codes";
+import { evaluatePromoCode, getApplicablePromoCodes } from "../../../../lib/promo-codes";
 
 type PriceUnit = "flat" | "per_hour" | "per_sqft";
 type ServiceCategory =
@@ -104,6 +104,7 @@ export default function ServiceDetailPage() {
   const [paymentProvider, setPaymentProvider] = useState<"esewa" | "khalti" | "cod">("esewa");
   const [promoInput, setPromoInput] = useState("");
   const [appliedPromo, setAppliedPromo] = useState("");
+  const [availablePromos, setAvailablePromos] = useState(() => [] as Array<{ code: string; label: string; description: string; eligible: boolean; reason?: string }>);
   const [appliedDiscount, setAppliedDiscount] = useState(0);
   const [promoMessage, setPromoMessage] = useState("");
   const [bookingSubmitted, setBookingSubmitted] = useState(false);
@@ -158,6 +159,12 @@ export default function ServiceDetailPage() {
     "05:00 PM": "05:00 PM - 06:30 PM",
     "06:30 PM": "06:30 PM - 08:00 PM",
   };
+
+  useEffect(() => {
+    if (service) {
+      setAvailablePromos(getApplicablePromoCodes({ basePrice: service.basePrice, category: service.category }, user));
+    }
+  }, [service, user]);
 
   useEffect(() => {
     async function load() {
@@ -908,8 +915,10 @@ export default function ServiceDetailPage() {
                       <span>- रू {appliedDiscount.toLocaleString()}</span>
                     </div>
                   )}
-                  {promoMessage && !appliedDiscount && (
-                    <div className="text-xs text-slate-500">{promoMessage}</div>
+                  {promoMessage && (
+                    <div className={`text-xs ${appliedDiscount > 0 ? "text-emerald-200" : "text-slate-500"}`}>
+                      {promoMessage}
+                    </div>
                   )}
                 </div>
 
@@ -924,7 +933,7 @@ export default function ServiceDetailPage() {
                       onChange={(e) => setPromoInput(e.target.value)}
                       className="flex-1 px-3 py-2 text-xs border border-slate-200 rounded-xl bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 uppercase tracking-wider font-semibold"
                     />
-                                    <button
+                    <button
                       type="button"
                       onClick={() => {
                         const promo = promoInput.trim();
@@ -951,6 +960,55 @@ export default function ServiceDetailPage() {
                       Apply
                     </button>
                   </div>
+
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Available promo codes</p>
+                      <span className="text-[10px] text-slate-400">Tap to use</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {availablePromos.map((promo) => (
+                        <button
+                          key={promo.code}
+                          type="button"
+                          onClick={() => {
+                            setPromoInput(promo.code);
+                            const result = evaluatePromoCode(promo.code, {
+                              basePrice: service.basePrice,
+                              category: service.category,
+                            }, user);
+
+                            if (!result.valid) {
+                              setAppliedPromo("");
+                              setAppliedDiscount(0);
+                              setPromoMessage(result.message);
+                              toast.error(result.message);
+                              return;
+                            }
+
+                            setAppliedPromo(result.normalizedCode || promo.code);
+                            setAppliedDiscount(result.discount);
+                            setPromoMessage(result.message);
+                            toast.success(result.message);
+                          }}
+                          className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-all ${promo.eligible ? "border-blue-200 bg-white text-blue-700 hover:border-blue-400" : "border-slate-200 bg-slate-100 text-slate-400"}`}
+                        >
+                          <span className="mr-1">{promo.code}</span>
+                          <span className="text-[10px]">{promo.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                    {availablePromos.some((promo) => !promo.eligible) && (
+                      <p className="text-[10px] text-slate-500">
+                        Some promo codes are hidden because they do not fit this booking yet.
+                      </p>
+                    )}
+                  </div>
+                  {appliedDiscount > 0 && appliedPromo && (
+                    <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-3 text-emerald-800 text-sm font-semibold">
+                      Promo code <span className="uppercase">{appliedPromo}</span> applied — you saved रू {appliedDiscount.toLocaleString()}.
+                    </div>
+                  )}
                 </div>
 
                 {/* Total */}
@@ -1200,6 +1258,12 @@ export default function ServiceDetailPage() {
                 <span>Tax (VAT 13%)</span>
                 <span className="font-bold">रू {tax.toFixed(2)}</span>
               </div>
+              {appliedDiscount > 0 && (
+                <div className="flex justify-between items-center text-emerald-200 font-bold">
+                  <span>Promo Discount ({appliedPromo})</span>
+                  <span>- रू {appliedDiscount.toFixed(2)}</span>
+                </div>
+              )}
               {paymentProvider === "cod" && (
                 <div className="flex justify-between items-center text-amber-300 font-bold">
                   <span>COD Cash Surcharge</span>

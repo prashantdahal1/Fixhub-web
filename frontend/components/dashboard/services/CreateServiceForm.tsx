@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
-import { UploadCloud, Image as ImageIcon, X } from "lucide-react";
+import { UploadCloud, Image as ImageIcon, X, Sparkles } from "lucide-react";
 
 export default function CreateServiceForm({ onSuccess }: { onSuccess: () => void }) {
   const [formData, setFormData] = useState({
@@ -14,10 +14,11 @@ export default function CreateServiceForm({ onSuccess }: { onSuccess: () => void
     basePrice: "",
     priceUnit: "flat",
     estimatedDuration: "1-2 hours",
-    image: null as File | null,
+    images: [] as File[],
   });
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const router = useRouter();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -26,16 +27,66 @@ export default function CreateServiceForm({ onSuccess }: { onSuccess: () => void
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files ? e.target.files[0] : null;
-    if (file) {
-      setFormData({ ...formData, image: file });
-      setImagePreview(URL.createObjectURL(file));
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    if (files.length > 0) {
+      const newImages = [...formData.images, ...files].slice(0, 4); // Max 4 images
+      const newPreviews = newImages.map(file => URL.createObjectURL(file));
+      setFormData({ ...formData, images: newImages });
+      setImagePreviews(newPreviews);
     }
   };
 
-  const removeImage = () => {
-    setFormData({ ...formData, image: null });
-    setImagePreview(null);
+  const removeImage = (index: number) => {
+    const newImages = formData.images.filter((_, i) => i !== index);
+    const newPreviews = imagePreviews.filter((_, i) => i !== index);
+    setFormData({ ...formData, images: newImages });
+    setImagePreviews(newPreviews);
+  };
+
+  const handleAIGeneration = async () => {
+    if (formData.images.length === 0) {
+      toast.error("Please upload at least one image first");
+      return;
+    }
+
+    setIsGeneratingAI(true);
+    try {
+      const submitData = new FormData();
+      formData.images.forEach((image) => {
+        submitData.append("images", image);
+      });
+      submitData.append("category", formData.category);
+
+      const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1] || '';
+
+      const response = await fetch("/api/v1/services/generate-ai-description", {
+        method: "POST",
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: submitData,
+      });
+
+      const data = await response.json();
+      
+      if (response.ok && data.data) {
+        // Auto-fill the form with AI-generated content
+        setFormData({
+          ...formData,
+          title: data.data.title || formData.title,
+          description: data.data.description || formData.description,
+          shortDescription: data.data.shortDescription || formData.shortDescription,
+        });
+        toast.success("AI generated service description successfully!");
+      } else {
+        throw new Error(data.message || "AI generation failed");
+      }
+    } catch (error: any) {
+      console.error("AI Generation Error:", error);
+      toast.error(error.message || "Failed to generate AI description");
+    } finally {
+      setIsGeneratingAI(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -45,15 +96,19 @@ export default function CreateServiceForm({ onSuccess }: { onSuccess: () => void
     try {
       const submitData = new FormData();
       Object.entries(formData).forEach(([key, value]) => {
-        if (value !== null && key !== "image") {
+        if (key !== "images" && value !== null && value !== "") {
           submitData.append(key, value as string);
         }
       });
-      if (formData.image) {
-        submitData.append("image", formData.image);
-      }
+      
+      // Add images
+      formData.images.forEach((image) => {
+        submitData.append("images", image);
+      });
 
-      submitData.append("slug", formData.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""));
+      if (formData.title) {
+        submitData.append("slug", formData.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""));
+      }
 
       const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1] || '';
 
@@ -70,7 +125,6 @@ export default function CreateServiceForm({ onSuccess }: { onSuccess: () => void
         throw new Error(data.message || "Failed to create service");
       }
 
-      toast.success("Service published successfully!");
       onSuccess();
       router.refresh();
     } catch (error: any) {
@@ -85,7 +139,7 @@ export default function CreateServiceForm({ onSuccess }: { onSuccess: () => void
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
         <div>
           <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-            Service Title
+            Service Title <span className="text-slate-400 font-normal">(optional - AI can generate)</span>
           </label>
           <input
             type="text"
@@ -93,7 +147,6 @@ export default function CreateServiceForm({ onSuccess }: { onSuccess: () => void
             value={formData.title}
             onChange={handleChange}
             placeholder="e.g. Master AC Service & Repair"
-            required
             className="w-full px-3.5 py-2.5 text-xs text-slate-800 bg-slate-50/60 focus:bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
           />
         </div>
@@ -169,7 +222,7 @@ export default function CreateServiceForm({ onSuccess }: { onSuccess: () => void
 
       <div>
         <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-          Short Description
+          Short Description <span className="text-slate-400 font-normal">(optional - AI can generate)</span>
         </label>
         <input
           type="text"
@@ -177,7 +230,6 @@ export default function CreateServiceForm({ onSuccess }: { onSuccess: () => void
           value={formData.shortDescription}
           onChange={handleChange}
           placeholder="Brief summary shown on service card..."
-          required
           maxLength={180}
           className="w-full px-3.5 py-2.5 text-xs text-slate-800 bg-slate-50/60 focus:bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
         />
@@ -185,52 +237,84 @@ export default function CreateServiceForm({ onSuccess }: { onSuccess: () => void
 
       <div>
         <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-          Detailed Description
+          Detailed Description <span className="text-slate-400 font-normal">(optional - AI can generate)</span>
         </label>
         <textarea
           name="description"
           value={formData.description}
           onChange={handleChange}
           placeholder="Full breakdown of scope, tools used, and guarantee..."
-          required
           rows={3}
           className="w-full px-3.5 py-2.5 text-xs text-slate-800 bg-slate-50/60 focus:bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium resize-none"
         />
       </div>
 
-      {/* Custom File Upload Dropzone */}
+      {/* Custom File Upload Dropzone - Multiple Images */}
       <div>
         <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-          Service Image
+          Service Images <span className="text-slate-400 font-normal">(up to 4 images)</span>
         </label>
-        {imagePreview ? (
-          <div className="relative rounded-2xl overflow-hidden border border-slate-200 h-28 bg-slate-100 group">
-            <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-            <button
-              type="button"
-              onClick={removeImage}
-              className="absolute top-2 right-2 w-7 h-7 rounded-full bg-slate-900/70 text-white flex items-center justify-center hover:bg-slate-900 transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
+        
+        {imagePreviews.length > 0 ? (
+          <div className="grid grid-cols-2 gap-2">
+            {imagePreviews.map((preview, index) => (
+              <div key={index} className="relative rounded-2xl overflow-hidden border border-slate-200 h-28 bg-slate-100 group">
+                <img src={preview} alt={`Preview ${index + 1}`} className="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => removeImage(index)}
+                  className="absolute top-2 right-2 w-7 h-7 rounded-full bg-slate-900/70 text-white flex items-center justify-center hover:bg-slate-900 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+            {imagePreviews.length < 4 && (
+              <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-200 hover:border-blue-400 bg-slate-50/50 hover:bg-blue-50/20 rounded-2xl cursor-pointer transition-all">
+                <UploadCloud className="w-6 h-6 text-slate-400 mb-1" />
+                <span className="text-xs font-semibold text-slate-700">Add more</span>
+                <input
+                  type="file"
+                  name="images"
+                  onChange={handleFileChange}
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                />
+              </label>
+            )}
           </div>
         ) : (
           <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-200 hover:border-blue-400 bg-slate-50/50 hover:bg-blue-50/20 rounded-2xl cursor-pointer transition-all">
             <UploadCloud className="w-6 h-6 text-slate-400 mb-1" />
-            <span className="text-xs font-semibold text-slate-700">Click to upload cover photo</span>
-            <span className="text-[10px] text-slate-400 mt-0.5">PNG, JPG, or WEBP up to 5MB</span>
+            <span className="text-xs font-semibold text-slate-700">Click to upload service images</span>
+            <span className="text-[10px] text-slate-400 mt-0.5">PNG, JPG, or WEBP up to 5MB (max 4 images)</span>
             <input
               type="file"
-              name="image"
+              name="images"
               onChange={handleFileChange}
               accept="image/*"
+              multiple
               className="hidden"
             />
           </label>
         )}
       </div>
 
-      <div className="pt-2 flex items-center justify-end gap-3 pb-4">
+      {/* AI Generation Button */}
+      {imagePreviews.length > 0 && (
+        <button
+          type="button"
+          onClick={handleAIGeneration}
+          disabled={isGeneratingAI}
+          className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Sparkles className="w-4 h-4" />
+          {isGeneratingAI ? "Generating AI Description..." : "Generate AI Description from Images"}
+        </button>
+      )}
+
+      <div className="pt-2 flex items-center justify-end gap-3">
         <button
           type="button"
           onClick={onSuccess}

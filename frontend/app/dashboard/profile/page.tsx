@@ -130,7 +130,7 @@ const ProfilePage: React.FC = () => {
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
-      const res = await fetch('/api/v1/auth/update', {
+      const res = await fetch('/api/v1/users/update', {
         method: 'PUT',
         headers,
         body: formData,
@@ -184,7 +184,7 @@ const ProfilePage: React.FC = () => {
       const formData = new FormData();
       if (nationalIdFront) formData.append('nationalIdFront', nationalIdFront);
       if (nationalIdBack) formData.append('nationalIdBack', nationalIdBack);
-      const res = await fetch('/api/v1/auth/national-id', {
+      const res = await fetch('/api/v1/users/national-id', {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,
@@ -196,11 +196,18 @@ const ProfilePage: React.FC = () => {
         setNationalIdBack(null);
         await fetchUser();
       } else {
-        const err = await res.json();
-        toast.error(err.message || 'Failed to upload National ID.');
+        let errorMsg = 'Failed to upload National ID.';
+        try {
+          const err = await res.json();
+          errorMsg = err.message || errorMsg;
+        } catch {
+          errorMsg = `Server responded with status ${res.status}`;
+        }
+        toast.error(errorMsg);
       }
-    } catch {
-      toast.error('Network error. Please try again.');
+    } catch (err: any) {
+      console.error('National ID upload error:', err);
+      toast.error(err?.message || 'Network error. Please try again.');
     } finally {
       setIdUploadLoading(false);
     }
@@ -520,6 +527,11 @@ const ProfilePage: React.FC = () => {
                     <img src={URL.createObjectURL(nationalIdFront)} alt="Front ID preview" className="w-full max-h-28 object-contain rounded-lg" />
                     <p className="text-xs text-emerald-600 font-medium">{nationalIdFront.name}</p>
                   </>
+                ) : (user as any)?.nationalIdFront ? (
+                  <>
+                    <img src={(user as any).nationalIdFront} alt="Front ID uploaded" className="w-full max-h-28 object-contain rounded-lg" />
+                    <p className="text-xs text-blue-600 font-medium">Uploaded Front ID (Click to replace)</p>
+                  </>
                 ) : (
                   <>
                     <div className="w-10 h-10 rounded-xl bg-slate-100 group-hover:bg-blue-100 flex items-center justify-center transition-colors">
@@ -540,12 +552,17 @@ const ProfilePage: React.FC = () => {
                 onClick={() => backIdRef.current?.click()}
                 className="relative cursor-pointer border-2 border-dashed border-slate-200 rounded-xl p-5 flex flex-col items-center justify-center gap-2 hover:border-blue-400 hover:bg-blue-50/30 transition-all group"
               >
-                <input ref={backIdRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+                <input ref={backIdRef} type="file" accept="image/jpeg,image/png,image/webp,image/jfif" className="hidden"
                   onChange={(e) => setNationalIdBack(e.target.files?.[0] || null)} />
                 {nationalIdBack ? (
                   <>
                     <img src={URL.createObjectURL(nationalIdBack)} alt="Back ID preview" className="w-full max-h-28 object-contain rounded-lg" />
                     <p className="text-xs text-emerald-600 font-medium">{nationalIdBack.name}</p>
+                  </>
+                ) : (user as any)?.nationalIdBack ? (
+                  <>
+                    <img src={(user as any).nationalIdBack} alt="Back ID uploaded" className="w-full max-h-28 object-contain rounded-lg" />
+                    <p className="text-xs text-blue-600 font-medium">Uploaded Back ID (Click to replace)</p>
                   </>
                 ) : (
                   <>

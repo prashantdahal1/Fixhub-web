@@ -107,6 +107,12 @@ const SettingsIcon = () => (
   </svg>
 );
 
+const ShieldIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+  </svg>
+);
+
 type DBNotification = NotificationItem;
 
 function formatRelativeTime(dateString: string): string {
@@ -188,6 +194,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // ── WebSocket: real-time booking status updates + notification toasts ──────────
   useRealtimeBookings({
     onNotification: (payload) => {
+      const currentUserId = user?._id || (user as any)?.id;
+      if (payload.userId && currentUserId && payload.userId.toString() !== currentUserId.toString()) {
+        return;
+      }
       // Add to notification bell
       setNotifications((items) => upsertNotification(items, payload as unknown as DBNotification));
       // Show a pop-up toast so user sees it immediately
@@ -196,7 +206,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <span className="font-bold text-sm">{payload.title}</span>
           <span className="text-xs text-slate-500">{payload.body}</span>
         </div>,
-        { icon: "🔔", autoClose: 6000 }
+        { icon: "🔔" as any, autoClose: 6000 }
       );
     },
     onBookingUpdated: (payload) => {
@@ -307,10 +317,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-[#F9FAFB] font-sans flex overflow-hidden">
+    <div className="min-h-screen bg-[#F9FAFB] font-sans flex">
 
       {/* ── SIDEBAR ────────────────────────────────────────────────────────── */}
-      <aside className="w-[260px] bg-white border-r border-slate-100 flex-shrink-0 flex flex-col sticky top-0 h-screen">
+      <aside className="w-[260px] bg-white border-r border-slate-100 flex-shrink-0 flex flex-col sticky top-0 self-start h-screen overflow-y-auto">
         {/* Logo */}
         <div className="h-[64px] flex items-center px-5 border-b border-slate-100 shrink-0">
           <Image src="/images/fixhub.png" alt="FixHub" width={100} height={32} className="object-contain" priority style={{ width: "auto", height: "auto" }} />
@@ -326,7 +336,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="space-y-0.5">
               {(user?.role === "professional" ? [
                 { label: "Dashboard", icon: HomeIcon, href: "/dashboard" },
-                { label: "Marketplace", icon: ServicesIcon, href: "/dashboard/services" },
+                { label: "Services", icon: ServicesIcon, href: "/dashboard/services" },
                 { label: "Job Requests", icon: BookingsIcon, href: "/dashboard/bookings" },
                 { label: "Job History", icon: HistoryIcon, href: "/dashboard/history" },
                 { label: "Chat & Messages", icon: ChatIcon, href: "/dashboard/chat" },
@@ -368,6 +378,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               {[
                 { label: "Support & Tickets", icon: SupportIcon, href: "/dashboard/support" },
                 { label: "My Profile", icon: UserIcon, href: "/dashboard/profile" },
+                ...(user?.role === "admin"
+                  ? [{ label: "Admin Panel", icon: ShieldIcon, href: "/dashboard/admin" }]
+                  : []),
               ].map(({ label, icon: Icon, href }) => {
                 const isActive = pathname === href;
                 return (
@@ -376,14 +389,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     href={href}
                     className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all group ${
                       isActive
-                        ? "bg-[#EFF6FF] text-[#2563EB] font-semibold"
+                        ? href === "/dashboard/admin"
+                          ? "bg-violet-50 text-violet-700 font-semibold"
+                          : "bg-[#EFF6FF] text-[#2563EB] font-semibold"
                         : "text-slate-500 hover:text-slate-855 hover:bg-slate-50 font-medium"
                     }`}
                   >
-                    <span className={isActive ? "text-[#2563EB]" : "text-slate-400 group-hover:text-slate-600 transition-colors"}>
+                    <span className={isActive
+                      ? href === "/dashboard/admin" ? "text-violet-600" : "text-[#2563EB]"
+                      : "text-slate-400 group-hover:text-slate-600 transition-colors"
+                    }>
                       <Icon />
                     </span>
                     {label}
+                    {label === "Admin Panel" && (
+                      <span className="ml-auto text-[9px] font-bold bg-violet-100 text-violet-600 px-1.5 py-0.5 rounded-md">ADMIN</span>
+                    )}
                   </Link>
                 );
               })}
@@ -447,20 +468,37 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
               {notifOpen && (
                 <div
-                  className="absolute right-0 top-12 w-[380px] bg-white rounded-2xl z-[200] overflow-hidden border border-slate-100 shadow-2xl"
+                  className="absolute right-0 top-12 w-[380px] bg-white rounded-2xl z-[200] overflow-hidden border border-slate-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.18),0_4px_16px_rgba(0,0,0,0.08)]"
                 >
                   {/* Panel header */}
-                  <div className="flex items-center justify-between px-4.5 pt-4 pb-3 border-b border-slate-100">
-                    <span className="text-sm font-bold text-slate-850">Notifications</span>
-                    <button
-                      onClick={() => setNotifOpen(false)}
-                      className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200/80 transition-colors"
-                      aria-label="Close notifications"
-                    >
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                      </svg>
-                    </button>
+                  <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-slate-800">Notifications</span>
+                      {unreadCount > 0 && (
+                        <span className="text-[10px] font-bold bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">
+                          {unreadCount} new
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {unreadCount > 0 && (
+                        <button
+                          onClick={markAllRead}
+                          className="text-[11px] font-semibold text-blue-600 hover:text-blue-700 transition-colors"
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setNotifOpen(false)}
+                        className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200/80 transition-colors"
+                        aria-label="Close notifications"
+                      >
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
 
                   {/* List */}
@@ -496,22 +534,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         return (
                           <div
                             key={n._id}
-                            className={`relative flex gap-3 px-4.5 py-3.5 transition-colors hover:bg-slate-50/50 ${
-                              !n.read ? "bg-blue-50/10" : ""
+                            className={`relative flex gap-3 px-4 py-3.5 transition-colors hover:bg-slate-50/50 group ${
+                              !n.read ? "bg-blue-50/20" : ""
                             }`}
                           >
                             {/* Unread circle dot */}
                             {!n.read && (
-                              <span className="absolute left-2.5 top-[22px] w-1.5 h-1.5 bg-blue-500 rounded-full" />
+                              <span className="absolute left-2 top-[22px] w-1.5 h-1.5 bg-blue-500 rounded-full" />
                             )}
 
                             {/* Icon box */}
-                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${iconBg[n.type]} ${iconFg[n.type]}`}>
-                              {icons[n.type]}
+                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${iconBg[n.type] || 'bg-slate-50'} ${iconFg[n.type] || 'text-slate-500'}`}>
+                              {icons[n.type] || icons.booking}
                             </div>
 
                             {/* Content */}
-                            <div className="flex-1 min-w-0">
+                            <div className="flex-1 min-w-0 pr-1">
                               <div className="flex items-baseline justify-between gap-2">
                                 <p className={`text-xs font-bold leading-none ${n.read ? "text-slate-700" : "text-slate-800"}`}>
                                   {n.title}
@@ -520,6 +558,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                               </div>
                               <p className="text-[11px] text-slate-500 mt-1 leading-normal truncate">{n.body}</p>
                             </div>
+
+                            {/* Dismiss button */}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); dismissNotif(n._id); }}
+                              className="opacity-0 group-hover:opacity-100 shrink-0 w-5 h-5 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all self-center"
+                              aria-label="Dismiss notification"
+                            >
+                              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                              </svg>
+                            </button>
                           </div>
                         );
                       })

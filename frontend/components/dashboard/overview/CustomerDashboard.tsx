@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useAuth } from "../../../contexts/AuthContext";
+import AIMatchingResults from "../AIMatchingResults";
 
 // ─── Service Category Icons ────────────────────────────────────────────────────
 const ElectricianIcon = () => (
@@ -84,9 +85,9 @@ const services = [
 ];
 
 const promos = [
-  { title: "Get 30% Off",      sub: "on your first Geyser Service!", badge: "Limited Time" },
-  { title: "Free Inspection",  sub: "on all electrical checkups this month!", badge: "This Month" },
-  { title: "AC Deep Clean",    sub: "Flat Rs 500 off — limited slots!", badge: "Few Slots Left" },
+  { title: "30% Off Welcome",          sub: "Save on most services with code FIXHUB30.", badge: "Valid sitewide", code: "FIXHUB30" },
+  { title: "AC Repair Discount",       sub: "Flat Rs 500 off AC service with CLEAN500.", badge: "AC only", code: "CLEAN500" },
+  { title: "Verified First Booking",  sub: "Get 10% off your first booking with FIRSTFIX10.", badge: "First-time", code: "FIRSTFIX10" },
 ];
 
 interface PopularService {
@@ -153,12 +154,21 @@ export default function CustomerDashboard() {
                   <span className="inline-block text-[9px] font-extrabold bg-white/25 text-white px-2 py-0.5 rounded-full mb-1.5 tracking-wider uppercase">{p.badge}</span>
                   <p className="text-white font-extrabold text-sm leading-snug">{p.title}</p>
                   <p className="text-blue-50 text-[11px] mt-0.5 font-medium leading-tight">{p.sub}</p>
+                  {p.code && (
+                    <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-3 py-1 text-[10px] text-white/90 font-bold">
+                      <span>Use code</span>
+                      <span className="uppercase">{p.code}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             );
           })}
         </div>
       </div>
+
+      {/* ── AI Matching ───────────────────────────────────────────────────────────── */}
+      <AIMatchingResults />
 
       <div className="rounded-2xl border border-gray-200 bg-white p-5 transition-shadow hover:shadow-sm">
         <div className="flex items-center justify-between mb-4">
