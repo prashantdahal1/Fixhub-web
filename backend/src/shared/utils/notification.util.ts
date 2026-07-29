@@ -10,7 +10,7 @@ export async function createNotification(
   userId: mongoose.Types.ObjectId | string,
   title: string,
   body: string,
-  type: "booking" | "confirm" | "done" | "payment"
+  type: "booking" | "confirm" | "done" | "payment" | "service" | "ticket"
 ) {
   try {
     const notification = await NotificationModel.create({
@@ -24,7 +24,8 @@ export async function createNotification(
     notificationEvents.emit(userId.toString(), notificationData);
     broadcastRealtimeEvent(
       "notification",
-      notificationData as unknown as Record<string, unknown>
+      notificationData as unknown as Record<string, unknown>,
+      userId.toString()
     );
   } catch (error) {
     console.error("Failed to create notification:", error);
@@ -34,7 +35,7 @@ export async function createNotification(
 export async function createAdminNotification(
   title: string,
   body: string,
-  type: "booking" | "confirm" | "done" | "payment"
+  type: "booking" | "confirm" | "done" | "payment" | "service" | "ticket"
 ) {
   try {
     const admins = await UserModel.find({ role: "admin" }).select("_id");

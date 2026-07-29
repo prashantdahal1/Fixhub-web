@@ -26,12 +26,14 @@ function buildEnvelope(type: string, payload: Record<string, unknown>): string {
   });
 }
 
-export function broadcastRealtimeEvent(type: string, payload: Record<string, unknown>): void {
+export function broadcastRealtimeEvent(type: string, payload: Record<string, unknown>, targetUserId?: string): void {
   if (!wss) return;
   const message = buildEnvelope(type, payload);
   for (const client of clients) {
     if (client.readyState === client.OPEN) {
-      client.send(message);
+      if (!targetUserId || (client.userId && client.userId.toString() === targetUserId.toString())) {
+        client.send(message);
+      }
     }
   }
 }
@@ -120,7 +122,7 @@ function verifyWebSocketToken(token: string): string | null {
       return decoded.id;
     }
   } catch {
-    // Invalid or expired token.
+    // Invalid or expired token. Let caller log details.
   }
   return null;
 }
@@ -134,39 +136,82 @@ export function createRealtimeWebSocketServer(server: HttpServer) {
     const url = request.url ?? "";
     const parsed = new URL(url, `http://${request.headers.host}`);
     const token = parsed.searchParams.get("token") || undefined;
-    const userId = token ? verifyWebSocketToken(token) : undefined;
+    console.log('Realtime WS - connection attempt from', request.socket.remoteAddress, 'token present:', !!token);
 
-    if (!userId) {
-      socket.close(4401, "Unauthorized: invalid or missing token");
-      return;
+    // Helper to attach normal handlers once authenticated
+    const attachAuthenticatedHandlers = (uid: string) => {
+      socket.userId = uid;
+      clients.add(socket);
+
+      socket.on("message", async (data) => {
+        const envelope = parseIncomingMessage(data);
+        if (!envelope) return;
+
+        if (envelope.type === "chat_message") {
+          await handleChatMessage(envelope.payload, socket.userId!);
+          return;
+        }
+
+        if (envelope.type === "notification") {
+          broadcastRealtimeEvent("notification", envelope.payload);
+        }
+      });
+
+      socket.on("close", (code, reason) => {
+        console.log('Realtime WS - connection closed', { userId: socket.userId, code, reason: reason?.toString() });
+        clients.delete(socket);
+      });
+
+      socket.on("error", (err) => {
+        console.warn('Realtime WS - socket error', { userId: socket.userId, error: err?.message ?? err });
+        clients.delete(socket);
+      });
+
+      socket.send(buildEnvelope("connected", { ok: true }));
+    };
+
+    // If token is provided in query params, verify immediately
+    if (token) {
+      try {
+        const verifiedId = verifyWebSocketToken(token);
+        if (!verifiedId) {
+          console.warn('Realtime WS - unauthorized connection, invalid/missing token (query)');
+          socket.close(4401, "Unauthorized: invalid or missing token");
+          return;
+        }
+        attachAuthenticatedHandlers(verifiedId);
+        return;
+      } catch (err: any) {
+        console.warn('Realtime WS - token verify error', err?.message ?? err);
+        socket.close(4401, "Unauthorized: token verification error");
+        return;
+      }
     }
 
-    socket.userId = userId;
-    clients.add(socket);
+    // If no token in query, accept an initial auth message with a token payload within a short window
+    let authTimeout = setTimeout(() => {
+      console.warn('Realtime WS - auth timeout, closing unauthenticated socket');
+      try { socket.close(4401, "Unauthorized: no token provided"); } catch {}
+    }, 5000);
 
-    socket.on("message", async (data) => {
-      const envelope = parseIncomingMessage(data);
-      if (!envelope) return;
-
-      if (envelope.type === "chat_message") {
-        await handleChatMessage(envelope.payload, socket.userId!);
+    const authListener = (data: unknown) => {
+      const tokenFromMsg = parseTokenFromMessage(data);
+      if (!tokenFromMsg) return;
+      const verifiedId = verifyWebSocketToken(tokenFromMsg);
+      if (!verifiedId) {
+        console.warn('Realtime WS - unauthorized connection, invalid token from message');
+        clearTimeout(authTimeout);
+        socket.removeListener('message', authListener);
+        try { socket.close(4401, "Unauthorized: invalid token"); } catch {}
         return;
       }
 
-      if (envelope.type === "notification") {
-        broadcastRealtimeEvent("notification", envelope.payload);
-      }
-    });
+      clearTimeout(authTimeout);
+      socket.removeListener('message', authListener);
+      attachAuthenticatedHandlers(verifiedId);
+    };
 
-    socket.on("close", () => {
-      clients.delete(socket);
-    });
-
-    socket.on("error", () => {
-      clients.delete(socket);
-    });
-
-    socket.send(buildEnvelope("connected", { ok: true }));
+    socket.on('message', authListener);
   });
 
   return wss;
