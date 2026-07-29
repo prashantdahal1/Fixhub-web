@@ -21,7 +21,9 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (_: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  if (['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].includes(file.mimetype)) cb(null, true);
+  const isAllowedExt = /\.(jfif|jpg|jpeg|png|webp|pdf)$/i.test(file.originalname);
+  const isAllowedMime = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'image/jfif', 'image/pjpeg'].includes(file.mimetype);
+  if (isAllowedExt || isAllowedMime) cb(null, true);
   else cb(null, false);
 };
 

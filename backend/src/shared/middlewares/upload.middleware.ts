@@ -1,7 +1,7 @@
 import multer from 'multer';
 import path from 'path';
 import { type Request } from 'express';
-import { UPLOAD_DIR } from '../configs/constant.js';
+import { UPLOAD_DIR } from '../../config/constants.js';
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, path.join(UPLOAD_DIR, 'avatars')),
   filename: (req: Request & { user?: any }, file, cb) => {
