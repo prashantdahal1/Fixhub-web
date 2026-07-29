@@ -92,6 +92,7 @@ export default function LoginPage() {
       }
       await fetchUser();
       router.push('/dashboard');
+      router.refresh();
     } catch (err) {
       setError('Network error. Please try again.');
       toast.error('Network error. Backend server is unreachable.');

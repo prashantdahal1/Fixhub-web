@@ -82,6 +82,9 @@ export default function RegisterPage() {
       Object.entries(result.data).forEach(([key, value]) => {
         submitData.append(key, value as string);
       });
+      if (formData.verificationDocument) {
+        submitData.append('verificationDocument', formData.verificationDocument);
+      }
 
       const response = await fetch('/api/v1/auth/register', {
         method: 'POST',
