@@ -7,6 +7,10 @@ export default defineConfig({
   expect: {
     timeout: 5000,
   },
+  reporter: [
+    ['html', { outputFolder: 'playwright-report' }],
+    ['list']
+  ],
   use: {
     baseURL: 'http://localhost:3000',
     trace: 'on-first-retry',
