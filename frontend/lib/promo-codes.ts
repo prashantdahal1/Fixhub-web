@@ -26,7 +26,59 @@ export interface PromoService {
   category: ServiceCategory;
 }
 
+export interface PromoOption {
+  code: string;
+  label: string;
+  description: string;
+  eligible: boolean;
+  reason?: string;
+}
+
 const formatPromoCode = (code: string | undefined) => (code || "").trim().toUpperCase();
+
+export function getApplicablePromoCodes(service: PromoService, user?: PromoUser | null): PromoOption[] {
+  const price = Math.max(0, service.basePrice);
+  const isGeyser = service.category === "geyser";
+  const verified = Boolean(user?.isVerified);
+
+  const options: PromoOption[] = [
+    {
+      code: "FIXHUB30",
+      label: "30% off",
+      description: "Great for most services",
+      eligible: true,
+    },
+    {
+      code: "PROMO500",
+      label: "Flat Rs 500",
+      description: "Best for larger bookings",
+      eligible: true,
+    },
+    {
+      code: "FIRSTFIX10",
+      label: "10% off first booking",
+      description: "Needs a verified account",
+      eligible: verified,
+      reason: verified ? undefined : "Verify your account to unlock this promo.",
+    },
+    {
+      code: "GEYSER30",
+      label: "30% off geyser service",
+      description: "Only valid for geyser bookings above Rs 1,000",
+      eligible: isGeyser && price >= 1000,
+      reason: isGeyser && price >= 1000 ? undefined : "This promo is only available for geyser services above Rs 1,000.",
+    },
+    {
+      code: "CLEAN500",
+      label: "Rs 500 off AC service",
+      description: "Only valid for AC service bookings",
+      eligible: service.category === "ac_repair",
+      reason: service.category === "ac_repair" ? undefined : "This promo is only available for AC service bookings.",
+    },
+  ];
+
+  return options;
+}
 
 export function evaluatePromoCode(
   code: string | undefined,

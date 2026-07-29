@@ -12,7 +12,14 @@ export interface NotificationItem {
 
 export async function fetchNotifications(): Promise<NotificationItem[]> {
   try {
-    const res = await fetch("/api/v1/notifications", { credentials: "include" });
+    const token = typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('adminToken')) : null;
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const res = await fetch("/api/v1/notifications", {
+      headers,
+      credentials: "include"
+    });
 
     if (!res.ok) {
       if (res.status === 401) {

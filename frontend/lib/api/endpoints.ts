@@ -17,6 +17,7 @@ export const API = {
         ADMIN_GET_ALL: "/api/v1/tickets/admin",
         ADMIN_UPDATE_STATUS: (id: string) => `/api/v1/tickets/admin/${id}/status`,
         ADMIN_UPDATE: (id: string) => `/api/v1/tickets/admin/${id}`,
+        ADMIN_REPLY: (id: string) => `/api/v1/tickets/admin/${id}/reply`,
         ADMIN_DELETE: (id: string) => `/api/v1/tickets/${id}`,
         ADMIN_BULK_DELETE: "/api/v1/tickets/admin/bulk-delete",
     },
@@ -43,6 +44,12 @@ export const API = {
     },
     NOTIFICATIONS: {
         LIST: "/api/v1/notifications",
+        GET_DELETED: "/api/v1/notifications/deleted",
+        RECOVER: (id: string) => `/api/v1/notifications/${id}/recover`,
         MARK_READ: (id: string) => `/api/v1/notifications/${id}/read`,
+    },
+    AI_MATCHING: {
+        FIND_MATCHES: "/api/v1/ai-matching/matches",
+        ANALYTICS: (professionalId: string) => `/api/v1/ai-matching/analytics/${professionalId}`,
     },
 };
