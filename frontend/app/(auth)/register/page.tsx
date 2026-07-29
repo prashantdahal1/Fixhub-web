@@ -60,35 +60,32 @@ export default function RegisterPage() {
       return; 
     }
     const [firstName = '', ...lastNameParts] = formData.fullName.trim().split(' ');
+    const lastName = lastNameParts.join(' ') || firstName;
     const payload = {
       firstName,
-      lastName: lastNameParts.join(' '),
+      lastName,
       email: formData.email,
-      phone: formData.phone,
+      phoneNumber: formData.phone,
       username: formData.email,
       password: formData.password,
       role: userType,
     };
     const result = CreateUserDTO.safeParse(payload);
     if (!result.success) {
-      const errMsg = result.error.issues.map((e) => e.message).join(', ');
+      const errMsg = result.error.issues.map((e) => `${e.path.join('.') || 'Field'}: ${e.message}`).join(', ');
       setError(errMsg);
       toast.error(errMsg);
-      return;
-    }
-    
-    if (userType === 'professional' && !formData.verificationDocument) {
-      setError('Industrial/Business License is required for professionals');
-      toast.error('Industrial/Business License is required for professionals');
       return;
     }
 
     try {
       const submitData = new FormData();
       Object.entries(result.data).forEach(([key, value]) => {
-        submitData.append(key, value as string);
+        if (value !== undefined && value !== null) {
+          submitData.append(key, value as string);
+        }
       });
-      if (userType === 'professional' && formData.verificationDocument) {
+      if (formData.verificationDocument) {
         submitData.append('verificationDocument', formData.verificationDocument);
       }
 
@@ -96,6 +93,7 @@ export default function RegisterPage() {
         method: 'POST',
         body: submitData,
       });
+
       const data = await response.json();
       if (!response.ok) { 
         setError(data.message || 'Registration failed'); 
@@ -163,7 +161,7 @@ export default function RegisterPage() {
           {/* Logo — update path */}
           <div className="mb-4">
             <Image
-              src="/fixhub.png"
+              src="/images/fixhub.png"
               alt="FixHub"
               width={95}
               height={30}

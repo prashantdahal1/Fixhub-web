@@ -13,16 +13,11 @@ import {
   X,
   ArrowRight
 } from "lucide-react";
+import ConfirmModal from "@/components/shared/ConfirmModal";
 import { useAuth } from "../../../contexts/AuthContext";
+import { fetchNotifications, upsertNotification, type NotificationItem } from "../../../lib/api/notifications";
 
-interface Notification {
-  _id: string;
-  title: string;
-  body: string;
-  createdAt: string;
-  type: "booking" | "confirm" | "done" | "payment";
-  read: boolean;
-}
+type Notification = NotificationItem;
 
 function formatRelativeTime(dateString: string): string {
   const date = new Date(dateString);
@@ -45,24 +40,37 @@ export default function NotificationsPage() {
   const [activeTab, setActiveTab] = useState<"all" | "unread" | "booking" | "payment">("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const fetchNotifications = async () => {
-    try {
-      const res = await fetch("/api/v1/notifications");
-      const json = await res.json();
-      if (json.success) {
-        setNotifications(json.data);
-      }
-    } catch (err) {
-      console.error("Error fetching notifications:", err);
-    }
-  };
-
   useEffect(() => {
-    if (user) {
-      fetchNotifications();
-      const interval = setInterval(fetchNotifications, 10000); // poll every 10s
-      return () => clearInterval(interval);
+    if (!user) return;
+
+    let eventSource: EventSource | null = null;
+    let fallbackInterval: ReturnType<typeof setInterval> | null = null;
+    const refresh = () => {
+      fetchNotifications()
+        .then(setNotifications)
+        .catch((err) => console.error("Error fetching notifications:", err));
+    };
+
+    refresh();
+
+    if ("EventSource" in window) {
+      eventSource = new EventSource("/api/v1/notifications/stream", { withCredentials: true });
+      eventSource.addEventListener("notification", (event) => {
+        const notification = JSON.parse((event as MessageEvent).data) as Notification;
+        setNotifications((items) => upsertNotification(items, notification));
+      });
+      eventSource.onerror = () => {
+        eventSource?.close();
+        if (!fallbackInterval) fallbackInterval = setInterval(refresh, 10000);
+      };
+    } else {
+      fallbackInterval = setInterval(refresh, 10000);
     }
+
+    return () => {
+      eventSource?.close();
+      if (fallbackInterval) clearInterval(fallbackInterval);
+    };
   }, [user]);
 
   // Handler to mark single notification as read
@@ -91,8 +99,15 @@ export default function NotificationsPage() {
     } catch (_) {}
   };
 
+  const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
+
   const clearAll = async () => {
+    setShowClearAllConfirm(true);
+  };
+
+  const confirmClearAll = async () => {
     setNotifications([]);
+    setShowClearAllConfirm(false);
     try {
       await fetch("/api/v1/notifications/clear-all", { method: "DELETE" });
     } catch (_) {}
@@ -122,7 +137,7 @@ export default function NotificationsPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="w-full space-y-6">
       {/* Header Banner */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -203,11 +218,11 @@ export default function NotificationsPage() {
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
         {filteredNotifications.length === 0 ? (
           <div className="py-16 text-center">
-            <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center mx-auto mb-4 text-slate-400">
+            <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4 text-slate-600">
               <Bell size={20} />
             </div>
             <h3 className="text-sm font-bold text-slate-800">No notifications found</h3>
-            <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
+            <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
               There are no updates matching your criteria right now. Check back later!
             </p>
           </div>
@@ -288,6 +303,17 @@ export default function NotificationsPage() {
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={showClearAllConfirm}
+        title="Clear All Notifications?"
+        message="Are you sure you want to clear all notifications? This action cannot be undone."
+        confirmText="Clear All"
+        cancelText="Cancel"
+        variant="danger"
+        onClose={() => setShowClearAllConfirm(false)}
+        onConfirm={confirmClearAll}
+      />
     </div>
   );
 }

@@ -3,8 +3,12 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "react-toastify";
+import { useAuth } from "../../../../contexts/AuthContext";
 import { apiFetch } from "../../../../lib/api/client";
 import { API } from "../../../../lib/api/endpoints";
+import { BACKEND_URL } from "../../../../lib/backend-url";
+import { downloadReceiptPdf } from "../../../../lib/receipt-pdf";
+import { evaluatePromoCode, getApplicablePromoCodes } from "../../../../lib/promo-codes";
 
 type PriceUnit = "flat" | "per_hour" | "per_sqft";
 type ServiceCategory =
@@ -30,6 +34,7 @@ interface Service {
   specifications: Specification[];
   isCertified: boolean;
   estimatedDuration: string;
+  professionalId?: any;
 }
 
 const PRICE_UNIT_LABEL: Record<PriceUnit, string> = {
@@ -38,24 +43,7 @@ const PRICE_UNIT_LABEL: Record<PriceUnit, string> = {
   per_sqft: "per sqft",
 };
 
-interface Expert {
-  name: string;
-  rating: number;
-  badge: string;
-}
 
-const EXPERTS_POOL: Record<ServiceCategory, Expert> = {
-  electrician: { name: "Rambehadur Tamang", rating: 4.9, badge: "Master Certified" },
-  plumber: { name: "Harendra Prasad", rating: 4.8, badge: "Senior Plumber" },
-  ac_repair: { name: "Nischal Basnet", rating: 4.9, badge: "AC Specialist" },
-  painter: { name: "Bikram Thapa", rating: 4.7, badge: "Expert Finisher" },
-  carpenter: { name: "Sabin Shrestha", rating: 4.8, badge: "Master Woodworker" },
-  cleaner: { name: "Rita Devi", rating: 4.9, badge: "Top Hygiene Pro" },
-  geyser: { name: "Ramesh Adhikari", rating: 4.8, badge: "Heating Tech" },
-  appliance_repair: { name: "Santosh Giri", rating: 4.7, badge: "Senior Tech" },
-  pest_control: { name: "Rohan Gurung", rating: 4.9, badge: "Bio-Shield Pro" },
-  other: { name: "Prem Bahadur", rating: 4.8, badge: "Verified Pro" },
-};
 
 function StarRating({ rating, size = 13 }: { rating: number; size?: number }) {
   return (
@@ -71,7 +59,7 @@ function StarRating({ rating, size = 13 }: { rating: number; size?: number }) {
 
 function DetailSkeleton() {
   return (
-    <div className="max-w-5xl animate-pulse space-y-6">
+    <div className="w-full animate-pulse space-y-6 px-4 py-6 sm:px-6 lg:px-8">
       <div className="h-6 bg-slate-100 rounded w-1/3" />
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4">
@@ -90,6 +78,7 @@ export default function ServiceDetailPage() {
   const params = useParams();
   const router = useRouter();
   const slug = params.slug as string;
+  const { user } = useAuth();
 
   const [service, setService] = useState<Service | null>(null);
   const [loading, setLoading] = useState(true);
@@ -99,12 +88,25 @@ export default function ServiceDetailPage() {
   const [isBookingMode, setIsBookingMode] = useState(false);
   const [bookingStep, setBookingStep] = useState(1); // 1 = Select Date/Time, 2 = Finalize Order
 
+  const getTodayDateStr = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
   // Form Inputs
-  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedDate, setSelectedDate] = useState(() => getTodayDateStr());
   const [selectedTime, setSelectedTime] = useState("");
   const [address, setAddress] = useState("");
   const [notes, setNotes] = useState("");
-  const [paymentProvider, setPaymentProvider] = useState<"esewa" | "khalti">("esewa");
+  const [paymentProvider, setPaymentProvider] = useState<"esewa" | "khalti" | "cod">("esewa");
+  const [promoInput, setPromoInput] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState("");
+  const [availablePromos, setAvailablePromos] = useState(() => [] as Array<{ code: string; label: string; description: string; eligible: boolean; reason?: string }>);
+  const [appliedDiscount, setAppliedDiscount] = useState(0);
+  const [promoMessage, setPromoMessage] = useState("");
   const [bookingSubmitted, setBookingSubmitted] = useState(false);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingError, setBookingError] = useState("");
@@ -123,13 +125,19 @@ export default function ServiceDetailPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
 
+  const todayDate = new Date();
+  const isCurrentOrPastMonth =
+    currentYear < todayDate.getFullYear() ||
+    (currentYear === todayDate.getFullYear() && currentMonth <= todayDate.getMonth());
+
   const [reviews, setReviews] = useState<Array<{
     _id: string;
     rating: number;
     comment: string;
     createdAt: string;
-    customerId?: { firstName?: string; lastName?: string } | string;
+    customerId?: { firstName?: string; lastName?: string; profilePicture?: string } | string;
   }>>([]);
+  const [socketConnected, setSocketConnected] = useState(false);
 
   const MONTH_NAMES = [
     "January", "February", "March", "April", "May", "June",
@@ -151,6 +159,12 @@ export default function ServiceDetailPage() {
     "05:00 PM": "05:00 PM - 06:30 PM",
     "06:30 PM": "06:30 PM - 08:00 PM",
   };
+
+  useEffect(() => {
+    if (service) {
+      setAvailablePromos(getApplicablePromoCodes({ basePrice: service.basePrice, category: service.category }, user));
+    }
+  }, [service, user]);
 
   useEffect(() => {
     async function load() {
@@ -178,8 +192,53 @@ export default function ServiceDetailPage() {
     load();
   }, [slug]);
 
+  useEffect(() => {
+    if (!service?._id || typeof window === "undefined") return;
+
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    const backendUrl = new URL(BACKEND_URL);
+    const protocol = backendUrl.protocol === "https:" ? "wss:" : "ws:";
+    const wsHost = backendUrl.host;
+    const wsUrl = `${protocol}//${wsHost}/ws?token=${encodeURIComponent(token)}`;
+    const socket = new WebSocket(wsUrl);
+
+    socket.addEventListener("open", () => setSocketConnected(true));
+    socket.addEventListener("message", (event) => {
+      try {
+        const envelope = JSON.parse(event.data);
+        if (!envelope || envelope.type !== "review_created") return;
+        const payload = envelope.payload as any;
+        if (!payload || payload.serviceId !== service._id) return;
+
+        if (payload.review) {
+          setReviews((prev) => [payload.review, ...prev]);
+        }
+        setService((prev) =>
+          prev
+            ? {
+                ...prev,
+                rating: payload.rating ?? prev.rating,
+                reviewCount: payload.reviewCount ?? prev.reviewCount,
+              }
+            : prev
+        );
+      } catch {
+        // ignore malformed websocket messages
+      }
+    });
+    socket.addEventListener("close", () => setSocketConnected(false));
+    socket.addEventListener("error", () => setSocketConnected(false));
+
+    return () => {
+      socket.close();
+    };
+  }, [service?._id]);
+
   // Calendar Helpers
   const handlePrevMonth = () => {
+    if (isCurrentOrPastMonth) return;
     if (currentMonth === 0) {
       setCurrentMonth(11);
       setCurrentYear(prev => prev - 1);
@@ -215,7 +274,7 @@ export default function ServiceDetailPage() {
       daysGrid.push(<div key={`empty-${i}`} className="h-10" />);
     }
 
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = getTodayDateStr();
 
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -230,7 +289,7 @@ export default function ServiceDetailPage() {
           onClick={() => setSelectedDate(dateStr)}
           className={`h-10 w-10 flex items-center justify-center rounded-xl text-xs font-semibold transition-all ${
             isPast
-              ? "text-slate-200 cursor-not-allowed"
+              ? "text-slate-300 bg-slate-50 cursor-not-allowed opacity-50"
               : isSelected
                 ? "bg-blue-600 text-white shadow-[0_4px_12px_rgba(37,99,235,0.3)] ring-2 ring-blue-600 ring-offset-2 scale-105"
                 : "text-slate-700 hover:bg-slate-100"
@@ -284,13 +343,15 @@ export default function ServiceDetailPage() {
         address: address.trim(),
         notes: notes.trim() || undefined,
         paymentProvider,
+        promoCode: appliedPromo || undefined,
       };
 
       const res = await apiFetch<{
         data: {
           payment: {
-            provider: 'esewa' | 'khalti';
-            paymentUrl: string;
+            provider: 'esewa' | 'khalti' | 'cod';
+            paymentUrl?: string;
+            redirectUrl?: string;
             formData?: Record<string, string>;
           };
         };
@@ -299,9 +360,12 @@ export default function ServiceDetailPage() {
         body: JSON.stringify(payload),
       });
 
-      const { provider, paymentUrl, formData } = res.data.payment;
+      const { provider, paymentUrl, redirectUrl, formData } = res.data.payment;
 
-      if (provider === 'esewa' && formData) {
+      if (provider === 'cod' && redirectUrl) {
+        window.location.href = redirectUrl;
+        return; // page will navigate away
+      } else if (provider === 'esewa' && formData && paymentUrl) {
         // eSewa requires a POST form redirect
         const form = document.createElement('form');
         form.method = 'POST';
@@ -330,11 +394,11 @@ export default function ServiceDetailPage() {
     }
   };
 
-  if (loading) return <div className="max-w-5xl"><DetailSkeleton /></div>;
+  if (loading) return <div className="w-full px-4 py-6 sm:px-6 lg:px-8"><DetailSkeleton /></div>;
 
   if (notFound || !service) {
     return (
-      <div className="max-w-5xl text-center py-20">
+      <div className="w-full px-4 py-6 sm:px-6 lg:px-8 text-center py-20">
         <p className="text-slate-400 text-sm">Service not found.</p>
         <button onClick={() => router.back()} className="mt-3 text-xs font-semibold text-blue-600 hover:underline">
           ← Back to Services
@@ -345,13 +409,78 @@ export default function ServiceDetailPage() {
 
   // Invoice Breakdown Calculations based on service.basePrice
   const totalAmount = service.basePrice;
-  const subtotal = Math.round((totalAmount / 1.13) * 100) / 100;
+  const effectiveAmount = Math.max(0, totalAmount - appliedDiscount);
+  const subtotal = Math.round((effectiveAmount / 1.13) * 100) / 100;
   const surcharge = Math.min(150, Math.round(subtotal * 0.08 * 100) / 100);
   const componentParts = Math.round(subtotal * 0.22 * 100) / 100;
   const baseServiceFee = Math.round((subtotal - surcharge - componentParts) * 100) / 100;
   const tax = Math.round((subtotal * 0.13) * 100) / 100;
 
-  const activeExpert = EXPERTS_POOL[service.category] || EXPERTS_POOL["other"];
+  const proObj = typeof service.professionalId === "object" && service.professionalId !== null ? (service.professionalId as any) : null;
+  const activeExpertName = proObj
+    ? `${proObj.firstName || ""} ${proObj.lastName || ""}`.trim() || "FixHub Certified Pro"
+    : "FixHub Certified Pro";
+  const activeExpertImage = proObj?.profilePicture || "";
+  const activeExpertRating = proObj?.averageRating || service.rating || 4.8;
+  const activeExpertBadge = proObj ? "FixHub Verified Pro" : "Master Certified";
+
+  // Download the pre-payment invoice (UNPAID) for the order being finalised.
+  const downloadInvoicePdf = async () => {
+    if (!selectedDate || !selectedTime || !service) return;
+    const time24 = mapTimeTo24h(selectedTime);
+    const scheduledAt = new Date(`${selectedDate}T${time24}:00`).toISOString();
+    const fullName = user
+      ? `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.username || user.email
+      : "FixHub Customer";
+
+    const isCod = paymentProvider === "cod";
+    const derivedAmount = effectiveAmount + (isCod ? 10 : 0);
+
+    const lineItems = [
+      { description: `${service.title} (Base Fee)`, quantity: 1, unitPrice: baseServiceFee, amount: baseServiceFee },
+      { description: "Component Parts & Materials", quantity: 1, unitPrice: componentParts, amount: componentParts },
+      { description: "Asset & Logistics Surcharge", quantity: 1, unitPrice: surcharge, amount: surcharge },
+    ];
+
+    if (appliedDiscount > 0) {
+      lineItems.push({
+        description: `Promo Discount (${appliedPromo})`,
+        quantity: 1,
+        unitPrice: -appliedDiscount,
+        amount: -appliedDiscount,
+      });
+    }
+
+    if (isCod) {
+      lineItems.push({
+        description: "COD Cash Surcharge",
+        quantity: 1,
+        unitPrice: 10,
+        amount: 10,
+      });
+    }
+
+    await downloadReceiptPdf({
+      kind: "invoice",
+      orderNumber: service._id.slice(-8).toUpperCase(),
+      orderId: service._id,
+      invoiceNumber: `INV-${service._id.slice(-8).toUpperCase()}`,
+      service: service.title,
+      status: "pending",
+      escrowStatus: "not_held",
+      amount: derivedAmount,
+      scheduledAt,
+      address: address.trim() || "To be confirmed",
+      customer: fullName,
+      customerEmail: user?.email,
+      customerPhone: user?.phoneNumber,
+      professional: activeExpertName,
+      notes: notes.trim() || undefined,
+      paymentProvider: paymentProvider === "esewa" ? "eSewa" : paymentProvider === "khalti" ? "Khalti" : "Cash on Delivery",
+      lineItems,
+    });
+    toast.success("Invoice downloaded.");
+  };
 
   // Render Service Detail Page (Standard Mode)
   if (!isBookingMode) {
@@ -369,7 +498,7 @@ export default function ServiceDetailPage() {
     };
 
     return (
-      <div className="max-w-5xl space-y-6">
+      <div className="w-full space-y-6 px-4 py-6 sm:px-6 lg:px-8">
         <button
           onClick={() => router.back()}
           className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
@@ -431,6 +560,37 @@ export default function ServiceDetailPage() {
               </section>
 
               <div className="w-full h-px bg-slate-100" />
+
+              {service.professionalId && (
+                <>
+                  <section className="space-y-4">
+                    <h2 className="text-lg font-bold text-slate-900 tracking-tight">About the Professional</h2>
+                    <div className="flex items-center gap-4 p-5 bg-slate-50/50 rounded-2xl border border-slate-100/50">
+                      {service.professionalId.profilePicture ? (
+                        <img src={service.professionalId.profilePicture} alt="Professional" className="w-16 h-16 rounded-full object-cover shadow-sm" />
+                      ) : (
+                        <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xl shadow-sm">
+                          {service.professionalId.firstName?.[0] || ""}{service.professionalId.lastName?.[0] || ""}
+                        </div>
+                      )}
+                      <div>
+                        <h3 className="text-base font-bold text-slate-900">
+                          {service.professionalId.firstName} {service.professionalId.lastName}
+                        </h3>
+                        <p className="text-[13px] text-slate-500 mb-1">
+                          FixHub Certified {service.category.replace("_", " ").replace(/\b\w/g, l => l.toUpperCase())} Professional
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <StarRating rating={service.professionalId.averageRating || 5} size={12} />
+                          <span className="text-[11px] font-bold text-slate-700">{service.professionalId.averageRating?.toFixed(1) || "5.0"}</span>
+                          <span className="text-[11px] text-slate-400">({service.professionalId.reviewCount || 0} reviews)</span>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+                  <div className="w-full h-px bg-slate-100" />
+                </>
+              )}
 
               {service.specifications.length > 0 && (
                 <>
@@ -505,7 +665,7 @@ export default function ServiceDetailPage() {
 
               <div className="p-6 space-y-4">
                 <p className="text-xs text-slate-500 leading-relaxed">
-                  Schedule your professional service with Nepali leading marketplace. Quick checkout with credit cards, eSewa or Khalti instantly.
+                  Schedule your professional service with Nepali leading marketplace. Quick checkout with credit cards, eSewa, Khalti, or Cash on Delivery instantly.
                 </p>
                 <button
                   type="button"
@@ -535,7 +695,7 @@ export default function ServiceDetailPage() {
   // ── WIZARD MODE: STEP 1 (Select Date / Appointment Confirmation) ──
   if (bookingStep === 1) {
     return (
-      <div className="max-w-5xl space-y-6">
+      <div className="w-full space-y-6 px-4 py-6 sm:px-6 lg:px-8">
         {/* Navigation Breadcrumb / Go Back */}
         <div className="flex justify-between items-center">
           <div className="flex flex-col">
@@ -566,8 +726,9 @@ export default function ServiceDetailPage() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handlePrevMonth}
+                    disabled={isCurrentOrPastMonth}
                     type="button"
-                    className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 transition-colors"
+                    className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                   >
                     &lt;
                   </button>
@@ -709,14 +870,23 @@ export default function ServiceDetailPage() {
               <div className="p-6 space-y-6">
                 {/* Assigned Expert */}
                 <div className="bg-slate-50 rounded-2xl p-4 flex items-center gap-3 border border-slate-100">
-                  <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 font-extrabold flex items-center justify-center text-sm shadow-inner uppercase">
-                    {activeExpert.name.split(" ").map(n => n[0]).join("")}
-                  </div>
+                  {activeExpertImage ? (
+                    <img
+                      src={activeExpertImage}
+                      alt={activeExpertName}
+                      className="w-10 h-10 rounded-full object-cover shadow-sm border border-white"
+                      onError={(e) => { (e.target as HTMLElement).style.display = "none"; }}
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 font-extrabold flex items-center justify-center text-sm shadow-inner uppercase">
+                      {activeExpertName.split(" ").map((n: string) => n[0]).join("")}
+                    </div>
+                  )}
                   <div className="space-y-0.5">
                     <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">ASSIGNED EXPERT</p>
-                    <p className="text-xs font-bold text-slate-800">{activeExpert.name}</p>
+                    <p className="text-xs font-bold text-slate-800">{activeExpertName}</p>
                     <p className="text-[10px] text-amber-500 font-bold flex items-center gap-1">
-                      ⭐ {activeExpert.rating} <span className="text-slate-400 font-medium">({activeExpert.badge})</span>
+                      ⭐ {activeExpertRating} <span className="text-slate-400 font-medium">({activeExpertBadge})</span>
                     </p>
                   </div>
                 </div>
@@ -736,15 +906,115 @@ export default function ServiceDetailPage() {
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-400 font-semibold">Service Base</span>
+                    <span className="text-slate-400 font-semibold">Subtotal</span>
                     <span className="text-slate-700 font-bold">रू {totalAmount.toLocaleString()}</span>
                   </div>
+                  {appliedDiscount > 0 && (
+                    <div className="flex justify-between items-center text-emerald-600 font-bold">
+                      <span>Promo Discount ({appliedPromo})</span>
+                      <span>- रू {appliedDiscount.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {promoMessage && (
+                    <div className={`text-xs ${appliedDiscount > 0 ? "text-emerald-200" : "text-slate-500"}`}>
+                      {promoMessage}
+                    </div>
+                  )}
+                </div>
+
+                {/* Promo Code Input Block matching Reference Screenshot 3 */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Promo Code</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder="Promo code (e.g. FIXHUB30)"
+                      value={promoInput}
+                      onChange={(e) => setPromoInput(e.target.value)}
+                      className="flex-1 px-3 py-2 text-xs border border-slate-200 rounded-xl bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 uppercase tracking-wider font-semibold"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const promo = promoInput.trim();
+                        const result = evaluatePromoCode(promo, {
+                          basePrice: service.basePrice,
+                          category: service.category,
+                        }, user);
+
+                        if (!result.valid) {
+                          setAppliedPromo("");
+                          setAppliedDiscount(0);
+                          setPromoMessage(result.message);
+                          toast.error(result.message);
+                          return;
+                        }
+
+                        setAppliedPromo(result.normalizedCode || promo.toUpperCase());
+                        setAppliedDiscount(result.discount);
+                        setPromoMessage(result.message);
+                        toast.success(result.message);
+                      }}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
+                    >
+                      Apply
+                    </button>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Available promo codes</p>
+                      <span className="text-[10px] text-slate-400">Tap to use</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {availablePromos.map((promo) => (
+                        <button
+                          key={promo.code}
+                          type="button"
+                          onClick={() => {
+                            setPromoInput(promo.code);
+                            const result = evaluatePromoCode(promo.code, {
+                              basePrice: service.basePrice,
+                              category: service.category,
+                            }, user);
+
+                            if (!result.valid) {
+                              setAppliedPromo("");
+                              setAppliedDiscount(0);
+                              setPromoMessage(result.message);
+                              toast.error(result.message);
+                              return;
+                            }
+
+                            setAppliedPromo(result.normalizedCode || promo.code);
+                            setAppliedDiscount(result.discount);
+                            setPromoMessage(result.message);
+                            toast.success(result.message);
+                          }}
+                          className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-all ${promo.eligible ? "border-blue-200 bg-white text-blue-700 hover:border-blue-400" : "border-slate-200 bg-slate-100 text-slate-400"}`}
+                        >
+                          <span className="mr-1">{promo.code}</span>
+                          <span className="text-[10px]">{promo.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                    {availablePromos.some((promo) => !promo.eligible) && (
+                      <p className="text-[10px] text-slate-500">
+                        Some promo codes are hidden because they do not fit this booking yet.
+                      </p>
+                    )}
+                  </div>
+                  {appliedDiscount > 0 && appliedPromo && (
+                    <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-3 text-emerald-800 text-sm font-semibold">
+                      Promo code <span className="uppercase">{appliedPromo}</span> applied — you saved रू {appliedDiscount.toLocaleString()}.
+                    </div>
+                  )}
                 </div>
 
                 {/* Total */}
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center pt-2">
                   <span className="text-sm font-bold text-slate-900">Total</span>
-                  <span className="text-xl font-extrabold text-blue-600">रू {totalAmount.toLocaleString()}</span>
+                  <span className="text-xl font-extrabold text-blue-600">रू {Math.max(0, totalAmount - appliedDiscount).toLocaleString()}</span>
                 </div>
 
                 <button
@@ -770,7 +1040,7 @@ export default function ServiceDetailPage() {
 
   // ── WIZARD MODE: STEP 2 (Finalize Order & Payment Method) ──
   return (
-    <div className="max-w-5xl space-y-6">
+    <div className="w-full space-y-6 px-4 py-6 sm:px-6 lg:px-8">
       <div className="flex justify-between items-center">
         <div className="flex flex-col">
           <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">
@@ -808,7 +1078,7 @@ export default function ServiceDetailPage() {
 
           {/* Payment Method Cards */}
           <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-            <div className="grid grid-cols-2 border-b border-slate-100">
+            <div className="grid grid-cols-3 border-b border-slate-100">
               {/* eSewa */}
               <button
                 type="button"
@@ -842,7 +1112,7 @@ export default function ServiceDetailPage() {
                 }`}
               >
                 {paymentProvider === "khalti" && (
-                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-600" />
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-600" />
                 )}
                 <div className="w-20 h-10 flex items-center justify-center">
                   <img src="/images/khalti.png" alt="Khalti by IME" className="h-8 object-contain" />
@@ -852,10 +1122,49 @@ export default function ServiceDetailPage() {
                   <p className="text-[10px] text-slate-400">Mobile Wallet</p>
                 </div>
               </button>
+
+              {/* Cash on Delivery */}
+              <button
+                type="button"
+                onClick={() => setPaymentProvider("cod")}
+                className={`flex flex-col items-center gap-2 py-6 px-4 transition-all relative border-l border-slate-100 ${
+                  paymentProvider === "cod"
+                    ? "bg-white"
+                    : "bg-slate-50 opacity-70 hover:opacity-90"
+                }`}
+              >
+                {paymentProvider === "cod" && (
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
+                )}
+                <div className="w-20 h-10 flex items-center justify-center text-blue-600">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="12" rx="2" /><circle cx="12" cy="12" r="2" /><path d="M6 12h.01M18 12h.01" /></svg>
+                </div>
+                <div className="text-center">
+                  <p className="font-bold text-slate-800 text-xs">Cash on Delivery</p>
+                  <p className="text-[10px] text-slate-400">Pay after service</p>
+                </div>
+              </button>
             </div>
 
             {/* Instructions panel */}
             <div className="p-6 space-y-4">
+              {paymentProvider === "cod" && (
+                <>
+                  <div className="bg-blue-50 border border-blue-100 rounded-xl p-3.5 flex gap-2.5 items-center mb-2">
+                    <span className="text-xs text-blue-800 font-medium">
+                      ℹ️ An additional COD surcharge of <strong>रू 10</strong> will be applied to this booking.
+                    </span>
+                  </div>
+                  <p className="text-sm text-slate-700 leading-relaxed">
+                    &quot;You have selected Cash on Delivery. Here's what to expect:
+                  </p>
+                  <ol className="space-y-2 text-sm text-slate-600">
+                    <li>1. Your booking will be instantly confirmed.</li>
+                    <li>2. The professional will arrive at the scheduled time.</li>
+                    <li>3. Pay the professional in cash (or direct transfer) after the service is completed.&quot;</li>
+                  </ol>
+                </>
+              )}
               {paymentProvider === "esewa" && (
                 <>
                   <p className="text-sm text-slate-700 leading-relaxed">
@@ -866,12 +1175,6 @@ export default function ServiceDetailPage() {
                     <li>2. Ensure your eSewa account has sufficient balance.</li>
                     <li>3. Confirm the payment on the eSewa portal.&quot;</li>
                   </ol>
-                  <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-100">
-                    <p className="text-[11px] font-bold text-emerald-700 mb-1">🧪 Test Credentials (sandbox)</p>
-                    <p className="text-[11px] text-emerald-600">eSewa ID: <span className="font-mono font-bold">9806800001</span></p>
-                    <p className="text-[11px] text-emerald-600">Password: <span className="font-mono font-bold">Nepal@123</span></p>
-                    <p className="text-[11px] text-emerald-600">OTP: <span className="font-mono font-bold">123456</span></p>
-                  </div>
                 </>
               )}
               {paymentProvider === "khalti" && (
@@ -884,12 +1187,6 @@ export default function ServiceDetailPage() {
                     <li>2. Enter OTP sent to your mobile number.</li>
                     <li>3. Confirm the transaction to complete booking.&quot;</li>
                   </ol>
-                  <div className="bg-purple-50 rounded-xl p-3 border border-purple-100">
-                    <p className="text-[11px] font-bold text-purple-700 mb-1">🧪 Test Credentials (sandbox)</p>
-                    <p className="text-[11px] text-purple-600">Mobile: <span className="font-mono font-bold">9800000001</span></p>
-                    <p className="text-[11px] text-purple-600">MPIN: <span className="font-mono font-bold">1111</span></p>
-                    <p className="text-[11px] text-purple-600">OTP: <span className="font-mono font-bold">987654</span></p>
-                  </div>
                 </>
               )}
 
@@ -918,18 +1215,20 @@ export default function ServiceDetailPage() {
                 disabled={bookingLoading}
                 onClick={handleBooking}
                 className={`w-full py-4 rounded-xl text-sm font-extrabold text-white transition-all flex items-center justify-center gap-2 shadow-lg ${
-                  paymentProvider === "esewa"
-                    ? "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-200 disabled:bg-emerald-300"
-                    : "bg-[#5C2D91] hover:bg-[#4a2275] shadow-purple-200 disabled:bg-purple-300"
+                  paymentProvider === "cod"
+                    ? "bg-blue-600 hover:bg-blue-700 shadow-blue-200 disabled:bg-blue-300"
+                    : paymentProvider === "esewa"
+                      ? "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-200 disabled:bg-emerald-300"
+                      : "bg-red-600 hover:bg-red-700 shadow-red-200 disabled:bg-red-300"
                 }`}
               >
                 {bookingLoading ? (
                   <>
                     <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-                    Redirecting...
+                    {paymentProvider === "cod" ? "Confirming..." : "Redirecting..."}
                   </>
                 ) : (
-                  "Pay Now"
+                  paymentProvider === "cod" ? "Confirm Booking" : "Pay Now"
                 )}
               </button>
             </div>
@@ -959,11 +1258,23 @@ export default function ServiceDetailPage() {
                 <span>Tax (VAT 13%)</span>
                 <span className="font-bold">रू {tax.toFixed(2)}</span>
               </div>
+              {appliedDiscount > 0 && (
+                <div className="flex justify-between items-center text-emerald-200 font-bold">
+                  <span>Promo Discount ({appliedPromo})</span>
+                  <span>- रू {appliedDiscount.toFixed(2)}</span>
+                </div>
+              )}
+              {paymentProvider === "cod" && (
+                <div className="flex justify-between items-center text-amber-300 font-bold">
+                  <span>COD Cash Surcharge</span>
+                  <span>रू 10.00</span>
+                </div>
+              )}
             </div>
 
             <div className="flex justify-between items-center">
               <span className="text-sm font-bold">TOTAL AMOUNT DUE</span>
-              <span className="text-xl font-black">रू {totalAmount.toFixed(2)}</span>
+              <span className="text-xl font-black">रू {(effectiveAmount + (paymentProvider === "cod" ? 10 : 0)).toFixed(2)}</span>
             </div>
 
             <div className="flex items-center justify-center gap-4 text-[9px] font-bold text-white/70 pt-1">
@@ -976,7 +1287,13 @@ export default function ServiceDetailPage() {
           <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm space-y-4">
             <div className="flex justify-between items-center">
               <h4 className="text-[10px] font-extrabold text-slate-400 tracking-wider uppercase">DIGITAL RECEIPT</h4>
-              <button type="button" className="text-slate-400 hover:text-slate-600">
+              <button
+                type="button"
+                onClick={downloadInvoicePdf}
+                disabled={!selectedDate || !selectedTime}
+                aria-label="Download invoice PDF"
+                className="text-slate-400 hover:text-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               </button>
             </div>
@@ -994,6 +1311,16 @@ export default function ServiceDetailPage() {
                 </p>
               </div>
             </div>
+
+            <button
+              type="button"
+              onClick={downloadInvoicePdf}
+              disabled={!selectedDate || !selectedTime}
+              className="w-full py-2.5 rounded-xl text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download Invoice PDF
+            </button>
           </div>
         </div>
       </div>
@@ -1029,7 +1356,7 @@ export default function ServiceDetailPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400 font-bold">EXPERT</span>
-                  <span className="text-slate-800 font-bold">{activeExpert.name}</span>
+                  <span className="text-slate-800 font-bold">{activeExpertName}</span>
                 </div>
                 <div className="flex justify-between border-t border-slate-100 pt-2 font-bold">
                   <span className="text-slate-600">AMOUNT PAID</span>

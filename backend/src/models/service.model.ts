@@ -24,12 +24,15 @@ export interface IService extends Document {
   priceUnit: "flat" | "per_hour" | "per_sqft";
   rating: number;
   reviewCount: number;
-  imageUrl: string;
+  imageUrl?: string;
+  imageUrls: string[];
   tags: string[];
   specifications: { label: string; value: string }[];
   isActive: boolean;
   isCertified: boolean;
   estimatedDuration: string;
+  approvalStatus: "pending" | "approved" | "rejected";
+  rejectionReason?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -51,11 +54,14 @@ const ServiceSchema = new Schema<IService>(
     rating: { type: Number, default: 0, min: 0, max: 5 },
     reviewCount: { type: Number, default: 0 },
     imageUrl: { type: String, default: "" },
+    imageUrls: { type: [String], default: [] },
     tags: [{ type: String }],
     specifications: [{ label: String, value: String }],
     isActive: { type: Boolean, default: true },
     isCertified: { type: Boolean, default: true },
     estimatedDuration: { type: String, default: "1-2 hours" },
+    approvalStatus: { type: String, enum: ["pending", "approved", "rejected"], default: "pending" },
+    rejectionReason: { type: String, default: "" },
   },
   { timestamps: true }
 );

@@ -1,4 +1,8 @@
-import type { Person } from '../types/person.type.js';
+export interface Person {
+    id: number;
+    name: string;
+    age: number;
+}
 
 export const dataset: Person[] = [
     { id: 1, name: "Ram", age: 30 },

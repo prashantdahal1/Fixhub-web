@@ -14,5 +14,7 @@ export const CreateUserDTO = z.object({
   email:     z.string({ required_error: "Email is required" }).email("Invalid email address"),
   username:  z.string({ required_error: "Username is required" }).min(3, "Username must be at least 3 characters"),
   password:  z.string({ required_error: "Password is required" }).min(6, "Password must be at least 6 characters"),
+  role:      z.enum(["customer", "professional"]).optional(),
+  phoneNumber: z.string().optional(),
 });
 export type CreateUserDTO = z.infer<typeof CreateUserDTO>;

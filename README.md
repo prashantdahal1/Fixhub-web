@@ -115,6 +115,40 @@ npm run dev           # http://localhost:3000
 | PATCH | `/api/v1/bookings/:id/status` | `{ action: confirm\|start\|complete\|cancel }` |
 | POST | `/api/v1/reviews` | Rate a completed booking |
 | GET | `/api/v1/reviews/service/:serviceId` | List reviews |
+| POST | `/api/v1/things` | Create a protected Thing resource |
+
+## New Thing API Resource
+
+The backend now supports a new protected resource for creating `Thing` records with a clean, modular API flow.
+
+- **Route:** `POST /api/v1/things`
+- **Security:** JWT-protected via `backend/src/middlewares/jwtAuth.middleware.ts`
+- **Purpose:** allow authenticated users to create a new `Thing` with a name and optional description.
+- **Layers:** route → service → repository → model
+
+### CRUD Operation Summary
+
+The new `Thing` API follows the same layered architecture as existing modules. The request flow is:
+
+1. Route receives `POST` request with `name` and optional `description`
+2. JWT middleware validates the user token and attaches user context
+3. Service logic creates the resource and records ownership
+4. Repository saves the document to MongoDB
+
+This ensures separation of concerns and consistent behavior with other backend modules.
+
+### Authentication & Authorization
+
+Access is gated by the existing JWT auth middleware so only authenticated users can create a `Thing`.
+The middleware reads the `Authorization: Bearer <token>` header and rejects requests without valid credentials.
+
+### Testing Summary
+
+A test was added to validate the new API behavior. The endpoint is covered by an integration-style test in `backend/src/__tests__/thing.integration.test.ts`.
+
+- Verifies `POST /api/v1/things` returns `201` for authenticated requests
+- Confirms the response uses the shared `ApiResponseHelper` success format
+- Runs as part of the backend Jest suite
 
 ## Demo Script (Presentation)
 

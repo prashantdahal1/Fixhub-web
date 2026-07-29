@@ -5,7 +5,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "../../contexts/AuthContext";
-import { IntelligentSearchBar } from "../../components/IntelligentSearchBar";
+import { IntelligentSearchBar } from "@/components/shared/IntelligentSearchBar";
+import { fetchNotifications, upsertNotification, type NotificationItem } from "../../lib/api/notifications";
+import ConfirmModal from "@/components/shared/ConfirmModal";
+import { toast } from "react-toastify";
+import { useRealtimeBookings } from "@/hooks/useRealtimeBookings";
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 const HomeIcon = () => (
@@ -43,6 +47,11 @@ const SupportIcon = () => (
     <line x1="12" y1="17" x2="12.01" y2="17" />
   </svg>
 );
+const ChatIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+  </svg>
+);
 const BellIcon = () => (
   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -77,6 +86,13 @@ const ZapIcon = () => (
   </svg>
 );
 
+const WalletIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="5" width="20" height="14" rx="2" />
+    <line x1="2" y1="10" x2="22" y2="10" />
+  </svg>
+);
+
 const UserIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
@@ -91,14 +107,13 @@ const SettingsIcon = () => (
   </svg>
 );
 
-interface DBNotification {
-  _id: string;
-  title: string;
-  body: string;
-  type: "booking" | "confirm" | "done" | "payment";
-  read: boolean;
-  createdAt: string;
-}
+const ShieldIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+  </svg>
+);
+
+type DBNotification = NotificationItem;
 
 function formatRelativeTime(dateString: string): string {
   const date = new Date(dateString);
@@ -138,39 +153,100 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { user, setUser, loading } = useAuth();
 
   const [notifOpen, setNotifOpen]       = useState(false);
-  const [emergOpen, setEmergOpen]       = useState(false);
   const [profileOpen, setProfileOpen]   = useState(false);
   const [notifications, setNotifications] = useState<DBNotification[]>([]);
   const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
-  const fetchNotifications = async () => {
-    try {
-      const res = await fetch("/api/v1/notifications");
-      const json = await res.json();
-      if (json.success) {
-        setNotifications(json.data);
-      }
-    } catch (err) {
-      console.error("Error fetching notifications:", err);
-    }
-  };
-
   useEffect(() => {
-    if (user) {
-      fetchNotifications();
-      const interval = setInterval(fetchNotifications, 10000); // Poll every 10 seconds for real-time updates
-      return () => clearInterval(interval);
+    if (!user) return;
+
+    let eventSource: EventSource | null = null;
+    let fallbackInterval: ReturnType<typeof setInterval> | null = null;
+    const refresh = () => {
+      fetchNotifications()
+        .then(setNotifications)
+        .catch((err) => console.error("Error fetching notifications:", err));
+    };
+
+    refresh();
+
+    if ("EventSource" in window) {
+      eventSource = new EventSource("/api/v1/notifications/stream", { withCredentials: true });
+      eventSource.addEventListener("notification", (event) => {
+        const notification = JSON.parse((event as MessageEvent).data) as DBNotification;
+        setNotifications((items) => upsertNotification(items, notification));
+      });
+      eventSource.onerror = () => {
+        eventSource?.close();
+        if (!fallbackInterval) fallbackInterval = setInterval(refresh, 10000);
+      };
+    } else {
+      fallbackInterval = setInterval(refresh, 10000);
     }
+
+    return () => {
+      eventSource?.close();
+      if (fallbackInterval) clearInterval(fallbackInterval);
+    };
   }, [user]);
+
+  // ── WebSocket: real-time booking status updates + notification toasts ──────────
+  useRealtimeBookings({
+    onNotification: (payload) => {
+      const currentUserId = user?._id || (user as any)?.id;
+      if (payload.userId && currentUserId && payload.userId.toString() !== currentUserId.toString()) {
+        return;
+      }
+      // Add to notification bell
+      setNotifications((items) => upsertNotification(items, payload as unknown as DBNotification));
+      // Show a pop-up toast so user sees it immediately
+      toast.info(
+        <div className="flex flex-col gap-0.5">
+          <span className="font-bold text-sm">{payload.title}</span>
+          <span className="text-xs text-slate-500">{payload.body}</span>
+        </div>,
+        { icon: "🔔" as any, autoClose: 6000 }
+      );
+    },
+    onBookingUpdated: (payload) => {
+      const statusLabel: Record<string, string> = {
+        in_progress: "🔧 Work has started",
+        completed:   "✅ Job completed",
+        cancelled:   "❌ Booking cancelled",
+        confirmed:   "✔️ Booking confirmed",
+      };
+      const label = statusLabel[payload.status];
+      if (label && payload.serviceTitle) {
+        toast.info(
+          <div className="flex flex-col gap-0.5">
+            <span className="font-bold text-sm">{label}</span>
+            <span className="text-xs text-slate-500">{payload.serviceTitle}</span>
+          </div>,
+          { autoClose: 5000 }
+        );
+      }
+    },
+  });
+
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
   const initials  = `${user?.firstName?.charAt(0) || "U"}${user?.lastName?.charAt(0) || ""}`.toUpperCase();
   const fullName  = user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() : "User";
-  const avatarUrl = user?.profilePicture;
+  const avatarUrl = user?.profilePicture || null;
+  const [imgError, setImgError] = React.useState(false);
 
-  const handleLogout = async () => {
+  // Reset imgError if user profile picture changes
+  React.useEffect(() => { setImgError(false); }, [avatarUrl]);
+
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+  const handleLogout = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = async () => {
     try { await fetch("/api/v1/auth/logout", { method: "POST" }); } catch (_) {}
     finally { setUser(null); router.push("/"); }
   };
@@ -216,7 +292,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") { 
         setNotifOpen(false); 
-        setEmergOpen(false); 
         setProfileOpen(false);
       }
     };
@@ -245,7 +320,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen bg-[#F9FAFB] font-sans flex">
 
       {/* ── SIDEBAR ────────────────────────────────────────────────────────── */}
-      <aside className="w-[260px] bg-white border-r border-slate-100 flex-shrink-0 flex flex-col sticky top-0 h-screen">
+      <aside className="w-[260px] bg-white border-r border-slate-100 flex-shrink-0 flex flex-col sticky top-0 self-start h-screen overflow-y-auto">
         {/* Logo */}
         <div className="h-[64px] flex items-center px-5 border-b border-slate-100 shrink-0">
           <Image src="/images/fixhub.png" alt="FixHub" width={100} height={32} className="object-contain" priority style={{ width: "auto", height: "auto" }} />
@@ -259,12 +334,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               Navigation
             </span>
             <div className="space-y-0.5">
-              {[
+              {(user?.role === "professional" ? [
+                { label: "Dashboard", icon: HomeIcon, href: "/dashboard" },
+                { label: "Services", icon: ServicesIcon, href: "/dashboard/services" },
+                { label: "Job Requests", icon: BookingsIcon, href: "/dashboard/bookings" },
+                { label: "Job History", icon: HistoryIcon, href: "/dashboard/history" },
+                { label: "Chat & Messages", icon: ChatIcon, href: "/dashboard/chat" },
+                { label: "Wallet & Earnings", icon: WalletIcon, href: "/dashboard/wallet" },
+              ] : [
                 { label: "Dashboard", icon: HomeIcon, href: "/dashboard" },
                 { label: "Services", icon: ServicesIcon, href: "/dashboard/services" },
                 { label: "Active Bookings", icon: BookingsIcon, href: "/dashboard/bookings" },
                 { label: "Service History", icon: HistoryIcon, href: "/dashboard/history" },
-              ].map(({ label, icon: Icon, href }) => {
+                { label: "Chat & Messages", icon: ChatIcon, href: "/dashboard/chat" },
+              ]).map(({ label, icon: Icon, href }) => {
                 const isActive = pathname === href;
                 return (
                   <Link
@@ -289,12 +372,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {/* Section: SUPPORT & HELP */}
           <div>
             <span className="text-[10px] font-bold text-slate-400 tracking-wider mb-2 px-3 block uppercase">
-              Support
+              Support &amp; Tickets
             </span>
             <div className="space-y-0.5">
               {[
-                { label: "Support", icon: SupportIcon, href: "/dashboard/support" },
+                { label: "Support & Tickets", icon: SupportIcon, href: "/dashboard/support" },
                 { label: "My Profile", icon: UserIcon, href: "/dashboard/profile" },
+                ...(user?.role === "admin"
+                  ? [{ label: "Admin Panel", icon: ShieldIcon, href: "/dashboard/admin" }]
+                  : []),
               ].map(({ label, icon: Icon, href }) => {
                 const isActive = pathname === href;
                 return (
@@ -303,14 +389,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     href={href}
                     className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all group ${
                       isActive
-                        ? "bg-[#EFF6FF] text-[#2563EB] font-semibold"
+                        ? href === "/dashboard/admin"
+                          ? "bg-violet-50 text-violet-700 font-semibold"
+                          : "bg-[#EFF6FF] text-[#2563EB] font-semibold"
                         : "text-slate-500 hover:text-slate-855 hover:bg-slate-50 font-medium"
                     }`}
                   >
-                    <span className={isActive ? "text-[#2563EB]" : "text-slate-400 group-hover:text-slate-600 transition-colors"}>
+                    <span className={isActive
+                      ? href === "/dashboard/admin" ? "text-violet-600" : "text-[#2563EB]"
+                      : "text-slate-400 group-hover:text-slate-600 transition-colors"
+                    }>
                       <Icon />
                     </span>
                     {label}
+                    {label === "Admin Panel" && (
+                      <span className="ml-auto text-[9px] font-bold bg-violet-100 text-violet-600 px-1.5 py-0.5 rounded-md">ADMIN</span>
+                    )}
                   </Link>
                 );
               })}
@@ -326,8 +420,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               pathname === "/dashboard/profile" ? "bg-[#EFF6FF] text-[#2563EB] font-semibold" : "hover:bg-slate-50"
             }`}
           >
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="Avatar" className="w-7 h-7 rounded-full object-cover ring-1 ring-slate-200" />
+            {avatarUrl && !imgError ? (
+              <img src={avatarUrl} alt="Avatar" className="w-7 h-7 rounded-full object-cover ring-1 ring-slate-200" onError={() => setImgError(true)} />
             ) : (
               <div className="w-7 h-7 rounded-full bg-[#2563EB] flex items-center justify-center text-white text-[10px] font-bold shrink-0">
                 {initials}
@@ -347,25 +441,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* ── MAIN AREA ─────────────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
 
         {/* Top bar */}
-        <header className="h-[60px] bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0 sticky top-0 z-40">
-
-          {/* Search bar — centre of header */}
-          <div className="flex-1 max-w-sm mx-6">
-            <IntelligentSearchBar />
-          </div>
+        <header className="h-[60px] bg-white border-b border-slate-200 px-6 flex items-center justify-end shrink-0 sticky top-0 z-40">
 
           <div className="flex items-center gap-2">
-            {/* Emergency button */}
-            <button
-              onClick={() => setEmergOpen(true)}
-              className="hidden sm:flex items-center gap-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors"
-            >
-              <ZapIcon />
-              Emergency
-            </button>
 
             {/* Bell */}
             <div className="relative" ref={notifRef}>
@@ -373,8 +454,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 onClick={() => setNotifOpen(o => !o)}
                 className={`w-9 h-9 rounded-lg border flex items-center justify-center transition-colors ${
                   notifOpen
-                    ? "bg-blue-50 border-blue-200 text-blue-600"
-                    : "border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                    ? "bg-blue-50 border-blue-300 text-blue-700"
+                    : "border-slate-300 text-slate-700 hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400"
                 }`}
               >
                 <BellIcon />
@@ -387,31 +468,48 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
               {notifOpen && (
                 <div
-                  className="absolute right-0 top-12 w-[380px] bg-white rounded-2xl z-[200] overflow-hidden border border-slate-100 shadow-2xl"
+                  className="absolute right-0 top-12 w-[380px] bg-white rounded-2xl z-[200] overflow-hidden border border-slate-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.18),0_4px_16px_rgba(0,0,0,0.08)]"
                 >
                   {/* Panel header */}
-                  <div className="flex items-center justify-between px-4.5 pt-4 pb-3 border-b border-slate-100">
-                    <span className="text-sm font-bold text-slate-850">Notifications</span>
-                    <button
-                      onClick={() => setNotifOpen(false)}
-                      className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200/80 transition-colors"
-                      aria-label="Close notifications"
-                    >
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                      </svg>
-                    </button>
+                  <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-slate-800">Notifications</span>
+                      {unreadCount > 0 && (
+                        <span className="text-[10px] font-bold bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">
+                          {unreadCount} new
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {unreadCount > 0 && (
+                        <button
+                          onClick={markAllRead}
+                          className="text-[11px] font-semibold text-blue-600 hover:text-blue-700 transition-colors"
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setNotifOpen(false)}
+                        className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200/80 transition-colors"
+                        aria-label="Close notifications"
+                      >
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
 
                   {/* List */}
                   <div className="max-h-[360px] overflow-y-auto divide-y divide-slate-100">
                     {notifications.length === 0 ? (
                       <div className="py-12 text-center px-5">
-                        <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center mx-auto mb-3 text-slate-400">
+                        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3 text-slate-600">
                           <BellIcon />
                         </div>
-                        <p className="text-xs font-bold text-slate-700">All caught up</p>
-                        <p className="text-[11px] text-slate-400 mt-1">No new notifications</p>
+                        <p className="text-xs font-bold text-slate-800">All caught up</p>
+                        <p className="text-[11px] text-slate-500 mt-1">No new notifications</p>
                       </div>
                     ) : (
                       notifications.map((n) => {
@@ -436,22 +534,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         return (
                           <div
                             key={n._id}
-                            className={`relative flex gap-3 px-4.5 py-3.5 transition-colors hover:bg-slate-50/50 ${
-                              !n.read ? "bg-blue-50/10" : ""
+                            className={`relative flex gap-3 px-4 py-3.5 transition-colors hover:bg-slate-50/50 group ${
+                              !n.read ? "bg-blue-50/20" : ""
                             }`}
                           >
                             {/* Unread circle dot */}
                             {!n.read && (
-                              <span className="absolute left-2.5 top-[22px] w-1.5 h-1.5 bg-blue-500 rounded-full" />
+                              <span className="absolute left-2 top-[22px] w-1.5 h-1.5 bg-blue-500 rounded-full" />
                             )}
 
                             {/* Icon box */}
-                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${iconBg[n.type]} ${iconFg[n.type]}`}>
-                              {icons[n.type]}
+                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${iconBg[n.type] || 'bg-slate-50'} ${iconFg[n.type] || 'text-slate-500'}`}>
+                              {icons[n.type] || icons.booking}
                             </div>
 
                             {/* Content */}
-                            <div className="flex-1 min-w-0">
+                            <div className="flex-1 min-w-0 pr-1">
                               <div className="flex items-baseline justify-between gap-2">
                                 <p className={`text-xs font-bold leading-none ${n.read ? "text-slate-700" : "text-slate-800"}`}>
                                   {n.title}
@@ -460,6 +558,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                               </div>
                               <p className="text-[11px] text-slate-500 mt-1 leading-normal truncate">{n.body}</p>
                             </div>
+
+                            {/* Dismiss button */}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); dismissNotif(n._id); }}
+                              className="opacity-0 group-hover:opacity-100 shrink-0 w-5 h-5 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all self-center"
+                              aria-label="Dismiss notification"
+                            >
+                              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                              </svg>
+                            </button>
                           </div>
                         );
                       })
@@ -490,8 +599,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 className="flex items-center focus:outline-none transition-opacity hover:opacity-85"
                 aria-label="User menu"
               >
-                {avatarUrl ? (
-                  <img src={avatarUrl} alt="Profile" className="w-8 h-8 rounded-full object-cover ring-2 ring-slate-100" />
+                {avatarUrl && !imgError ? (
+                  <img src={avatarUrl} alt="Profile" className="w-8 h-8 rounded-full object-cover ring-2 ring-slate-100" onError={() => setImgError(true)} />
                 ) : (
                   <div className="w-8 h-8 rounded-full bg-[#2563EB] flex items-center justify-center text-white text-[10px] font-bold ring-2 ring-blue-100">
                     {initials}
@@ -536,86 +645,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-6 overflow-auto">
+        <main className="flex-1 p-6 overflow-y-auto overflow-x-hidden">
           {children}
         </main>
       </div>
 
-      {/* ── EMERGENCY MODAL ───────────────────────────────────────────────── */}
-      {emergOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)" }}
-          onClick={() => setEmergOpen(false)}
-        >
-          <div
-            className="bg-white rounded-2xl w-full max-w-[380px] mx-4 overflow-hidden"
-            style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.2)" }}
-            onClick={e => e.stopPropagation()}
-          >
-            {/* Modal header — red strip */}
-            <div className="bg-red-500 px-5 py-4 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                  <ZapIcon />
-                </div>
-                <div>
-                  <p className="text-white font-bold text-sm leading-none">Emergency Service</p>
-                  <p className="text-red-100 text-[11px] mt-0.5">Get help within minutes</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setEmergOpen(false)}
-                className="text-white/70 hover:text-white transition-colors"
-              >
-                <XIcon />
-              </button>
-            </div>
-
-            {/* Body */}
-            <div className="px-5 py-5 space-y-3">
-              <p className="text-xs text-slate-500 leading-relaxed">
-                For urgent situations — gas leaks, electrical faults, flooding, or no power.
-                A technician will be dispatched to your address immediately.
-              </p>
-
-              {/* Call option */}
-              <a
-                href="tel:+977-1-5555555"
-                className="flex items-center gap-3 w-full bg-red-50 hover:bg-red-100 border border-red-200 rounded-xl px-4 py-3.5 transition-colors group"
-              >
-                <div className="w-9 h-9 rounded-full bg-red-500 flex items-center justify-center text-white shrink-0 group-hover:bg-red-600 transition-colors">
-                  <PhoneIcon />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-slate-800">Call Emergency Line</p>
-                  <p className="text-[11.5px] text-slate-500">+977-1-5555555 · Available 24/7</p>
-                </div>
-              </a>
-
-              {/* Book emergency tech */}
-              <button
-                onClick={() => { setEmergOpen(false); router.push("/dashboard/bookings"); }}
-                className="flex items-center gap-3 w-full bg-slate-800 hover:bg-slate-900 rounded-xl px-4 py-3.5 transition-colors group"
-              >
-                <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0">
-                  <ZapIcon />
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-semibold text-white">Book Emergency Tech</p>
-                  <p className="text-[11.5px] text-slate-400">Fastest available pro near you</p>
-                </div>
-              </button>
-            </div>
-
-            <div className="border-t border-slate-100 px-5 py-3">
-              <p className="text-[10.5px] text-slate-400 text-center">
-                Emergency bookings are prioritised and may carry a call-out fee.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        isOpen={showLogoutConfirm}
+        title="Log Out?"
+        message="Are you sure you want to log out of your account?"
+        confirmText="Log Out"
+        cancelText="Stay"
+        variant="warning"
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={confirmLogout}
+      />
     </div>
   );
 }

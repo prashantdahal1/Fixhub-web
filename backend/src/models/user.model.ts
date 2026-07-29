@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document } from "mongoose";
-import { type UserType } from '../types/user.type.js';
+import { type UserType } from '../shared/types/user.type.js';
 
 export interface IUser extends UserType, Document {
     _id: mongoose.Types.ObjectId;
@@ -13,6 +13,8 @@ export interface IUser extends UserType, Document {
     resetPasswordExpires?: Date;
     isVerified: boolean;
     verificationDocument?: string;
+    nationalIdFront?: string;
+    nationalIdBack?: string;
     averageRating?: number;
     reviewCount?: number;
 }
@@ -30,11 +32,19 @@ const UserMongoSchema: Schema = new Schema<IUser>(
         address: { type: String, default: '' },
         province: { type: String, default: '' },
         city: { type: String, default: '' },
-        status: { type: String, enum: ["active", "pending", "suspended"], default: "active" },
+        status: {
+            type: String,
+            enum: ["active", "pending", "suspended"],
+            default: function(this: any) {
+                return this.role === 'professional' ? 'pending' : 'active';
+            }
+        },
         resetPasswordToken: { type: String },
         resetPasswordExpires: { type: Date },
         isVerified: { type: Boolean, default: false },
         verificationDocument: { type: String, default: '' },
+        nationalIdFront: { type: String, default: '' },
+        nationalIdBack: { type: String, default: '' },
         averageRating: { type: Number, default: 0, min: 0, max: 5 },
         reviewCount: { type: Number, default: 0, min: 0 },
     },
@@ -42,6 +52,13 @@ const UserMongoSchema: Schema = new Schema<IUser>(
         timestamps: true
     }
 );
+
+UserMongoSchema.pre('save', function (this: any) {
+    if (this.isNew && this.role === 'professional') {
+        this.status = 'pending';
+        this.isVerified = false;
+    }
+});
 
 UserMongoSchema.index({ role: 1, status: 1 });
 UserMongoSchema.index({ role: 1, isVerified: 1 });

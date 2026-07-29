@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 import { BACKEND_URL } from "./lib/backend-url";
 
 const nextConfig: NextConfig = {
+  devIndicators: false,
   turbopack: {
     root: process.cwd(),
   },

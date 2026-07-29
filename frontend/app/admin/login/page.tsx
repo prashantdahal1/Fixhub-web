@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Eye, EyeOff, Loader2, Wrench, Lock, Mail } from "lucide-react";
+import Image from "next/image";
+import { Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react";
 import { setTokenCookie, storeUserData } from "@/lib/cookies";
 
 export default function AdminLoginPage() {
@@ -53,11 +54,15 @@ export default function AdminLoginPage() {
   return (
     <div className="min-h-screen w-full bg-slate-50 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
-        <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="h-10 w-10 rounded-lg bg-blue-600 flex items-center justify-center">
-            <Wrench className="h-5 w-5 text-white" />
-          </div>
-          <span className="text-xl font-semibold text-slate-900">FixHub</span>
+        <div className="flex items-center justify-center mb-8">
+          <Image
+            src="/images/fixhub.png"
+            alt="FixHub Logo"
+            width={140}
+            height={44}
+            className="h-10 w-auto object-contain"
+            priority
+          />
         </div>
 
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-8">

@@ -5,6 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:unit": "node --experimental-vm-modules node_modules/jest/bin/jest.js --testPathPatterns=unit",
+    "test:integration": "node --experimental-vm-modules node_modules/jest/bin/jest.js --testPathPatterns=integration",
+    "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
     "dev": "tsx watch src/server.ts",
     "seed": "tsx src/scripts/seed.ts"
   },
@@ -13,8 +16,9 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
-    "@google/generative-ai": "^0.24.1",
+    "@google/genai": "^1.0.0",
     "@types/nodemailer": "^8.0.1",
+    "@types/ws": "^8.18.1",
     "bcrypt": "^6.0.0",
     "chalk": "^5.6.2",
     "cookie-parser": "^1.4.7",
@@ -31,7 +35,9 @@
     "nodemailer": "^9.0.3",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
+    "google-auth-library": "^10.4.0",
     "winston": "^3.19.0",
+    "ws": "^8.21.1",
     "zod": "^3.22.4"
   },
   "devDependencies": {
@@ -48,6 +54,7 @@
     "@types/passport": "^1.0.17",
     "@types/passport-google-oauth20": "^2.0.17",
     "jest": "^30.4.2",
+    "supertest": "^7.2.2",
     "ts-jest": "^29.4.11",
     "ts-node-dev": "^2.0.0",
     "tsx": "^4.22.4",

@@ -65,8 +65,7 @@ const UpdatePasswordPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#F8FAFC' }}>
-      <div className="max-w-md mx-auto px-6 py-10">
+    <div className="w-full max-w-2xl space-y-6">
         {/* Back Link */}
         <button 
           onClick={() => router.push('/dashboard/profile')}
@@ -204,7 +203,6 @@ const UpdatePasswordPage: React.FC = () => {
           </button>
         </form>
       </div>
-    </div>
   );
 };
 

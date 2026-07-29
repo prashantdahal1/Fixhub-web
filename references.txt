@@ -1,0 +1,57 @@
+References for FixHub Documentation
+
+1. Newman, S. (2015). Building Microservices: Designing Fine-Grained Systems. O'Reilly Media.
+
+2. Richardson, C. (2018). Microservices Patterns: With Examples in Java. Manning Publications.
+
+3. Lewis, J., & Fowler, M. (2014). Microservices: A definition of this new architectural term. MartinFowler.com. https://martinfowler.com/articles/microservices.html
+
+4. Next.js. (2024). Next.js Documentation. Vercel. https://nextjs.org/docs
+
+5. React. (2024). React Documentation. Meta Platforms, Inc. https://react.dev
+
+3. TypeScript. (2024). TypeScript Handbook. Microsoft. https://www.typescriptlang.org/docs/
+
+4. Tailwind CSS. (2024). Tailwind CSS Documentation. Tailwind Labs. https://tailwindcss.com/docs
+
+5. MongoDB. (2024). MongoDB Documentation. MongoDB Inc. https://www.mongodb.com/docs
+
+6. Express.js. (2024). Express Documentation. OpenJS Foundation. https://expressjs.com/
+
+7. Mongoose. (2024). Mongoose Documentation. https://mongoosejs.com/docs/
+
+8. Playwright. (2024). Playwright Documentation. Microsoft. https://playwright.dev/
+
+9. Axios. (2024). Axios Documentation. https://axios-http.com/docs/intro
+
+10. JSON Web Token (JWT). (2024). JWT Introduction. https://jwt.io/introduction
+
+11. Vercel. (2024). Next.js Deployment. https://vercel.com/docs
+
+12. Mozilla Developer Network. (2024). REST API. https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods
+
+13. Node.js. (2024). Node.js Documentation. OpenJS Foundation. https://nodejs.org/docs
+
+14. Zod. (2024). Zod Documentation. https://zod.dev/
+
+15. Winston. (2024). Winston Logging Library. https://github.com/winstonjs/winston
+
+16. Morgan. (2024). Morgan HTTP Logger. https://github.com/expressjs/morgan
+
+17. Jest. (2024). Jest Testing Framework. https://jestjs.io/
+
+18. React Context API. (2024). React Context Documentation. https://react.dev/reference/react/useContext
+
+19. Lucide Icons. (2024). Lucide React Icons. https://lucide.dev/
+
+20. Framer Motion. (2024). Framer Motion Documentation. https://www.framer.com/motion/
+
+21. ESLint. (2024). ESLint Documentation. https://eslint.org/docs/latest/
+
+22. PostCSS. (2024). PostCSS Documentation. https://postcss.org/
+
+23. Git. (2024). Git Documentation. https://git-scm.com/doc
+
+24. GitHub. (2024). GitHub Documentation. https://docs.github.com/
+
+25. Stack Overflow. (2024). Developer Community. https://stackoverflow.com/

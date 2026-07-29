@@ -1,10 +1,24 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import { ServiceModel } from '../models/service.model.js';
+import { UserModel } from '../models/user.model.js';
 
 dotenv.config();
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/fixhub';
+
+const CATEGORY_PRO_EMAILS: Record<string, string> = {
+  electrician: "rambehadur.tamang@fixhub.com",
+  plumber: "harendra.prasad@fixhub.com",
+  ac_repair: "nischal.basnet@fixhub.com",
+  painter: "bikram.thapa@fixhub.com",
+  carpenter: "sabin.shrestha@fixhub.com",
+  cleaner: "rita.devi@fixhub.com",
+  geyser: "ramesh.adhikari@fixhub.com",
+  appliance_repair: "santosh.giri@fixhub.com",
+  pest_control: "rohan.gurung@fixhub.com",
+  other: "prem.bahadur@fixhub.com",
+};
 
 const servicesToSeed: any[] = [
   {
@@ -114,17 +128,28 @@ async function seedServices() {
         console.log('Connected to MongoDB');
 
         for (const service of servicesToSeed) {
+            const proEmail = (CATEGORY_PRO_EMAILS[service.category] || CATEGORY_PRO_EMAILS.other) ?? "";
+            let proUser;
+            if (typeof proEmail === "string" && proEmail.length > 0) {
+                proUser = await UserModel.findOne({ email: proEmail } as any);
+            }
+
+            const payload = {
+                ...service,
+                professionalId: proUser?._id,
+            };
+
             const existing = await ServiceModel.findOne({ slug: service.slug });
             if (!existing) {
-                await ServiceModel.create(service);
-                console.log(`Created service: ${service.title}`);
+                await ServiceModel.create(payload);
+                console.log(`Created service: ${service.title} (pro: ${proUser ? proUser.firstName + ' ' + proUser.lastName : 'None'})`);
             } else {
-                await ServiceModel.updateOne({ slug: service.slug }, { $set: { imageUrl: service.imageUrl } });
-                console.log(`Updated image for service: ${service.title}`);
+                await ServiceModel.updateOne({ slug: service.slug }, { $set: payload });
+                console.log(`Updated service: ${service.title} (pro: ${proUser ? proUser.firstName + ' ' + proUser.lastName : 'None'})`);
             }
         }
 
-        console.log('Services seeded and updated successfully!');
+        console.log('Services seeded and updated successfully with professional accounts!');
         process.exit(0);
     } catch (error) {
         console.error('Error seeding services:', error);

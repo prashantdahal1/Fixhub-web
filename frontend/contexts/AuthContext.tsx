@@ -34,19 +34,48 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const fetchUser = async () => {
     try {
       setLoading(true);
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      
+      // Try to get token from localStorage first
+      let token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      
+      // If no token in localStorage, try to get from cookies
+      if (!token && typeof document !== 'undefined') {
+        const cookies = document.cookie.split(';');
+        const tokenCookie = cookies.find(cookie => cookie.trim().startsWith('token='));
+        if (tokenCookie) {
+          token = tokenCookie.split('=')[1];
+          if (token) {
+            localStorage.setItem('token', token); // Store in localStorage for future use
+          }
+        }
+      }
+      
+      console.log('fetchUser - Token found:', token ? 'Yes' : 'No');
+      
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
+      
       const response = await fetch('/api/v1/auth/whoami', {
         headers,
         credentials: 'include'
       });
+      
+      console.log('fetchUser - Response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
-        // Express returns: { success: true, data: { ...userObject } }
+        console.log('fetchUser - User data:', data.data);
         setUser(data.data || null);
+        
+        // Store token in localStorage as backup for session persistence
+        if (data.data && typeof window !== 'undefined') {
+          const responseToken = response.headers.get('x-auth-token');
+          if (responseToken) {
+            localStorage.setItem('token', responseToken);
+          }
+        }
       } else {
         setUser(null);
         if (typeof window !== 'undefined') {
@@ -54,6 +83,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       }
     } catch (error) {
+      console.error('fetchUser error:', error);
       setUser(null);
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token');

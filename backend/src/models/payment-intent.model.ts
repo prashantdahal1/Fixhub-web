@@ -8,7 +8,9 @@ export interface IPaymentIntent extends Document {
   address: string;
   notes: string;
   amount: number;
-  provider: "esewa" | "khalti";
+  provider: "esewa" | "khalti" | "cod";
+  promoCode?: string;
+  discount?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -21,7 +23,9 @@ const PaymentIntentSchema = new Schema<IPaymentIntent>(
     address: { type: String, required: true, trim: true },
     notes: { type: String, default: "" },
     amount: { type: Number, required: true, min: 0 },
-    provider: { type: String, enum: ["esewa", "khalti"], required: true },
+    provider: { type: String, enum: ["esewa", "khalti", "cod"], required: true },
+    promoCode: { type: String, trim: true, uppercase: true },
+    discount: { type: Number, default: 0, min: 0 },
   },
   { timestamps: true }
 );

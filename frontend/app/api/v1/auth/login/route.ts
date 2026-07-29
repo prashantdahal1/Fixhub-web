@@ -16,14 +16,28 @@ export async function POST(request: NextRequest) {
 
     const data = await backendResponse.json();
 
+    console.log('Login response data:', data);
+
     // Forward the response (including Set-Cookie from Express) to the browser
     const response = NextResponse.json(data, { status: backendResponse.status });
 
     // Copy the Set-Cookie header from the Express response so the JWT cookie
     // gets set on the browser's localhost:3000 origin.
     const setCookie = backendResponse.headers.get('set-cookie');
+    console.log('Set-Cookie header:', setCookie);
     if (setCookie) {
       response.headers.set('set-cookie', setCookie);
+    }
+
+    // Also store the token in the response data for localStorage backup
+    if (data.success && data.data?.token) {
+      console.log('Token from backend:', data.data.token);
+      response.cookies.set('token', data.data.token, {
+        httpOnly: false, // Allow JavaScript access
+        secure: false,   // For development
+        sameSite: 'lax',
+        maxAge: 30 * 24 * 60 * 60 // 30 days
+      });
     }
 
     return response;
