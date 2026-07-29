@@ -31,6 +31,8 @@ export interface IService extends Document {
   isActive: boolean;
   isCertified: boolean;
   estimatedDuration: string;
+  approvalStatus: "pending" | "approved" | "rejected";
+  rejectionReason?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -58,6 +60,8 @@ const ServiceSchema = new Schema<IService>(
     isActive: { type: Boolean, default: true },
     isCertified: { type: Boolean, default: true },
     estimatedDuration: { type: String, default: "1-2 hours" },
+    approvalStatus: { type: String, enum: ["pending", "approved", "rejected"], default: "pending" },
+    rejectionReason: { type: String, default: "" },
   },
   { timestamps: true }
 );

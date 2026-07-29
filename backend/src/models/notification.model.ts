@@ -5,8 +5,9 @@ export interface INotification extends Document {
   userId: mongoose.Types.ObjectId;
   title: string;
   body: string;
-  type: "booking" | "confirm" | "done" | "payment";
+  type: "booking" | "confirm" | "done" | "payment" | "service" | "ticket";
   read: boolean;
+  isDeleted: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -16,8 +17,9 @@ const NotificationSchema: Schema = new Schema<INotification>(
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     title: { type: String, required: true },
     body: { type: String, required: true },
-    type: { type: String, enum: ["booking", "confirm", "done", "payment"], default: "booking" },
+    type: { type: String, enum: ["booking", "confirm", "done", "payment", "service", "ticket"], default: "booking" },
     read: { type: Boolean, default: false },
+    isDeleted: { type: Boolean, default: false },
   },
   {
     timestamps: true,
