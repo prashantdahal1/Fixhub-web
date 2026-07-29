@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Wrench,
   Zap,
@@ -26,14 +26,33 @@ import {
 } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 
-const services = [
-  { icon: Droplets, title: "Plumbing", desc: "Leak fixes, pipe installation, drain cleaning", color: "bg-blue-50 text-blue-600" },
-  { icon: Zap, title: "Electrical", desc: "Wiring, panel upgrades, outlet installation", color: "bg-amber-50 text-amber-600" },
-  { icon: Home, title: "Roofing", desc: "Repairs, waterproofing, inspections", color: "bg-slate-50 text-slate-600" },
-  { icon: Thermometer, title: "HVAC", desc: "AC service, heating, ventilation systems", color: "bg-cyan-50 text-cyan-600" },
-  { icon: Hammer, title: "Carpentry", desc: "Doors, windows, furniture assembly", color: "bg-orange-50 text-orange-600" },
-  { icon: Paintbrush, title: "Painting", desc: "Interior, exterior, touch-ups", color: "bg-purple-50 text-purple-600" },
-];
+import { getServices } from "@/lib/api/services";
+
+const categoryIcons: Record<string, any> = {
+  electrician: Zap,
+  plumber: Droplets,
+  ac_repair: Thermometer,
+  painter: Paintbrush,
+  carpenter: Hammer,
+  cleaner: Home,
+  geyser: Thermometer,
+  appliance_repair: Wrench,
+  pest_control: Shield,
+  other: Home,
+};
+
+const categoryColors: Record<string, string> = {
+  electrician: "bg-amber-50 text-amber-600",
+  plumber: "bg-blue-50 text-blue-600",
+  ac_repair: "bg-cyan-50 text-cyan-600",
+  painter: "bg-purple-50 text-purple-600",
+  carpenter: "bg-orange-50 text-orange-600",
+  cleaner: "bg-emerald-50 text-emerald-600",
+  geyser: "bg-red-50 text-red-600",
+  appliance_repair: "bg-indigo-50 text-indigo-600",
+  pest_control: "bg-lime-50 text-lime-600",
+  other: "bg-slate-50 text-slate-600",
+};
 
 const steps = [
   { num: "01", title: "Describe your issue", desc: "Tell us what needs fixing — takes 30 seconds. No complicated forms." },
@@ -58,6 +77,19 @@ export default function LandingPage() {
   const [search, setSearch] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeTestimonial, setActiveTestimonial] = useState(0);
+  const [dbServices, setDbServices] = useState<any[]>([]);
+  const [loadingServices, setLoadingServices] = useState(true);
+
+  useEffect(() => {
+    getServices()
+      .then((res) => {
+        if (res?.data) {
+          setDbServices(res.data);
+        }
+      })
+      .catch((err) => console.error("Failed to load services from DB:", err))
+      .finally(() => setLoadingServices(false));
+  }, []);
 
   return (
     <main className="min-h-screen bg-white text-slate-900 font-sans antialiased">
@@ -217,26 +249,42 @@ export default function LandingPage() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {services.map((s) => {
-              const Icon = s.icon;
-              return (
-                <div
-                  key={s.title}
-                  className="group bg-white border border-slate-100 hover:border-blue-200 rounded-2xl p-6 transition-all cursor-pointer hover:shadow-lg hover:shadow-slate-200/50 hover:-translate-y-0.5"
-                >
-                  <div className={`w-12 h-12 rounded-xl ${s.color} flex items-center justify-center mb-4 transition-transform group-hover:scale-110`}>
-                    <Icon size={22} />
-                  </div>
-                  <h3 className="font-semibold text-slate-900 mb-1.5">{s.title}</h3>
-                  <p className="text-slate-400 text-sm leading-relaxed">{s.desc}</p>
-                  <div className="flex items-center gap-1 mt-4 text-blue-600 text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
-                    Book now
-                    <ArrowRight size={12} />
-                  </div>
-                </div>
-              );
-            })}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+            {loadingServices ? (
+              <div className="col-span-full py-12 text-center text-slate-400 font-medium">Loading catalog from database...</div>
+            ) : dbServices.length === 0 ? (
+              <div className="col-span-full py-12 text-center text-slate-400 font-medium">No services available right now.</div>
+            ) : (
+              dbServices.map((s) => {
+                const Icon = categoryIcons[s.category] || Home;
+                const color = categoryColors[s.category] || "bg-slate-50 text-slate-600";
+                return (
+                  <Link
+                    key={s._id}
+                    href={`/dashboard/services/${s.slug}`}
+                    className="group bg-white border border-slate-100 hover:border-blue-200 rounded-2xl p-6 transition-all cursor-pointer hover:shadow-lg hover:shadow-slate-200/50 hover:-translate-y-0.5 flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className={`w-12 h-12 rounded-xl ${color} flex items-center justify-center mb-4 transition-transform group-hover:scale-110`}>
+                        <Icon size={22} />
+                      </div>
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <h3 className="font-semibold text-slate-900 leading-snug">{s.title}</h3>
+                        <span className="text-xs font-bold text-slate-900 shrink-0">Rs. {s.basePrice}</span>
+                      </div>
+                      <p className="text-slate-400 text-sm leading-relaxed line-clamp-2">{s.shortDescription}</p>
+                    </div>
+                    <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-50">
+                      <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{s.category.replace("_", " ")}</span>
+                      <div className="flex items-center gap-1 text-blue-600 text-xs font-semibold">
+                        Book now
+                        <ArrowRight size={12} />
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })
+            )}
           </div>
 
           <div className="mt-6 md:hidden text-center">
@@ -329,44 +377,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── TESTIMONIALS ── */}
-      <section id="reviews" className="py-24 px-6 bg-slate-50/50">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <p className="text-blue-600 text-xs font-bold uppercase tracking-widest mb-2">Reviews</p>
-            <h2 className="text-3xl md:text-4xl font-bold text-slate-900">What homeowners say</h2>
-          </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
-            {testimonials.map((t, i) => (
-              <div 
-                key={t.name} 
-                className="bg-white border border-slate-100 rounded-2xl p-6 hover:shadow-lg hover:shadow-slate-200/50 transition-all cursor-default"
-                onMouseEnter={() => setActiveTestimonial(i)}
-              >
-                <div className="flex gap-1 mb-4">
-                  {[...Array(t.rating)].map((_, j) => (
-                    <Star key={j} size={14} className="text-amber-400 fill-amber-400" />
-                  ))}
-                </div>
-                <div className="mb-5">
-                  <Quote size={20} className="text-blue-200 mb-2" />
-                  <p className="text-slate-600 text-sm leading-relaxed">{t.quote}</p>
-                </div>
-                <div className="flex items-center gap-3 pt-4 border-t border-slate-50">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-xs font-bold text-white">
-                    {t.avatar}
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">{t.name}</p>
-                    <p className="text-xs text-slate-400">{t.role}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* ── CTA BANNER ── */}
       <section className="py-24 px-6">
@@ -404,52 +415,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── FOOTER ── */}
-      <footer className="border-t border-slate-100 py-12 px-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid md:grid-cols-4 gap-8 mb-10">
-            <div className="md:col-span-2">
-              <div className="flex items-center gap-2.5 mb-4">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-blue-500 flex items-center justify-center">
-                  <Wrench size={16} className="text-white" />
-                </div>
-                <span className="text-lg font-bold tracking-tight text-slate-900">
-                  Fix<span className="text-blue-600">Hub</span>
-                </span>
-              </div>
-              <p className="text-sm text-slate-400 max-w-sm leading-relaxed">
-                Connecting Kathmandu Valley homeowners with verified, skilled professionals. Fast, fair, and hassle-free home services.
-              </p>
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold text-slate-900 mb-4">Services</h4>
-              <div className="space-y-2.5">
-                {["Plumbing", "Electrical", "HVAC", "Carpentry", "Painting", "Roofing"].map((s) => (
-                  <a key={s} href="#" className="block text-sm text-slate-400 hover:text-blue-600 transition-colors">{s}</a>
-                ))}
-              </div>
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold text-slate-900 mb-4">Company</h4>
-              <div className="space-y-2.5">
-                {["About us", "How it works", "Careers", "Blog", "Contact"].map((s) => (
-                  <a key={s} href="#" className="block text-sm text-slate-400 hover:text-blue-600 transition-colors">{s}</a>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div className="border-t border-slate-100 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-            <span className="text-xs text-slate-400">
-              © 2025 FixHub. All rights reserved.
-            </span>
-            <div className="flex items-center gap-6">
-              <a href="#" className="text-slate-400 hover:text-blue-600 transition-colors"><MapPin size={16} /></a>
-              <a href="#" className="text-slate-400 hover:text-blue-600 transition-colors"><Phone size={16} /></a>
-              <a href="#" className="text-slate-400 hover:text-blue-600 transition-colors"><Mail size={16} /></a>
-            </div>
-          </div>
-        </div>
-      </footer>
     </main>
   );
 }

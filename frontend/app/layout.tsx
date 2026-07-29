@@ -26,13 +26,17 @@ import { AuthProvider } from "../contexts/AuthContext";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import ChatbotWidget from "@/components/shared/ChatbotWidget";
+import PublicFooter from "@/components/layout/PublicFooter";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${geist.variable} ${geistMono.variable}`}>
       <body className="font-[family-name:var(--font-geist)] antialiased min-h-full flex flex-col">
         <AuthProvider>
-          {children}
+          <div className="flex-1">
+            {children}
+          </div>
+          <PublicFooter />
           <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} />
           <ChatbotWidget />
         </AuthProvider>
