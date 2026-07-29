@@ -3,7 +3,7 @@ import type { CreateThingDTO } from '../../dtos/thing.dto.js';
 
 export class ThingService {
     async createThing(dto: CreateThingDTO, userId?: string) {
-        const created = await thingRepository.createThing({ ...dto, createdBy: userId });
+        const created = await thingRepository.createThing(userId ? { ...dto, createdBy: userId } : dto);
         return created;
     }
 
