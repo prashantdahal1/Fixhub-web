@@ -24,8 +24,44 @@ function formatRelativeTime(dateString: string): string {
 export default function AdminNotificationsPage() {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [activeTab, setActiveTab] = useState<"all" | "unread" | "booking" | "payment">("all");
+  const [deletedNotifications, setDeletedNotifications] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<"all" | "unread" | "booking" | "payment" | "trash">("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [loadingDeleted, setLoadingDeleted] = useState(false);
+
+  const fetchDeleted = async () => {
+    try {
+      setLoadingDeleted(true);
+      const res = await fetch("/api/v1/notifications/deleted");
+      const data = await res.json();
+      if (data.success) {
+        setDeletedNotifications(data.data || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch deleted notifications:", err);
+    } finally {
+      setLoadingDeleted(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "trash") {
+      fetchDeleted();
+    }
+  }, [activeTab]);
+
+  const recoverNotification = async (id: string) => {
+    try {
+      const res = await fetch(`/api/v1/notifications/${id}/recover`, { method: "PATCH" });
+      const data = await res.json();
+      if (data.success) {
+        setDeletedNotifications((prev) => prev.filter((item) => item._id !== id));
+        fetchNotifications().then(setNotifications).catch(() => {});
+      }
+    } catch (err) {
+      console.error("Failed to recover notification:", err);
+    }
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -136,7 +172,7 @@ export default function AdminNotificationsPage() {
           </p>
         </div>
 
-        {notifications.length > 0 && (
+        {activeTab !== "trash" && notifications.length > 0 && (
           <div className="flex items-center gap-2">
             <button
               onClick={markAllRead}
@@ -158,8 +194,8 @@ export default function AdminNotificationsPage() {
 
       <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between bg-white border border-slate-200 p-2.5 rounded-2xl">
         <div className="flex flex-wrap items-center gap-1">
-          {(["all", "unread", "booking", "payment"] as const).map((tab) => {
-            const label = tab.charAt(0).toUpperCase() + tab.slice(1);
+          {(["all", "unread", "booking", "payment", "trash"] as const).map((tab) => {
+            const label = tab === "trash" ? "Deleted Trash" : tab.charAt(0).toUpperCase() + tab.slice(1);
             const count = tab === "unread" ? unreadCount : undefined;
             return (
               <button
@@ -182,28 +218,66 @@ export default function AdminNotificationsPage() {
           })}
         </div>
 
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search notifications..."
-            className="w-full pl-10 pr-8 py-2 text-xs border border-slate-200 rounded-xl bg-white text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-650"
-            >
-              <X size={12} />
-            </button>
-          )}
-        </div>
+        {activeTab !== "trash" && (
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search notifications..."
+              className="w-full pl-10 pr-8 py-2 text-xs border border-slate-200 rounded-xl bg-white text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-650"
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-        {filteredNotifications.length === 0 ? (
+        {activeTab === "trash" ? (
+          loadingDeleted ? (
+            <div className="py-16 text-center text-xs text-slate-500">Loading deleted notifications...</div>
+          ) : deletedNotifications.length === 0 ? (
+            <div className="py-16 text-center">
+              <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4 text-slate-600">
+                <Trash2 size={20} />
+              </div>
+              <h3 className="text-sm font-bold text-slate-800">No deleted notifications</h3>
+              <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
+                No notifications are currently in trash.
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {deletedNotifications.map((n) => (
+                <div key={n._id} className="flex gap-4 p-5 hover:bg-slate-50/50 transition-all justify-between items-center">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-900">{n.title}</span>
+                      <span className="text-[10px] text-slate-400">
+                        {n.userId?.email ? `User: ${n.userId.email}` : ""}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600">{n.body}</p>
+                  </div>
+                  <button
+                    onClick={() => recoverNotification(n._id)}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 text-xs font-bold transition"
+                  >
+                    Recover Notification
+                  </button>
+                </div>
+              ))}
+            </div>
+          )
+        ) : filteredNotifications.length === 0 ? (
           <div className="py-16 text-center">
             <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4 text-slate-600">
               <Bell size={20} />

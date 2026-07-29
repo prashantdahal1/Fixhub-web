@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Search, Filter, Eye, Trash2, Edit3, MoreVertical, X, Lock, Image, Plus } from "lucide-react";
+import { Search, Trash2, Edit3, MoreVertical, X, Image, Plus, CheckCircle, XCircle, Clock, Sparkles } from "lucide-react";
 import { toast } from "react-toastify";
 import { useAuth } from "../../../contexts/AuthContext";
 import ConfirmModal from "../../shared/ConfirmModal";
@@ -26,6 +26,9 @@ interface Service {
   rating: number;
   reviewCount: number;
   createdAt: string;
+  approvalStatus?: "pending" | "approved" | "rejected";
+  rejectionReason?: string;
+  isActive?: boolean;
 }
 
 interface ProfessionalOption {
@@ -43,6 +46,7 @@ export default function AdminServicesPage() {
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
+  const [statusTab, setStatusTab] = useState<"all" | "pending" | "approved" | "rejected">("pending");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -55,18 +59,33 @@ export default function AdminServicesPage() {
   const fetchServices = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ limit: "100" });
-      if (search) params.set("search", search);
-      if (filterCategory !== "all") params.set("category", filterCategory);
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const res = await fetch(`/api/v1/services?${params.toString()}`);
+      // Admin endpoint: returns ALL services regardless of approval status
+      const params = new URLSearchParams({ limit: "200" });
+      if (statusTab !== 'all') params.set('status', statusTab);
+
+      const res = await fetch(`/api/v1/admin/pending-services?${params.toString()}`, {
+        headers,
+        credentials: 'include',
+      });
       const json = await res.json();
       if (json.success) {
         let list: Service[] = json.data || [];
+        // Client-side filters
+        if (search) {
+          const q = search.toLowerCase();
+          list = list.filter(s => s.title.toLowerCase().includes(q) || s.shortDescription?.toLowerCase().includes(q));
+        }
+        if (filterCategory !== 'all') {
+          list = list.filter(s => s.category === filterCategory);
+        }
         if (sortBy === "newest") {
           list = [...list].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         } else if (sortBy === "rating") {
-          list = [...list].sort((a, b) => b.rating - a.rating);
+          list = [...list].sort((a, b) => (b.rating || 0) - (a.rating || 0));
         } else if (sortBy === "price_asc") {
           list = [...list].sort((a, b) => a.basePrice - b.basePrice);
         }
@@ -77,7 +96,7 @@ export default function AdminServicesPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, filterCategory, sortBy]);
+  }, [search, filterCategory, sortBy, statusTab]);
 
   const fetchProfessionals = useCallback(async () => {
     setLoadingProfessionals(true);
@@ -153,6 +172,34 @@ export default function AdminServicesPage() {
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [singleDeleteTargetId, setSingleDeleteTargetId] = useState<string | null>(null);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+
+  const handleApproveReject = async (serviceId: string, action: 'approve' | 'reject', rejectionReason?: string) => {
+    setApprovingId(serviceId);
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch('/api/v1/admin/approve-service', {
+        method: 'PATCH',
+        headers,
+        credentials: 'include',
+        body: JSON.stringify({ serviceId, action, rejectionReason }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast.success(action === 'approve' ? 'Service approved — now live!' : 'Service rejected');
+        fetchServices();
+      } else {
+        toast.error(json.message || 'Failed to update service status');
+      }
+    } catch (err) {
+      toast.error('Failed to update service status');
+    } finally {
+      setApprovingId(null);
+      setOpenMenuId(null);
+    }
+  };
 
   const handleDeleteService = (id: string) => {
     setSingleDeleteTargetId(id);
@@ -297,7 +344,7 @@ export default function AdminServicesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Services Management</h1>
-          <p className="text-sm text-slate-500 mt-1">Manage all services posted on the platform</p>
+          <p className="text-sm text-slate-500 mt-1">Review and approve services before they go live on the platform</p>
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-4 sm:mt-0">
           <button
@@ -329,6 +376,29 @@ export default function AdminServicesPage() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Status Tabs */}
+      <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl w-fit">
+        {(["all", "approved", "pending", "rejected"] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setStatusTab(tab)}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all capitalize ${
+              statusTab === tab
+                ? tab === 'pending' ? 'bg-amber-500 text-white shadow-sm'
+                  : tab === 'approved' ? 'bg-green-600 text-white shadow-sm'
+                  : tab === 'rejected' ? 'bg-red-600 text-white shadow-sm'
+                  : 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-500 hover:text-slate-900'
+            }`}
+          >
+            {tab === 'pending' && <Clock className="inline h-3.5 w-3.5 mr-1 -mt-0.5" />}
+            {tab === 'approved' && <CheckCircle className="inline h-3.5 w-3.5 mr-1 -mt-0.5" />}
+            {tab === 'rejected' && <XCircle className="inline h-3.5 w-3.5 mr-1 -mt-0.5" />}
+            {tab}
+          </button>
+        ))}
       </div>
 
       {/* Controls */}
@@ -389,7 +459,7 @@ export default function AdminServicesPage() {
                 <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600">Provider</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-slate-600">Category</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-slate-600">Price</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-slate-600">Rating</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-slate-600">Status</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-slate-600">Posted</th>
                 <th className="px-6 py-3 text-center text-sm font-semibold text-slate-600">Actions</th>
               </tr>
@@ -457,10 +527,19 @@ export default function AdminServicesPage() {
                       </p>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-1">
-                        <span className="text-sm font-semibold text-slate-900">{service.rating.toFixed(1)}</span>
-                        <span className="text-xs text-slate-500">({service.reviewCount})</span>
-                      </div>
+                      {service.approvalStatus === 'approved' ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-green-50 text-green-700 text-xs font-semibold">
+                          <CheckCircle className="h-3 w-3" /> Approved
+                        </span>
+                      ) : service.approvalStatus === 'rejected' ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-50 text-red-700 text-xs font-semibold" title={service.rejectionReason}>
+                          <XCircle className="h-3 w-3" /> Rejected
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-semibold">
+                          <Clock className="h-3 w-3" /> Pending
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <p className="text-sm text-slate-500">
@@ -478,7 +557,33 @@ export default function AdminServicesPage() {
                         </button>
 
                         {openMenuId === service._id && (
-                          <div className="absolute right-0 top-full mt-2 w-36 rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-200/30 z-20">
+                          <div className="absolute right-0 top-full mt-2 w-44 rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-200/30 z-20">
+                            {service.approvalStatus === 'pending' && (
+                              <>
+                                <button
+                                  type="button"
+                                  disabled={approvingId === service._id}
+                                  onClick={() => handleApproveReject(service._id, 'approve')}
+                                  className="w-full flex items-center gap-2 px-4 py-3 text-sm text-green-700 hover:bg-green-50 transition-colors disabled:opacity-50"
+                                >
+                                  <CheckCircle className="h-4 w-4" />
+                                  Approve
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={approvingId === service._id}
+                                  onClick={() => {
+                                    const reason = window.prompt('Rejection reason (optional):');
+                                    handleApproveReject(service._id, 'reject', reason || undefined);
+                                  }}
+                                  className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-700 hover:bg-red-50 transition-colors disabled:opacity-50"
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                  Reject
+                                </button>
+                                <div className="border-t border-slate-100" />
+                              </>
+                            )}
                             <button
                               type="button"
                               onClick={() => { openEdit(service); setOpenMenuId(null); }}
@@ -770,34 +875,56 @@ function AddServiceModal({
   const [professionalId, setProfessionalId] = useState("");
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreview, setImagePreview] = useState<string[]>([]);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
 
   const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
     const limitedFiles = files.slice(0, 4);
     setImageFiles(limitedFiles);
     setImagePreview(limitedFiles.map((file) => URL.createObjectURL(file)));
-    // Auto-suggest for Add modal as well
-    if (limitedFiles.length > 0) {
-      const first = limitedFiles[0];
-      const fd = new FormData();
-      fd.append('image', first);
+  };
+
+  const handleAIGeneration = async () => {
+    if (imageFiles.length === 0) {
+      toast.error("Please upload at least one image first");
+      return;
+    }
+
+    setIsGeneratingAI(true);
+    try {
+      const submitData = new FormData();
+      imageFiles.forEach((image) => {
+        submitData.append("images", image);
+      });
+      submitData.append("category", category);
+
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const headers: Record<string, string> = {};
       if (token) headers['Authorization'] = `Bearer ${token}`;
-      fetch('/api/v1/admin/service-suggest', { method: 'POST', body: fd, credentials: 'include', headers })
-        .then((r) => r.json())
-        .then((json) => {
-          if (json && json.success && json.data?.suggested) {
-            const s = json.data.suggested;
-            if (!title) setTitle(s.title || title);
-            if (!description) setDescription(s.shortDescription || description);
-            if (!shortDescription) setShortDescription(s.shortDescription || shortDescription);
-            if (s.category) setCategory(s.category);
-            if (s.basePrice) setBasePrice(s.basePrice);
-            if (s.priceUnit) setPriceUnit(s.priceUnit);
-          }
-        })
-        .catch(() => {});
+
+      const response = await fetch("/api/v1/services/generate-ai-description", {
+        method: "POST",
+        headers,
+        credentials: 'include',
+        body: submitData,
+      });
+
+      const data = await response.json();
+      
+      if (response.ok && data.data) {
+        // Auto-fill the form with AI-generated content
+        setTitle(data.data.title || title);
+        setDescription(data.data.description || description);
+        setShortDescription(data.data.shortDescription || shortDescription);
+        if (data.data.category) setCategory(data.data.category);
+        toast.success("AI generated service description successfully!");
+      } else {
+        throw new Error(data.message || "AI generation failed");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to generate AI description");
+    } finally {
+      setIsGeneratingAI(false);
     }
   };
 
@@ -850,12 +977,26 @@ function AddServiceModal({
             />
             <p className="text-xs text-slate-400 mt-1">You can upload up to 4 images.</p>
           </div>
+          
+          {/* AI Generation Button */}
+          {imagePreview.length > 0 && (
+            <button
+              type="button"
+              onClick={handleAIGeneration}
+              disabled={isGeneratingAI}
+              className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Sparkles className="w-4 h-4" />
+              {isGeneratingAI ? "Generating AI Description..." : "Generate AI Description from Images"}
+            </button>
+          )}
+          
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Title</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Title <span className="text-slate-400 font-normal text-xs">(optional - AI can generate)</span></label>
             <input value={title} onChange={e => setTitle(e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Description</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Description <span className="text-slate-400 font-normal text-xs">(optional - AI can generate)</span></label>
             <textarea
               value={description}
               onChange={e => setDescription(e.target.value)}
@@ -864,7 +1005,7 @@ function AddServiceModal({
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Short Description</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Short Description <span className="text-slate-400 font-normal text-xs">(optional - AI can generate)</span></label>
             <textarea value={shortDescription} onChange={e => setShortDescription(e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900" />
           </div>
           <div className="grid grid-cols-2 gap-3">

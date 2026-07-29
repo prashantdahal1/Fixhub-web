@@ -219,7 +219,7 @@ export default function AdminLayout({
           <span className="font-bold text-sm">{payload.title}</span>
           <span className="text-xs text-slate-500">{payload.body}</span>
         </div>,
-        { icon: "🔔", autoClose: 7000 }
+        { icon: "🔔" as any, autoClose: 7000 }
       );
     },
     onBookingUpdated: (payload) => {

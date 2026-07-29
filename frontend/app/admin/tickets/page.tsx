@@ -471,8 +471,8 @@ export default function AdminTicketsPage() {
             <div className="px-6 py-6 space-y-4 max-h-[80vh] overflow-y-auto">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Booking ID</label>
-                  <p className="text-sm font-semibold text-slate-800">{selectedTicket.bookingId || "N/A"}</p>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Ticket ID</label>
+                  <p className="text-sm font-semibold text-slate-800">{selectedTicket.ticketId || selectedTicket._id}</p>
                 </div>
 
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -520,12 +520,50 @@ export default function AdminTicketsPage() {
                 <label htmlFor="ticket-desc-input" className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Description / Issue Notes</label>
                 <textarea
                   id="ticket-desc-input"
-                  rows={4}
+                  rows={3}
                   value={editDescription}
                   onChange={(e) => setEditDescription(e.target.value)}
                   className="w-full text-sm border border-slate-200 rounded-xl p-3 bg-slate-50 text-slate-900 leading-relaxed focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                   placeholder="Ticket description details..."
                 />
+              </div>
+
+              <div className="rounded-2xl border border-blue-200 p-4 bg-blue-50/50">
+                <label htmlFor="ticket-reply-input" className="block text-[11px] font-bold uppercase tracking-wider text-blue-700 mb-1.5">Admin Reply to User (User will be notified)</label>
+                <textarea
+                  id="ticket-reply-input"
+                  rows={3}
+                  value={(selectedTicket as any).adminReply || ""}
+                  onChange={(e) => setSelectedTicket({ ...selectedTicket, adminReply: e.target.value } as any)}
+                  className="w-full text-sm border border-blue-200 rounded-xl p-3 bg-white text-slate-900 leading-relaxed focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  placeholder="Type reply to send to user..."
+                />
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!(selectedTicket as any).adminReply?.trim()) {
+                      toast.error("Reply text cannot be empty");
+                      return;
+                    }
+                    try {
+                      setIsSaving(true);
+                      await axiosInstance.post(API.TICKETS.ADMIN_REPLY(selectedTicket._id), {
+                        reply: (selectedTicket as any).adminReply,
+                        status: editStatus
+                      });
+                      toast.success("Reply sent to user!");
+                      fetchTickets();
+                    } catch {
+                      toast.error("Failed to send reply");
+                    } finally {
+                      setIsSaving(false);
+                    }
+                  }}
+                  disabled={isSaving}
+                  className="mt-2 px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-lg transition"
+                >
+                  Send Reply & Notify User
+                </button>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-2">

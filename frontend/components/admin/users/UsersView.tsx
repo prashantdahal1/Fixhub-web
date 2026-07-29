@@ -86,6 +86,10 @@ function UserModal({
   const [role, setRole] = useState(user?.role ?? "customer");
   const [status, setStatus] = useState(user?.status ?? "active");
   const [password, setPassword] = useState("");
+  const [rejectionReason, setRejectionReason] = useState((user as any)?.rejectionReason ?? "");
+  const [verificationDoc, setVerificationDoc] = useState<File | null>(null);
+  const [nationalIdFront, setNationalIdFront] = useState<File | null>(null);
+  const [nationalIdBack, setNationalIdBack] = useState<File | null>(null);
   const [error, setError] = useState("");
 
   const handleSubmit = async () => {
@@ -106,9 +110,14 @@ function UserModal({
       formData.append("address", address);
       formData.append("role", role === "expert" ? "professional" : role);
       formData.append("status", status);
+      if (rejectionReason) formData.append("rejectionReason", rejectionReason);
       if (password) {
         formData.append("password", password);
       }
+      if (avatarFile) formData.append("avatar", avatarFile);
+      if (verificationDoc) formData.append("verificationDocument", verificationDoc);
+      if (nationalIdFront) formData.append("nationalIdFront", nationalIdFront);
+      if (nationalIdBack) formData.append("nationalIdBack", nationalIdBack);
 
       let response;
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -117,39 +126,12 @@ function UserModal({
         authHeaders['Authorization'] = `Bearer ${token}`;
       }
 
-      if (avatarFile) {
-        formData.append("avatar", avatarFile);
-        const responseFormData = await fetch(url, {
-          method,
-          body: formData,
-          headers: authHeaders,
-          credentials: 'include'
-        });
-        response = responseFormData;
-      } else {
-        // Fallback to sending JSON if no file, matching existing structure
-        const responseJson = await fetch(url, {
-          method,
-          headers: {
-            "Content-Type": "application/json",
-            ...authHeaders
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            firstName,
-            lastName,
-            email,
-            username,
-            phoneNumber,
-            address,
-            role: role === "expert" ? "professional" : role,
-            status,
-            password: password || undefined,
-            profilePicture: avatarPreview // Keep existing profile picture url if not changing it
-          }),
-        });
-        response = responseJson;
-      }
+      response = await fetch(url, {
+        method,
+        body: formData,
+        headers: authHeaders,
+        credentials: 'include'
+      });
 
       if (!response.ok) {
         const data = await response.json();
@@ -347,8 +329,59 @@ function UserModal({
               >
                 <option value="active">Active</option>
                 <option value="pending">Pending</option>
-                <option value="suspended">Suspended</option>
+                <option value="suspended">Suspended / Rejected</option>
               </select>
+            </div>
+          </div>
+
+          {/* Rejection Reason - shown when suspended */}
+          {status === 'suspended' && (
+            <div>
+              <label className={labelCls}>Rejection / Suspension Reason</label>
+              <textarea
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                rows={2}
+                placeholder="Reason for suspension or rejection..."
+                className={`${inputCls} resize-none`}
+              />
+            </div>
+          )}
+
+          {/* Document Upload Section - always visible */}
+          <div className="border-t border-gray-200 pt-3">
+            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-3">Verification Documents</label>
+            <div className="space-y-2">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Verification Document</label>
+                <input
+                  type="file"
+                  accept=".pdf,image/*"
+                  onChange={(e) => setVerificationDoc(e.target.files?.[0] || null)}
+                  className="w-full text-xs text-gray-600 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">National ID Front</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setNationalIdFront(e.target.files?.[0] || null)}
+                  className="w-full text-xs text-gray-600 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">National ID Back</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setNationalIdBack(e.target.files?.[0] || null)}
+                  className="w-full text-xs text-gray-600 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+                />
+              </div>
+              {(user?.verificationDocument || (user as any)?.nationalIdFront) && (
+                <p className="text-[11px] text-green-600 font-medium">✓ Existing documents on file. Upload new files to replace them.</p>
+              )}
             </div>
           </div>
         </div>
@@ -440,7 +473,14 @@ export default function RegisteredUsersPage() {
         return;
       }
       const body = await res.json();
-      setUsers(body.data || []);
+      // Sort: active first, pending second, suspended/rejected last
+      const statusOrder: Record<string, number> = { active: 0, pending: 1, suspended: 2, rejected: 2 };
+      const sorted = (body.data || []).sort((a: UserRow, b: UserRow) => {
+        const sa = statusOrder[a.status?.toLowerCase()] ?? 3;
+        const sb = statusOrder[b.status?.toLowerCase()] ?? 3;
+        return sa - sb;
+      });
+      setUsers(sorted);
       setTotalPages(body.meta?.totalPages || 1);
       setTotalItems(body.meta?.total || 0);
     } catch (err) {
@@ -831,6 +871,30 @@ export default function RegisteredUsersPage() {
                                   )}
                                 </div>
                               )}
+
+                               {/* Documents preview for admin */}
+                               <div className="col-span-full mt-3 pt-3 border-t border-slate-100 space-y-2">
+                                 <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Uploaded Documents</p>
+                                 <div className="flex flex-wrap gap-4">
+                                   {user.verificationDocument ? (
+                                     <a href={user.verificationDocument} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 text-xs font-semibold hover:bg-blue-100 transition">
+                                       View Verification Document
+                                     </a>
+                                   ) : (
+                                     <span className="text-xs text-slate-400 italic">No verification document</span>
+                                   )}
+                                   {(user as any).nationalIdFront && (
+                                     <a href={(user as any).nationalIdFront} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold hover:bg-slate-200 transition">
+                                       View National ID Front
+                                     </a>
+                                   )}
+                                   {(user as any).nationalIdBack && (
+                                     <a href={(user as any).nationalIdBack} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold hover:bg-slate-200 transition">
+                                       View National ID Back
+                                     </a>
+                                   )}
+                                 </div>
+                               </div>
                             </div>
                           </td>
                         </tr>
