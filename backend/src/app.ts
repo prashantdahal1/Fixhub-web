@@ -28,6 +28,7 @@ import reviewRouter from "./modules/review/review.route.js";
 import notificationRouter from "./modules/notification/notification.route.js";
 import messageRouter from "./modules/chat/message.route.js";
 import thingRouter from "./modules/thing/thing.route.js";
+import aiMatchingRouter from "./modules/ai-matching/ai-matching.route.js";
 
 const app: Application = express();
 app.use(corsMiddleware);
@@ -43,10 +44,17 @@ app.use(session({
     secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
+    cookie: {
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax'
+    }
 }));
 app.use(passport.initialize());
 app.use(passport.session());
 
+app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/auth", userRoutes);
 app.use("/api/v1/auth", profileRouter);
 app.use("/api/v1/auth", authRoutes);
@@ -61,6 +69,7 @@ app.use("/api/v1/reviews", reviewRouter);
 app.use("/api/v1/notifications", notificationRouter);
 app.use("/api/v1/messages", messageRouter);
 app.use("/api/v1/things", thingRouter);
+app.use("/api/v1/ai-matching", aiMatchingRouter);
 app.use("/auth", authRoutes);
 
 app.use(
