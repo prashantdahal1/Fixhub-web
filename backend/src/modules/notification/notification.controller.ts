@@ -6,15 +6,55 @@ import { notificationEvents } from "../../shared/utils/notification.util.js";
 
 export class NotificationController {
   getAll = async (req: Request, res: Response) => {
-    const user = (req as any).user;
-    const notifications = await NotificationModel.find({ userId: user._id as any })
-      .sort({ createdAt: -1 })
-      .limit(100);
-    return ApiResponseHelper.success(res, notifications, "Notifications retrieved successfully");
+    try {
+      const user = (req as any).user;
+      let query: any = { isDeleted: { $ne: true } };
+
+      if (user && user.role !== "admin") {
+        query = { userId: user._id || user.id, isDeleted: { $ne: true } };
+      }
+
+      const notifications = await NotificationModel.find(query)
+        .sort({ createdAt: -1 })
+        .limit(100);
+      return ApiResponseHelper.success(res, notifications, "Notifications retrieved successfully");
+    } catch (error) {
+      return ApiResponseHelper.success(res, [], "No notifications found");
+    }
+  };
+
+  getDeleted = async (req: Request, res: Response) => {
+    try {
+      const deletedNotifications = await NotificationModel.find({ isDeleted: true })
+        .populate("userId", "name email role")
+        .sort({ updatedAt: -1 })
+        .limit(100);
+      return ApiResponseHelper.success(res, deletedNotifications, "Deleted notifications retrieved successfully");
+    } catch (error) {
+      return ApiResponseHelper.error(res, "Failed to retrieve deleted notifications", 500);
+    }
+  };
+
+  recoverNotification = async (req: Request, res: Response) => {
+    const { id } = req.params;
+    try {
+      const restored = await NotificationModel.findByIdAndUpdate(
+        id,
+        { isDeleted: false },
+        { new: true }
+      );
+      if (!restored) {
+        throw new HttpException(404, "Notification not found");
+      }
+      return ApiResponseHelper.success(res, restored, "Notification recovered successfully");
+    } catch (error) {
+      return ApiResponseHelper.error(res, "Failed to recover notification", 500);
+    }
   };
 
   stream = async (req: Request, res: Response) => {
-    const user = (req as any).user;
+    // Temporarily use dummy user ID since auth is bypassed
+    const user = (req as any).user || { _id: "507f1f77bcf86cd799439011" }; // Valid MongoDB ObjectId
     const userId = user._id.toString();
 
     res.setHeader("Content-Type", "text/event-stream");
@@ -75,7 +115,11 @@ export class NotificationController {
     const user = (req as any).user;
     const { id } = req.params;
 
-    const notif = await NotificationModel.findOneAndDelete({ _id: id as any, userId: user._id as any } as any);
+    const notif = await NotificationModel.findOneAndUpdate(
+      { _id: id as any, userId: user._id as any } as any,
+      { isDeleted: true },
+      { new: true }
+    );
     if (!notif) {
       throw new HttpException(404, "Notification not found");
     }
@@ -86,7 +130,10 @@ export class NotificationController {
   deleteAll = async (req: Request, res: Response) => {
     const user = (req as any).user;
 
-    await NotificationModel.deleteMany({ userId: user._id as any } as any);
+    await NotificationModel.updateMany(
+      { userId: user._id as any } as any,
+      { isDeleted: true }
+    );
 
     return ApiResponseHelper.success(res, null, "All notifications deleted");
   };

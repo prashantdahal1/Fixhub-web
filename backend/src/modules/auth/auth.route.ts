@@ -61,7 +61,13 @@ router.get("/google/callback", (req: Request, res: Response, next: NextFunction)
             { expiresIn: "30d" }
         );
 
-        // Redirect to frontend with token
+        // Set httpOnly token cookie and redirect to frontend with token
+        res.cookie('token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 30 * 24 * 60 * 60 * 1000,
+        });
         res.redirect(`${FRONTEND_URL}/?token=${token}`);
     }
 );
@@ -206,4 +212,22 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction) =>
     return ApiResponseHelper.error(res, error.message || 'Login failed', error.status || 500);
   }
 });
+router.get('/whoami', (req: Request, res: Response) => {
+  const token = req.cookies?.token || (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.split(' ')[1] : null);
+  if (!token) {
+    return ApiResponseHelper.error(res, 'Unauthorized', 401);
+  }
+  try {
+    const decoded = jwt.verify(token, SECRET_KEY) as any;
+    return userService.getUserById(decoded.id)
+      .then((user) => {
+        if (!user) return ApiResponseHelper.error(res, 'User not found', 404);
+        return ApiResponseHelper.success(res, user, 'User details fetched successfully');
+      })
+      .catch((err) => ApiResponseHelper.error(res, err.message || 'Internal server error', 500));
+  } catch (err) {
+    return ApiResponseHelper.error(res, 'Invalid token', 401);
+  }
+});
+
 export default router;
