@@ -1,14 +1,47 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import type { Request, Response, NextFunction } from "express";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import { ApiResponseHelper } from "../../shared/utils/apihelper.util.js";
 
-// Initialize Gemini API Client
-const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || "";
-const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
-const requestedModel = process.env.GEMINI_MODEL?.trim();
+const geminiApiKey = process.env.GEMINI_API_KEY?.trim() || process.env.API_KEY?.trim() || "";
+const openRouterApiKey = process.env.OPENROUTER_API_KEY?.trim() || "";
+const openRouterUrl = process.env.OPENROUTER_URL?.trim() || "https://openrouter.ai/v1/chat/completions";
+const openRouterModel = process.env.OPENROUTER_MODEL?.trim() || "gpt-4o-mini";
+
+const normalizeGeminiModel = (model?: string) => {
+    const normalized = model?.trim().toLowerCase();
+    if (!normalized) return undefined;
+    if (normalized === "gemini-pro") return "gemini-2.5-pro";
+    if (normalized === "gemini-1.5-flash") return "gemini-2.5-pro";
+    if (normalized === "gemini-1.5-pro") return "gemini-2.5-pro";
+    return normalized;
+};
+
+const requestedModel = normalizeGeminiModel(process.env.GEMINI_MODEL?.trim());
+
+console.log("Gemini API Key loaded:", geminiApiKey ? "Yes" : "No");
+console.log("Gemini API Key length:", geminiApiKey?.length);
+console.log("OpenRouter API Key loaded:", openRouterApiKey ? "Yes" : "No");
+console.log("OpenRouter URL:", openRouterUrl);
+console.log("OpenRouter model:", openRouterModel);
+
+const ai = geminiApiKey ? new GoogleGenAI({ apiKey: geminiApiKey }) : null;
+const isGeminiConfigured = Boolean(geminiApiKey);
+const isOpenRouterConfigured = Boolean(openRouterApiKey);
+const isAnyProviderConfigured = isGeminiConfigured || isOpenRouterConfigured;
 
 export const getChatModelCandidates = (configuredModel?: string) => {
-    const candidates = [configuredModel?.trim(), "gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-2.0-flash"]
+    const normalizedRequested = normalizeGeminiModel(configuredModel);
+    const candidates = [normalizedRequested, "gemini-2.5-pro", "gemini-2.0-flash", "gemini-2.0-flash-lite"]
+        .filter((value): value is string => Boolean(value && value.trim()));
+
+    return [...new Set(candidates)];
+};
+
+export const getOpenRouterModelCandidates = (configuredModel?: string) => {
+    const candidates = [configuredModel?.trim(), openRouterModel]
         .filter((value): value is string => Boolean(value && value.trim()));
 
     return [...new Set(candidates)];
@@ -16,28 +49,44 @@ export const getChatModelCandidates = (configuredModel?: string) => {
 
 export const getFallbackResponse = (message: string) => {
     const trimmed = (message || "").trim().toLowerCase();
+    const baseResponse = "I’m temporarily unavailable right now, but I can still help you browse trusted home services on FixHub.";
 
     if (!trimmed) {
-        return "I’m not available right now, but you can still browse trusted home services on FixHub.";
+        return baseResponse;
     }
 
     if (trimmed.includes("book") || trimmed.includes("technician") || trimmed.includes("plumber") || trimmed.includes("electric")) {
-        return "I can’t chat with the AI provider right now, but you can still book a trusted pro directly on FixHub by choosing the service category and time slot that fits your need.";
+        return "I’m temporarily unavailable right now, but you can still book a trusted pro directly on FixHub by choosing the service category and time slot that fits your need.";
     }
 
     if (trimmed.includes("faucet") || trimmed.includes("leak") || trimmed.includes("dripping") || trimmed.includes("toilet")) {
         return "A quick first step is to shut off the water and check the fixture for a worn washer or loose connection. If it still leaks, book a local plumber on FixHub.";
     }
 
-    if (trimmed.includes("payment") || trimmed.includes("escrow")) {
-        return "FixHub uses secure payment steps for bookings. You can review the payment details before confirming a service request.";
+    if (trimmed.includes("payment") || trimmed.includes("escrow") || trimmed.includes("pay")) {
+        return "FixHub uses secure escrow payments. Your payment is held safely until the service is completed to your satisfaction. We support eSewa, Khalti, and card payments.";
     }
 
-    return "I’m not available right now, but you can still browse trusted home services on FixHub and book a professional directly.";
+    if (trimmed.includes("price") || trimmed.includes("cost") || trimmed.includes("expensive")) {
+        return "Service prices vary by professional and service type. You can see pricing on each service page before booking. We also offer promo codes for discounts.";
+    }
+
+    if (trimmed.includes("what is") || trimmed.includes("about") || trimmed.includes("explain")) {
+        return "FixHub connects you with trusted home service professionals in Nepal. We offer plumbing, electrical, AC repair, painting, cleaning, and more with secure payments.";
+    }
+
+    if (trimmed.includes("name") || trimmed.includes("who are you")) {
+        return "I'm Fixie, your FixHub assistant. I help you find the right services and answer questions about our platform.";
+    }
+
+    if (trimmed.includes("help") || trimmed.includes("support") || trimmed.includes("contact")) {
+        return "For support, you can reach us through the Contact page or email us at support@fixhub.com. We're here to help!";
+    }
+
+    return baseResponse;
 };
 
 const modelCandidates = getChatModelCandidates(requestedModel);
-const isGeminiConfigured = Boolean(apiKey);
 
 export const handleChat = async (req: Request, res: Response, next: NextFunction) => {
     let requestMessage = "";
@@ -52,13 +101,23 @@ export const handleChat = async (req: Request, res: Response, next: NextFunction
             return ApiResponseHelper.error(res, "Message is required", 400);
         }
 
-        if (!isGeminiConfigured || !genAI) {
+        if (!isGeminiConfigured || !ai) {
+            const fallbackResponse = getFallbackResponse(requestMessage);
+            console.log("Gemini not configured, using fallback. isGeminiConfigured:", isGeminiConfigured, "ai:", !!ai);
             return ApiResponseHelper.success(
                 res,
-                { response: getFallbackResponse(requestMessage) },
+                {
+                    response: fallbackResponse,
+                    fallback: true,
+                    fallbackReason: 'Gemini not configured',
+                    providerError: 'No Gemini API key configured',
+                    modelCandidates,
+                },
                 "Chatbot fallback response generated successfully"
             );
         }
+
+        console.log("Gemini is configured, attempting to use real AI");
 
         // Persona: Fixie — quiet, smart, natural. Not a call centre.
         const systemInstruction =
@@ -96,62 +155,230 @@ export const handleChat = async (req: Request, res: Response, next: NextFunction
 
 
 
-        let model: ReturnType<typeof genAI.getGenerativeModel> | null = null;
         let lastError: unknown = null;
+        let lastErrorMessage = "";
 
-        for (const modelName of modelCandidates) {
+        const createFormattedHistory = () => {
+            const formattedHistory = Array.isArray(requestHistory)
+                ? requestHistory.map((item: any) => ({
+                    role: item.role === "model" || item.role === "assistant" ? "model" : "user",
+                    parts: [{ text: item.text || item.message || "" }]
+                }))
+                : [];
+
+            while (formattedHistory.length > 0 && formattedHistory[0]?.role !== "user") {
+                formattedHistory.shift();
+            }
+
+            return formattedHistory;
+        };
+
+        const buildGeminiPrompt = (history: any[]) => {
+            const historyText = history
+                .map((item: any) => `${item.role === "assistant" ? "Assistant" : "User"}: ${item.parts.map((part: any) => part.text).join(" ")}`)
+                .join("\n");
+
+            return [
+                systemInstruction,
+                historyText ? `\n${historyText}` : "",
+                `\nUser: ${requestMessage}`,
+                "Assistant:",
+            ].filter(Boolean).join("\n\n");
+        };
+
+        const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+        const isRetryableGeminiError = (error: any) => {
+            const message = (error?.message || "").toString().toLowerCase();
+            return error?.status === 429 || message.includes("429") || message.includes("resource_exhausted") || message.includes("rate limit") || message.includes("quota");
+        };
+
+        const generateGeminiContentWithRetry = async (
+            modelName: string,
+            prompt: string,
+            retries = 3,
+            delayMs = 3000
+        ) => {
             try {
-                model = genAI.getGenerativeModel({
+                return await ai!.models.generateContent({
                     model: modelName,
-                    systemInstruction
+                    contents: prompt,
                 });
-                break;
-            } catch (error) {
-                lastError = error;
+            } catch (error: any) {
+                if (retries > 0 && isRetryableGeminiError(error)) {
+                    console.warn(`Gemini rate limit hit for ${modelName}; retrying in ${delayMs}ms...`, error?.message || error);
+                    await delay(delayMs);
+                    return generateGeminiContentWithRetry(modelName, prompt, retries - 1, delayMs * 2);
+                }
+                throw error;
+            }
+        };
+
+        const tryGemini = async () => {
+            if (!isGeminiConfigured || !ai) {
+                console.log("Gemini not configured, skipping Gemini attempt.");
+                return null;
+            }
+
+            console.log("Attempting to use Gemini model candidates:", modelCandidates);
+            for (const modelName of modelCandidates) {
+                try {
+                    console.log("Trying Gemini model:", modelName);
+
+                    const prompt = buildGeminiPrompt(createFormattedHistory());
+                    const result = await generateGeminiContentWithRetry(modelName, prompt);
+
+                    const responseText = result.text || "";
+                    console.log("Gemini response received from model", modelName, responseText);
+
+                    return {
+                        response: responseText,
+                        provider: "Gemini",
+                        model: modelName,
+                    };
+                } catch (error: any) {
+                    const message = error?.message || String(error) || 'Unknown Gemini error';
+                    console.error("Gemini model failed:", modelName, message, error);
+                    lastError = error;
+                    lastErrorMessage = message;
+                }
+            }
+
+            console.error("Failed to generate a response with any Gemini model, last error:", lastErrorMessage, lastError);
+            return null;
+        };
+
+        const tryOpenRouter = async () => {
+            if (!isOpenRouterConfigured) {
+                console.log("OpenRouter not configured, skipping OpenRouter attempt.");
+                return null;
+            }
+
+            const openRouterCandidates = getOpenRouterModelCandidates(requestedModel);
+            console.log("Attempting to use OpenRouter model candidates:", openRouterCandidates);
+
+            for (const modelName of openRouterCandidates) {
+                try {
+                    console.log("Trying OpenRouter model:", modelName);
+
+                    const openRouterResponse = await fetch(openRouterUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${openRouterApiKey}`,
+                        },
+                        body: JSON.stringify({
+                            model: modelName,
+                            messages: [
+                                { role: 'system', content: systemInstruction },
+                                { role: 'user', content: requestMessage },
+                            ],
+                            max_tokens: 1000,
+                            temperature: 0.5,
+                        }),
+                    });
+
+                    const openRouterData = await openRouterResponse.json();
+                    console.log("OpenRouter raw response:", openRouterData);
+
+                    if (!openRouterResponse.ok) {
+                        const errorText = openRouterData.error?.message || openRouterData.message || JSON.stringify(openRouterData);
+                        throw new Error(`OpenRouter error: ${errorText}`);
+                    }
+
+                    const choices = openRouterData.choices || [];
+                    const firstChoice = Array.isArray(choices) ? choices[0] : null;
+                    const responseText = firstChoice?.message?.content || firstChoice?.text || openRouterData?.response || "";
+
+                    if (!responseText) {
+                        throw new Error(`OpenRouter returned no text. full response: ${JSON.stringify(openRouterData)}`);
+                    }
+
+                    console.log("OpenRouter response received from model", modelName, responseText);
+
+                    return {
+                        response: responseText,
+                        provider: "OpenRouter",
+                        model: modelName,
+                    };
+                } catch (error: any) {
+                    const message = error?.message || String(error) || 'Unknown OpenRouter error';
+                    console.error("OpenRouter model failed:", modelName, message, error);
+                    lastError = error;
+                    lastErrorMessage = message;
+                }
+            }
+
+            return null;
+        };
+
+        if (!isAnyProviderConfigured) {
+            const fallbackResponse = getFallbackResponse(requestMessage);
+            const providerCandidates = getChatModelCandidates(requestedModel);
+            const openRouterCandidates = getOpenRouterModelCandidates(requestedModel);
+
+            console.log("No AI provider configured, returning fallback response.");
+            return ApiResponseHelper.success(
+                res,
+                {
+                    response: fallbackResponse,
+                    fallback: true,
+                    fallbackReason: 'No AI provider configured',
+                    providerError: 'No Gemini or OpenRouter API key configured',
+                    modelCandidates: providerCandidates,
+                    openRouterCandidates,
+                },
+                "Chatbot fallback response generated successfully"
+            );
+        }
+
+        const providerOrder = isOpenRouterConfigured
+            ? [tryOpenRouter, tryGemini]
+            : [tryGemini];
+
+        for (const attemptProvider of providerOrder) {
+            const result = await attemptProvider();
+            if (result) {
+                console.log("Chatbot selected provider:", result.provider, "model:", result.model);
+                return ApiResponseHelper.success(
+                    res,
+                    {
+                        response: result.response,
+                        provider: result.provider,
+                        model: result.model,
+                    },
+                    "Chatbot response generated successfully"
+                );
             }
         }
 
-        if (!model) {
-            throw lastError || new Error("Unable to initialize Gemini model");
-        }
-
-        // Map frontend chat history to the Gemini format
-        // Gemini expects: { role: 'user' | 'model', parts: [{ text: string }] }
-        let formattedHistory = Array.isArray(requestHistory) 
-            ? requestHistory.map((item: any) => ({
-                role: item.role === "model" || item.role === "assistant" ? "model" : "user",
-                parts: [{ text: item.text || item.message || "" }]
-            }))
-            : [];
-
-        // Gemini requires that the first message in chat history must be from the 'user'.
-        while (formattedHistory.length > 0 && formattedHistory[0]?.role !== "user") {
-            formattedHistory.shift();
-        }
-
-        // Start chat session with history
-        const chat = model.startChat({
-            history: formattedHistory,
-            generationConfig: {
-                maxOutputTokens: 1000,
-            }
-        });
-
-        // Send the new user message and wait for the response
-        const result = await chat.sendMessage(requestMessage);
-        const responseText = result.response.text();
-
+        console.error("Failed to generate a response with configured providers, last error:", lastErrorMessage, lastError);
+        const fallbackResponse = getFallbackResponse(requestMessage);
         return ApiResponseHelper.success(
             res,
-            { response: responseText },
-            "Chatbot response generated successfully"
+            {
+                response: fallbackResponse,
+                fallback: true,
+                fallbackReason: 'Configured AI providers failed',
+                providerError: lastErrorMessage || 'No provider response',
+            },
+            `Chatbot fallback response generated successfully (AI error: ${lastErrorMessage || 'No provider response'})`
         );
     } catch (error: any) {
+        const errorMessage = error?.message || String(error) || 'Unknown Gemini error';
         console.error("Gemini API Error:", error);
+        console.error("Error message:", errorMessage);
+        console.error("Error stack:", error?.stack);
         return ApiResponseHelper.success(
             res,
-            { response: getFallbackResponse(requestMessage) },
-            "Chatbot fallback response generated successfully"
+            {
+                response: getFallbackResponse(requestMessage),
+                fallback: true,
+                fallbackReason: 'AI provider error',
+                providerError: errorMessage,
+                modelCandidates,
+            },
+            `Chatbot fallback response generated successfully (AI error: ${errorMessage})`
         );
     }
 };
