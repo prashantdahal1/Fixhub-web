@@ -24,9 +24,6 @@ export class UserController {
                 return ApiResponseHelper.error(res, formatZodError(userData.error), 400);
             }
             const dataToSave = { ...userData.data } as any;
-            if (req.file) {
-                dataToSave.verificationDocument = `/uploads/documents/${req.file.filename}`;
-            }
             const user = await userService.createUser(dataToSave);
             return ApiResponseHelper.success(res, user, "User created successfully");
         } catch (error: any) {
@@ -47,10 +44,12 @@ export class UserController {
                 return ApiResponseHelper.error(res, formatZodError(parsedData.error), 400);
             }
             const { user, token } = await userService.loginUser(parsedData.data);
-            const cookieOptions: any = { httpOnly: true, sameSite: 'strict', secure: false };
-            if (parsedData.data.stayLoggedIn) {
-                cookieOptions.maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
-            }
+            const cookieOptions: any = { 
+                httpOnly: true, 
+                sameSite: 'lax',
+                secure: process.env.NODE_ENV === 'production',
+                maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days - persistent by default
+            };
             res.cookie('token', token, cookieOptions);
             return ApiResponseHelper.success(res, { user, token }, "Login successful");
         } catch (error: any) {
@@ -279,6 +278,62 @@ export class UserController {
 
             const updatedUser = await userService.updateUser(userId.toString(), updateData);
             return ApiResponseHelper.success(res, updatedUser, "National ID documents uploaded successfully");
+        } catch (error: any) {
+            return ApiResponseHelper.error(res, error.message || "Internal Server Error", 500);
+        }
+    }
+
+    async uploadVerificationDocument(req: Request, res: Response) {
+        try {
+            const userId = (req as any).user?._id || (req as any).user?.id;
+            if (!userId) {
+                return ApiResponseHelper.error(res, "Unauthorized", 401);
+            }
+            
+            const user = await userService.getUserById(userId.toString());
+            if (!user) {
+                return ApiResponseHelper.error(res, "User not found", 404);
+            }
+
+            if (user.role !== 'professional') {
+                return ApiResponseHelper.error(res, "Only professionals can upload verification documents", 403);
+            }
+
+            const updateData: any = {};
+            if (req.file) {
+                updateData.verificationDocument = `/uploads/documents/${req.file.filename}`;
+            }
+
+            const updatedUser = await userService.updateUser(userId.toString(), updateData);
+            return ApiResponseHelper.success(res, updatedUser, "Verification document uploaded successfully");
+        } catch (error: any) {
+            return ApiResponseHelper.error(res, error.message || "Internal Server Error", 500);
+        }
+    }
+
+    async adminUpdateUserDocuments(req: Request, res: Response) {
+        try {
+            const id = req.params.id as string;
+            const user = await userService.getUserById(id);
+            if (!user) {
+                return ApiResponseHelper.error(res, "User not found", 404);
+            }
+
+            const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+            const updateData: any = {};
+
+            if (files?.verificationDocument?.[0]) {
+                updateData.verificationDocument = `/uploads/documents/${files.verificationDocument[0].filename}`;
+            }
+            if (files?.nationalIdFront?.[0]) {
+                updateData.nationalIdFront = `/uploads/documents/${files.nationalIdFront[0].filename}`;
+            }
+            if (files?.nationalIdBack?.[0]) {
+                updateData.nationalIdBack = `/uploads/documents/${files.nationalIdBack[0].filename}`;
+            }
+
+            const updatedUser = await userService.updateUser(id, updateData);
+            return ApiResponseHelper.success(res, updatedUser, "User documents updated successfully");
         } catch (error: any) {
             return ApiResponseHelper.error(res, error.message || "Internal Server Error", 500);
         }
