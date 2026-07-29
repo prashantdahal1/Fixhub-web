@@ -3,6 +3,7 @@ import { ServiceModel, type IService, type ServiceCategory } from "../../models/
 export interface ServiceQuery {
   category?: ServiceCategory | "all" | undefined;
   search?: string | undefined;
+  professionalId?: string | undefined;
   page?: number | undefined;
   limit?: number | undefined;
 }
@@ -17,8 +18,15 @@ export interface IServiceRepository {
 }
 
 export class ServiceMongoRepository implements IServiceRepository {
-  async findAll({ category, search, page = 1, limit = 100 }: ServiceQuery): Promise<{ data: IService[]; total: number }> {
+  async findAll({ category, search, professionalId, page = 1, limit = 100 }: ServiceQuery): Promise<{ data: IService[]; total: number }> {
     const filter: Record<string, any> = {};
+
+    // When fetching a specific professional's own listings, show all their services
+    // including pending/rejected ones. For public browse, only show approved active ones.
+    if (!professionalId) {
+      filter.isActive = true;
+      filter.approvalStatus = "approved";
+    }
 
     if (category && category !== "all") filter.category = category;
 
@@ -29,6 +37,10 @@ export class ServiceMongoRepository implements IServiceRepository {
         { shortDescription: regex },
         { tags: regex },
       ];
+    }
+
+    if (professionalId) {
+      filter.professionalId = professionalId;
     }
 
     const skip = (page - 1) * limit;

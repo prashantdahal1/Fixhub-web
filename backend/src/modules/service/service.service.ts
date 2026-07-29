@@ -5,6 +5,7 @@ import type { IService } from "../../models/service.model.js";
 import { ServiceImageDeletionModel } from "../../models/service-image-deletion.model.js";
 import { HttpException } from "../../shared/exceptions/http-exception.js";
 import { broadcastRealtimeEvent } from "../../shared/utils/realtime.util.js";
+import { createAdminNotification } from "../../shared/utils/notification.util.js";
 import { logger } from '../../shared/utils/logger.js';
 
 const repo = new ServiceMongoRepository();
@@ -36,6 +37,9 @@ export class ServiceService {
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/(^-|-$)/g, "");
     }
+    // Set approval status to pending by default
+    payload.approvalStatus = "pending";
+    payload.isActive = false; // Inactive until approved
     const service = await repo.create(payload);
     broadcastRealtimeEvent("service_created", {
       id: service._id.toString(),
@@ -43,7 +47,16 @@ export class ServiceService {
       slug: service.slug,
       category: service.category,
       isActive: service.isActive,
+      approvalStatus: service.approvalStatus,
     });
+
+    // Notify all admins about the new pending service listing
+    createAdminNotification(
+      "New Service Pending Approval",
+      `A new listing "${service.title}" (${service.category.replace(/_/g, " ")}) was submitted and requires your review.`,
+      "service"
+    ).catch((err) => logger.warn("Failed to send admin notification for new service:", err));
+
     return service;
   }
 
