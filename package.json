@@ -1,26 +1,18 @@
 {
-  "name": "fixhub-web",
-  "version": "0.1.0",
+  "name": "fixhub-monorepo",
+  "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
-  },
-  "dependencies": {
-    "next": "16.2.6",
-    "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "test:unit": "npm --prefix backend run test:unit && npm --prefix frontend run test:unit",
+    "test:integration": "npm --prefix backend run test:integration && npm --prefix frontend run test:integration",
+    "test": "npm --prefix backend run test && npm --prefix frontend run test",
+    "test:coverage": "npm --prefix backend run test:coverage && npm --prefix frontend run test:coverage && node scripts/merge-coverage.js",
+    "test:e2e": "npm --prefix frontend run test:e2e",
+    "test:e2e:ui": "npm --prefix frontend run test:e2e -- --ui"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.6",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "@playwright/test": "^1.62.0",
+    "lcov-result-merger": "^5.0.1"
   }
 }

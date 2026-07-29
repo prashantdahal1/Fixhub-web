@@ -1,0 +1,81 @@
+import { ServiceModel, type IService, type ServiceCategory } from "../../models/service.model.js";
+
+export interface ServiceQuery {
+  category?: ServiceCategory | "all" | undefined;
+  search?: string | undefined;
+  professionalId?: string | undefined;
+  page?: number | undefined;
+  limit?: number | undefined;
+}
+
+export interface IServiceRepository {
+  findAll(query: ServiceQuery): Promise<{ data: IService[]; total: number }>;
+  findById(id: string): Promise<IService | null>;
+  findBySlug(slug: string): Promise<IService | null>;
+  create(payload: Partial<IService>): Promise<IService>;
+  update(id: string, payload: Partial<IService>): Promise<IService | null>;
+  remove(id: string): Promise<boolean>;
+}
+
+export class ServiceMongoRepository implements IServiceRepository {
+  async findAll({ category, search, professionalId, page = 1, limit = 100 }: ServiceQuery): Promise<{ data: IService[]; total: number }> {
+    const filter: Record<string, any> = {};
+
+    // When fetching a specific professional's own listings, show all their services
+    // including pending/rejected ones. For public browse, only show approved active ones.
+    if (!professionalId) {
+      filter.isActive = true;
+      filter.approvalStatus = "approved";
+    }
+
+    if (category && category !== "all") filter.category = category;
+
+    if (search) {
+      const regex = new RegExp(search, "i");
+      filter.$or = [
+        { title: regex },
+        { shortDescription: regex },
+        { tags: regex },
+      ];
+    }
+
+    if (professionalId) {
+      filter.professionalId = professionalId;
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await Promise.all([
+      ServiceModel.find(filter)
+        .populate("professionalId", "firstName lastName email phoneNumber profilePicture averageRating reviewCount status city address")
+        .skip(skip)
+        .limit(limit)
+        .sort({ rating: -1, createdAt: -1 }),
+      ServiceModel.countDocuments(filter),
+    ]);
+
+    return { data, total };
+  }
+
+
+  async findById(id: string): Promise<IService | null> {
+    return ServiceModel.findById(id).populate("professionalId", "firstName lastName email phoneNumber profilePicture averageRating reviewCount status city address");
+  }
+
+  async findBySlug(slug: string): Promise<IService | null> {
+    return ServiceModel.findOne({ slug, isActive: true }).populate("professionalId", "firstName lastName email phoneNumber profilePicture averageRating reviewCount status city address");
+  }
+
+  async create(payload: Partial<IService>): Promise<IService> {
+    return ServiceModel.create(payload);
+  }
+
+  async update(id: string, payload: Partial<IService>): Promise<IService | null> {
+    return ServiceModel.findByIdAndUpdate(id, payload, { new: true, runValidators: true });
+  }
+
+  async remove(id: string): Promise<boolean> {
+    const result = await ServiceModel.findByIdAndDelete(id);
+    return !!result;
+  }
+}
