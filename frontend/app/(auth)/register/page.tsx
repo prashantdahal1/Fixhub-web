@@ -60,18 +60,19 @@ export default function RegisterPage() {
       return; 
     }
     const [firstName = '', ...lastNameParts] = formData.fullName.trim().split(' ');
+    const lastName = lastNameParts.join(' ') || firstName;
     const payload = {
       firstName,
-      lastName: lastNameParts.join(' '),
+      lastName,
       email: formData.email,
-      phone: formData.phone,
+      phoneNumber: formData.phone,
       username: formData.email,
       password: formData.password,
       role: userType,
     };
     const result = CreateUserDTO.safeParse(payload);
     if (!result.success) {
-      const errMsg = result.error.issues.map((e) => e.message).join(', ');
+      const errMsg = result.error.issues.map((e) => `${e.path.join('.') || 'Field'}: ${e.message}`).join(', ');
       setError(errMsg);
       toast.error(errMsg);
       return;
@@ -80,7 +81,9 @@ export default function RegisterPage() {
     try {
       const submitData = new FormData();
       Object.entries(result.data).forEach(([key, value]) => {
-        submitData.append(key, value as string);
+        if (value !== undefined && value !== null) {
+          submitData.append(key, value as string);
+        }
       });
       if (formData.verificationDocument) {
         submitData.append('verificationDocument', formData.verificationDocument);

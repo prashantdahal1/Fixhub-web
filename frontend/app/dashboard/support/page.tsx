@@ -151,40 +151,24 @@ export default function SupportPage() {
     }
     setSubmitting(true);
     try {
-      // Simulate ticket creation locally (no API call)
-      const randomId = "TKT-" + Math.floor(10000 + Math.random() * 90000);
-      const now = new Date().toISOString();
-      const newTicket = {
-        _id: String(Date.now()),
-        ticketId: randomId,
-        subject: ticketSubject.trim(),
-        category: ticketCategory,
-        description: ticketMessage.trim(),
-        adminReply: "",
-        status: "Under Review",
-        createdAt: now,
-      };
-      setMyTickets((prev) => [newTicket, ...(prev || [])]);
-      // Notify the user locally
-      toast.success("Ticket created locally — support will review it shortly.");
-      // Dispatch a lightweight client-side admin notification event (no network)
-      try {
-        window.dispatchEvent(new CustomEvent('admin-notification', { detail: { title: 'New support ticket', body: `Ticket ${randomId} created`, ticket: newTicket } }));
-      } catch (e) {
-        // ignore
+      const res = await apiFetch("/api/v1/tickets", {
+        method: "POST",
+        body: JSON.stringify({
+          subject: ticketSubject.trim(),
+          category: ticketCategory,
+          description: ticketMessage.trim(),
+        }),
+      });
+      if (res?.data) {
+        setMyTickets((prev) => [res.data, ...(prev || [])]);
       }
-      // Also dispatch a local notification event for the current user view
-      try {
-        window.dispatchEvent(new CustomEvent('local-notification', { detail: { title: 'Ticket created', body: `Your ticket ${randomId} was submitted.` } }));
-      } catch (e) {
-        // ignore
-      }
+      toast.success("Ticket created successfully");
       setShowRaiseTicket(false);
       setTicketSubject("");
       setTicketCategory("");
       setTicketMessage("");
     } catch (err: any) {
-      toast.error(err?.message || "Failed to create ticket locally. Please try again.");
+      toast.error(err?.message || "Failed to create ticket. Please try again.");
     } finally {
       setSubmitting(false);
     }
