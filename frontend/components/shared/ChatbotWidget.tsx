@@ -121,27 +121,27 @@ export default function ChatbotWidget() {
 
     try {
       const payload = { message: trimmedText, history: updatedMessages, role: user?.role };
+      console.log("Chat widget sending payload:", payload);
 
-      const response = await fetch("/api/v1/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const response = await fetch('/api/v1/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.message || "Failed to get response from AI");
-      }
+      const data = await response.json();
+      console.log("Chat widget response:", data);
 
-      const resData = await response.json();
-
-      if (resData.success && resData.data?.response) {
+      if (response.ok && data?.success && data?.data?.response) {
+        if (data.data.providerError) {
+          setError(`AI provider error: ${data.data.providerError}`);
+        }
         setMessages((prev) => [
           ...prev,
-          { role: "model" as const, text: resData.data.response },
+          { role: "model" as const, text: data.data.response },
         ]);
       } else {
-        throw new Error("Invalid response from server");
+        throw new Error(data?.message || "Invalid response from server");
       }
     } catch (err: any) {
       console.error("Chat error:", err);
@@ -276,6 +276,12 @@ export default function ChatbotWidget() {
               </button>
             </div>
           </div>
+
+          {error && (
+            <div className="mx-4 mt-3 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-800">
+              {error}
+            </div>
+          )}
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3" style={{ background: "#f8fafc" }}>
