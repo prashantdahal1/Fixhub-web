@@ -21,7 +21,12 @@ export class UserService {
             }
             const hashedPassword = await bcrypt.hash(userData.password, 10);
             userData.password = hashedPassword;
-            const user = await userRepository.createUser(userData as any);
+            const dataToSave = {
+                ...userData,
+                status: userData.role === 'professional' ? 'pending' : ((userData as any).status || 'active'),
+                isVerified: userData.role === 'professional' ? false : ((userData as any).isVerified ?? false),
+            };
+            const user = await userRepository.createUser(dataToSave as any);
             return user;
         } catch (error: any) {
             console.error("Mongoose/MongoDB Save Error in UserService:", error);
@@ -153,6 +158,6 @@ export class UserService {
     }
 
     async verifyProfessional(id: string): Promise<IUser | null> {
-        return await userRepository.update(id, { isVerified: true });
+        return await userRepository.update(id, { isVerified: true, status: 'active' });
     }
 }

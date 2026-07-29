@@ -32,7 +32,13 @@ const UserMongoSchema: Schema = new Schema<IUser>(
         address: { type: String, default: '' },
         province: { type: String, default: '' },
         city: { type: String, default: '' },
-        status: { type: String, enum: ["active", "pending", "suspended"], default: "active" },
+        status: {
+            type: String,
+            enum: ["active", "pending", "suspended"],
+            default: function(this: any) {
+                return this.role === 'professional' ? 'pending' : 'active';
+            }
+        },
         resetPasswordToken: { type: String },
         resetPasswordExpires: { type: Date },
         isVerified: { type: Boolean, default: false },
@@ -47,6 +53,12 @@ const UserMongoSchema: Schema = new Schema<IUser>(
     }
 );
 
+UserMongoSchema.pre('save', function (this: any) {
+    if (this.isNew && this.role === 'professional') {
+        this.status = 'pending';
+        this.isVerified = false;
+    }
+});
 
 UserMongoSchema.index({ role: 1, status: 1 });
 UserMongoSchema.index({ role: 1, isVerified: 1 });

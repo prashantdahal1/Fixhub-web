@@ -8,7 +8,7 @@ import { UserMongoRepository } from './user.repository.js';
 
 function formatZodError(error: ZodError): string {
   return error.errors
-    .map((e) => `${e.path.join('.')}: ${e.message}`)
+    .map((e) => `${e.path.join('.') || 'Field'}: ${e.message}`)
     .join(', ');
 }
 
@@ -24,6 +24,15 @@ export class UserController {
                 return ApiResponseHelper.error(res, formatZodError(userData.error), 400);
             }
             const dataToSave = { ...userData.data } as any;
+            if (req.file) {
+                dataToSave.verificationDocument = `/uploads/documents/${req.file.filename}`;
+            }
+            if (dataToSave.role === 'professional') {
+                dataToSave.status = 'pending';
+                dataToSave.isVerified = false;
+            } else {
+                dataToSave.status = dataToSave.status || 'active';
+            }
             const user = await userService.createUser(dataToSave);
             return ApiResponseHelper.success(res, user, "User created successfully");
         } catch (error: any) {

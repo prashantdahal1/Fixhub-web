@@ -11,7 +11,7 @@ const userRouter = Router();
 const userController = new UserController();
 const userService = new UserService();
 
-userRouter.post("/register", userController.createUser.bind(userController));
+userRouter.post("/register", documentUpload.single('verificationDocument'), userController.createUser.bind(userController));
 userRouter.post("/login", userController.loginUser.bind(userController));
 userRouter.post("/upload", authMiddleware, profileUpload.single('avatar'), userController.updateProfile.bind(userController));
 userRouter.post("/logout", (req, res) => {

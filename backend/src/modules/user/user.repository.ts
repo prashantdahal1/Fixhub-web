@@ -49,6 +49,12 @@ export class UserMongoRepository implements IUserRepository {
         return UserModel.find().sort({ createdAt: -1 });
     }
     async getPaginatedUsers(page: number, limit: number, search?: string, role?: string, status?: string): Promise<{ data: IUser[], total: number }> {
+        // Auto-migrate any unverified professionals saved with 'active' status to 'pending'
+        await UserModel.updateMany(
+            { role: 'professional', isVerified: false, status: { $ne: 'pending' } },
+            { $set: { status: 'pending' } }
+        );
+
         const query: any = {};
         if (search) {
             const regex = new RegExp(search.trim(), 'i');
